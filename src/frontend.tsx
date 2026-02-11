@@ -8,12 +8,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { testDialogueLoading } from "./test-firebase-dialogue";
+import { AuthProvider } from "./features/auth/AuthContext";
+import { ProfileProvider } from "./features/profile/ProfileContext";
+import "./styles/quiz-ui.css";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <ProfileProvider>
+        <App />
+      </ProfileProvider>
+    </AuthProvider>
   </StrictMode>
 );
 
@@ -26,5 +32,3 @@ if (import.meta.hot) {
   createRoot(elem).render(app);
 }
 
-// Make test function available in console for debugging
-(window as any).testDialogueLoading = testDialogueLoading;

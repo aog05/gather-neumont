@@ -1,0 +1,1235 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "q001",
+      "type": "mcq",
+      "prompt": "Which computer part is often called the 'brain' because it runs instructions?",
+      "choices": [
+        "Monitor",
+        "CPU",
+        "Keyboard",
+        "Speakers"
+      ],
+      "correctIndex": 1,
+      "explanation": "The CPU (central processing unit) executes instructions and coordinates what the computer does.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "hardware",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q002",
+      "type": "mcq",
+      "prompt": "Which type of storage keeps your files even after you shut the computer down?",
+      "choices": [
+        "RAM",
+        "CPU cache",
+        "SSD/HDD storage",
+        "GPU memory"
+      ],
+      "correctIndex": 2,
+      "explanation": "RAM and caches are temporary. SSD/HDD storage is meant to keep data when the power is off.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "storage",
+        "hardware"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q003",
+      "type": "mcq",
+      "prompt": "What is the main job of an operating system (OS) like Windows or macOS?",
+      "choices": [
+        "Draw websites",
+        "Manage hardware and let apps run",
+        "Cool the CPU",
+        "Replace your internet provider"
+      ],
+      "correctIndex": 1,
+      "explanation": "An OS helps your computer hardware and software work together and provides the basics apps need to run.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "os",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q004",
+      "type": "mcq",
+      "prompt": "How many bits are in one byte?",
+      "choices": [
+        "4",
+        "8",
+        "16",
+        "64"
+      ],
+      "correctIndex": 1,
+      "explanation": "A byte is 8 bits. It's a common building block for measuring file sizes and memory.",
+      "difficulty": 2,
+      "tags": [
+        "bscs",
+        "hardware",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q005",
+      "type": "mcq",
+      "prompt": "In programming, what is a variable best described as?",
+      "choices": [
+        "A random number generator",
+        "A named place to store a value",
+        "A type of keyboard",
+        "A bug in code"
+      ],
+      "correctIndex": 1,
+      "explanation": "A variable is like a labeled box: you can put a value in it and reuse or change it later.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "programming",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q006",
+      "type": "mcq",
+      "prompt": "What does a loop do in code?",
+      "choices": [
+        "Deletes files",
+        "Repeats instructions",
+        "Makes the internet faster",
+        "Changes the keyboard layout"
+      ],
+      "correctIndex": 1,
+      "explanation": "Loops repeat a set of steps until a condition is met (or for a certain number of times).",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "programming",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q007",
+      "type": "mcq",
+      "prompt": "At Neumont, BSCS is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Computer Science",
+        "Bachelor of Science in Software Engineering",
+        "Bachelor of Science in Information Systems & Cybersecurity",
+        "Bachelor of Science in Software & Game Development"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSCS is the common abbreviation for Bachelor of Science in Computer Science.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q008",
+      "type": "mcq",
+      "prompt": "At Neumont, BSSE is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Software Engineering",
+        "Bachelor of Science in Computer Science",
+        "Bachelor of Science in Information Systems & Cybersecurity",
+        "Bachelor of Science in Software & Game Development"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSSE is the abbreviation for Bachelor of Science in Software Engineering.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q009",
+      "type": "mcq",
+      "prompt": "What does HTML mainly do on a webpage?",
+      "choices": [
+        "Adds structure and content",
+        "Encrypts passwords",
+        "Runs the database",
+        "Controls Wi-Fi strength"
+      ],
+      "correctIndex": 0,
+      "explanation": "HTML provides the structure of a page: headings, paragraphs, links, images, and more.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "web",
+        "html"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q010",
+      "type": "mcq",
+      "prompt": "What is CSS mainly used for on a webpage?",
+      "choices": [
+        "Storing files",
+        "Styling and layout",
+        "Sending emails",
+        "Detecting viruses"
+      ],
+      "correctIndex": 1,
+      "explanation": "CSS controls how a page looks: colors, spacing, fonts, and layout.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "web",
+        "css"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q011",
+      "type": "mcq",
+      "prompt": "What is JavaScript commonly used for on a website?",
+      "choices": [
+        "Making the page interactive (buttons, menus, logic)",
+        "Replacing the operating system",
+        "Physically cooling the laptop",
+        "Turning Wi-Fi into Bluetooth"
+      ],
+      "correctIndex": 0,
+      "explanation": "JavaScript adds behavior and interactivity, like form checks, animations, and dynamic updates.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "web",
+        "javascript"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q012",
+      "type": "mcq",
+      "prompt": "In many tech programs, what does 'capstone' usually mean?",
+      "choices": [
+        "A final, wrap-up project that shows what you learned",
+        "A type of computer mouse",
+        "A short pop quiz every day",
+        "A password reset email"
+      ],
+      "correctIndex": 0,
+      "explanation": "A capstone is typically a culminating project where you apply skills from multiple classes.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "capstone",
+        "campus"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q013",
+      "type": "mcq",
+      "prompt": "In a school setting, an 'enterprise project' is usually closest to what?",
+      "choices": [
+        "A team project that feels like real workplace work",
+        "A new phone plan for students",
+        "A video game tournament",
+        "A way to format your hard drive"
+      ],
+      "correctIndex": 0,
+      "explanation": "Enterprise-style projects often focus on teamwork, planning, and building something like a real product.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "enterprise",
+        "campus"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q014",
+      "type": "mcq",
+      "prompt": "What is a unit test?",
+      "choices": [
+        "A test of your Wi-Fi speed",
+        "A small test that checks one piece of code",
+        "A final exam for a whole semester",
+        "A tool that designs logos"
+      ],
+      "correctIndex": 1,
+      "explanation": "Unit tests check small parts of a program (like a function) so you can catch mistakes early.",
+      "difficulty": 2,
+      "tags": [
+        "bsse",
+        "testing",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q015",
+      "type": "mcq",
+      "prompt": "At Neumont, BSIS is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Information Systems & Cybersecurity",
+        "Bachelor of Science in Computer Science",
+        "Bachelor of Science in Software Engineering",
+        "Bachelor of Science in Software & Game Development"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSIS refers to Information Systems & Cybersecurity.",
+      "difficulty": 1,
+      "tags": [
+        "bsis",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q016",
+      "type": "mcq",
+      "prompt": "What is 'phishing'?",
+      "choices": [
+        "A trick message that tries to steal your info",
+        "A type of computer cable",
+        "A fast way to download games",
+        "A bug that only happens on Mondays"
+      ],
+      "correctIndex": 0,
+      "explanation": "Phishing tries to get you to click a bad link or share passwords, codes, or personal info.",
+      "difficulty": 1,
+      "tags": [
+        "bsis",
+        "security",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q017",
+      "type": "mcq",
+      "prompt": "What does 2FA (two-factor authentication) add on top of a password?",
+      "choices": [
+        "A second proof step like a code or app prompt",
+        "A longer username",
+        "A faster computer fan",
+        "A new email address"
+      ],
+      "correctIndex": 0,
+      "explanation": "2FA makes it harder for someone to log in even if they learn your password.",
+      "difficulty": 1,
+      "tags": [
+        "bsis",
+        "security",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q018",
+      "type": "mcq",
+      "prompt": "When a site uses HTTPS, what does that usually mean for your connection?",
+      "choices": [
+        "It's always a trustworthy website",
+        "Your connection is encrypted in transit",
+        "The site loads instantly",
+        "Your password is shown in plain text"
+      ],
+      "correctIndex": 1,
+      "explanation": "HTTPS encrypts data between your browser and the website, which helps protect it while it travels.",
+      "difficulty": 2,
+      "tags": [
+        "bsis",
+        "web",
+        "security"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q019",
+      "type": "mcq",
+      "prompt": "The security idea 'least privilege' is best explained as:",
+      "choices": [
+        "Give everyone admin access to save time",
+        "Only give the minimum access needed to do the job",
+        "Never update software",
+        "Use the same password everywhere"
+      ],
+      "correctIndex": 1,
+      "explanation": "Least privilege limits damage: if an account is misused, it can only do a small set of actions.",
+      "difficulty": 2,
+      "tags": [
+        "bsis",
+        "security",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q020",
+      "type": "mcq",
+      "prompt": "Why do many systems store passwords using a one-way 'hash' instead of saving the real password?",
+      "choices": [
+        "So the password can be easily recovered later",
+        "Because hashes are a one-way fingerprint, not the original text",
+        "To make passwords shorter",
+        "To share passwords with other websites"
+      ],
+      "correctIndex": 1,
+      "explanation": "A hash is designed to be one-way. If a database leaks, attackers don't automatically get everyone's actual passwords.",
+      "difficulty": 3,
+      "tags": [
+        "bsis",
+        "security",
+        "privacy"
+      ],
+      "basePoints": 200
+    },
+    {
+      "id": "q021",
+      "type": "mcq",
+      "prompt": "At Neumont, BSGD is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Software & Game Development",
+        "Bachelor of Science in Computer Science",
+        "Bachelor of Science in Software Engineering",
+        "Bachelor of Science in Information Systems & Cybersecurity"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSGD is the abbreviation for Bachelor of Science in Software & Game Development.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q022",
+      "type": "mcq",
+      "prompt": "In games, what does FPS usually stand for?",
+      "choices": [
+        "Frames per second",
+        "Fastest possible speed",
+        "File protection system",
+        "First-person settings"
+      ],
+      "correctIndex": 0,
+      "explanation": "Frames per second is how many images are drawn each second. Higher FPS can feel smoother.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "games",
+        "performance"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q023",
+      "type": "mcq",
+      "prompt": "In online games, 'ping' is closest to:",
+      "choices": [
+        "How loud your speakers are",
+        "How long data takes to travel to the server and back",
+        "How many players are on your team",
+        "How much storage your PC has"
+      ],
+      "correctIndex": 1,
+      "explanation": "Ping (latency) measures delay. Lower ping usually means your actions feel more responsive.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "networks",
+        "performance"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q024",
+      "type": "mcq",
+      "prompt": "In 2D games, a 'sprite' is usually:",
+      "choices": [
+        "A small image used for a character or object",
+        "A secret cheat code",
+        "A type of internet router",
+        "A physics equation"
+      ],
+      "correctIndex": 0,
+      "explanation": "Sprites are 2D images that represent characters, items, or effects on screen.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "games",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q025",
+      "type": "mcq",
+      "prompt": "Which description best matches a simple 'game loop'?",
+      "choices": [
+        "Save the game once and stop",
+        "Repeat: read input -> update game state -> draw the frame",
+        "Download updates every second",
+        "Turn off the monitor to improve FPS"
+      ],
+      "correctIndex": 1,
+      "explanation": "Most games repeatedly handle input, update what's happening, and render frames many times per second.",
+      "difficulty": 2,
+      "tags": [
+        "bsgd",
+        "games",
+        "programming"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q026",
+      "type": "mcq",
+      "prompt": "What is a game engine (like Unity or Unreal) mainly used for?",
+      "choices": [
+        "A toolset to help build games (graphics, input, physics, etc.)",
+        "A way to stream movies",
+        "A type of antivirus",
+        "A replacement for a keyboard"
+      ],
+      "correctIndex": 0,
+      "explanation": "Game engines provide building blocks so you can focus on the game instead of starting from zero.",
+      "difficulty": 2,
+      "tags": [
+        "bsgd",
+        "games",
+        "tools"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q027",
+      "type": "mcq",
+      "prompt": "At a high level, what's a common difference between 2D and 3D games?",
+      "choices": [
+        "2D is always online; 3D is always offline",
+        "2D uses width/height; 3D adds depth",
+        "2D can't have sound; 3D can",
+        "3D games can't use controllers"
+      ],
+      "correctIndex": 1,
+      "explanation": "2D is usually described with two directions (x and y). 3D adds a third direction (z) for depth.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "games",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q028",
+      "type": "mcq",
+      "prompt": "At Neumont, BSAAI is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Applied Artificial Intelligence and Data Engineering",
+        "Bachelor of Science in Artificial Intelligence Engineering",
+        "Bachelor of Science in Computer Science",
+        "Bachelor of Science in Software Engineering"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSAAI refers to Applied Artificial Intelligence and Data Engineering.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q029",
+      "type": "mcq",
+      "prompt": "What is a database used for?",
+      "choices": [
+        "Storing and organizing information so it can be searched and updated",
+        "Making your monitor brighter",
+        "Turning code into music",
+        "Cooling your laptop"
+      ],
+      "correctIndex": 0,
+      "explanation": "Databases store structured information (like accounts or orders) so apps can find and change it reliably.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q030",
+      "type": "mcq",
+      "prompt": "A CSV file is best described as:",
+      "choices": [
+        "A photo format",
+        "A spreadsheet-like text file with values separated by commas",
+        "A type of video game",
+        "A secure password vault"
+      ],
+      "correctIndex": 1,
+      "explanation": "CSV (comma-separated values) is a simple way to store rows and columns using plain text.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q031",
+      "type": "mcq",
+      "prompt": "What does 'data cleaning' usually mean?",
+      "choices": [
+        "Deleting all your files",
+        "Fixing messy data (missing values, duplicates, wrong formats)",
+        "Making data look prettier with colors",
+        "Encrypting your keyboard"
+      ],
+      "correctIndex": 1,
+      "explanation": "Clean data is easier to analyze and less likely to produce confusing or wrong results.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q032",
+      "type": "mcq",
+      "prompt": "If you're predicting the price of a house, which is an example of a 'feature'?",
+      "choices": [
+        "The color of the website",
+        "Number of bedrooms",
+        "The word 'house'",
+        "The password to the database"
+      ],
+      "correctIndex": 1,
+      "explanation": "A feature is an input piece of information the model can use to make a prediction.",
+      "difficulty": 2,
+      "tags": [
+        "bsaai",
+        "data",
+        "ai"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q033",
+      "type": "mcq",
+      "prompt": "Which is the best example of structured data?",
+      "choices": [
+        "A spreadsheet of student names and IDs",
+        "A random selfie photo",
+        "A voice recording",
+        "A movie trailer"
+      ],
+      "correctIndex": 0,
+      "explanation": "Structured data fits neatly into rows and columns with consistent fields, like a table.",
+      "difficulty": 2,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q034",
+      "type": "mcq",
+      "prompt": "At Neumont, BSAIE is short for which bachelor program name?",
+      "choices": [
+        "Bachelor of Science in Artificial Intelligence Engineering",
+        "Bachelor of Science in Applied Artificial Intelligence and Data Engineering",
+        "Bachelor of Science in Information Systems & Cybersecurity",
+        "Bachelor of Science in Software & Game Development"
+      ],
+      "correctIndex": 0,
+      "explanation": "BSAIE refers to Artificial Intelligence Engineering.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "campus",
+        "degrees"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q035",
+      "type": "mcq",
+      "prompt": "At a high level, what is an AI model?",
+      "choices": [
+        "A set of learned patterns that can make predictions or generate outputs",
+        "A type of keyboard shortcut",
+        "A new Wi-Fi standard",
+        "A computer case design"
+      ],
+      "correctIndex": 0,
+      "explanation": "An AI model is trained on data so it can produce outputs like classifications, predictions, or text.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q036",
+      "type": "mcq",
+      "prompt": "Which pairing best matches 'training' vs 'inference' in AI?",
+      "choices": [
+        "Training: using a keyboard; Inference: using a mouse",
+        "Training: learning from data; Inference: using what was learned to make an output",
+        "Training: installing software; Inference: uninstalling software",
+        "Training: turning on Wi-Fi; Inference: turning it off"
+      ],
+      "correctIndex": 1,
+      "explanation": "Training is when the model learns from examples. Inference is when the trained model produces an output.",
+      "difficulty": 2,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q037",
+      "type": "mcq",
+      "prompt": "Why do GPUs often help with AI and graphics workloads?",
+      "choices": [
+        "They are better at doing many similar calculations at once",
+        "They store more passwords",
+        "They replace the operating system",
+        "They make Wi-Fi signals stronger"
+      ],
+      "correctIndex": 0,
+      "explanation": "GPUs are built for lots of parallel work, which is common in graphics and many AI computations.",
+      "difficulty": 2,
+      "tags": [
+        "bsaie",
+        "hardware",
+        "ai"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q038",
+      "type": "mcq",
+      "prompt": "What is 'overfitting' in machine learning?",
+      "choices": [
+        "When a model learns the training examples too specifically and does poorly on new data",
+        "When a laptop overheats",
+        "When code is too short to run",
+        "When a dataset has too many columns"
+      ],
+      "correctIndex": 0,
+      "explanation": "Overfitting is like memorizing practice questions instead of learning the concept - great on training data, weaker on new cases.",
+      "difficulty": 3,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 200
+    },
+    {
+      "id": "q039",
+      "type": "mcq",
+      "prompt": "In an AI chat tool, what is a 'prompt'?",
+      "choices": [
+        "The instruction or question you give the AI",
+        "A graphics card driver",
+        "A type of computer virus",
+        "A backup file"
+      ],
+      "correctIndex": 0,
+      "explanation": "Your prompt is the input text that tells the AI what you want.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q040",
+      "type": "mcq",
+      "prompt": "Which habit is a good way to use AI tools responsibly?",
+      "choices": [
+        "Assume the AI is always correct",
+        "Verify important facts with reliable sources",
+        "Share private passwords to get better answers",
+        "Skip reading the output and submit it"
+      ],
+      "correctIndex": 1,
+      "explanation": "AI can make mistakes, so double-check important details - especially for school, work, or safety.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "ai",
+        "safety"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q041",
+      "type": "select-all",
+      "prompt": "Which are good password habits? (Select all that apply)",
+      "choices": [
+        "Use a long passphrase",
+        "Reuse the same password on every site",
+        "Use a password manager",
+        "Turn on 2FA when available",
+        "Share your password in chat to save time"
+      ],
+      "correctIndices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "Long, unique passwords plus a password manager and 2FA make accounts much harder to take over.",
+      "difficulty": 1,
+      "tags": [
+        "bsis",
+        "security",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q042",
+      "type": "select-all",
+      "prompt": "Which are common phishing red flags? (Select all that apply)",
+      "choices": [
+        "A message creates urgency like 'act now!'",
+        "The sender address looks slightly wrong",
+        "It asks for a password or a 2FA code",
+        "It links to a domain you weren't expecting",
+        "It includes your first name correctly"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "explanation": "Phishing often uses urgency and odd links/senders to trick you into giving up info or clicking something unsafe.",
+      "difficulty": 2,
+      "tags": [
+        "bsis",
+        "security",
+        "internet"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q043",
+      "type": "select-all",
+      "prompt": "What can version control (like Git) help with? (Select all that apply)",
+      "choices": [
+        "Track changes to code over time",
+        "Work with teammates without emailing files back and forth",
+        "Undo or review past changes",
+        "Automatically fix every bug",
+        "See who changed what and when"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "explanation": "Version control keeps a history of changes and supports teamwork, but it doesn't magically fix bugs.",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "git",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q044",
+      "type": "select-all",
+      "prompt": "Which steps are part of a typical Git workflow? (Select all that apply)",
+      "choices": [
+        "Edit files",
+        "Commit changes with a message",
+        "Push to a remote repository",
+        "Defragment the hard drive",
+        "Pull updates from teammates"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "explanation": "A common flow is edit -> commit -> push, and pull to get other people's changes.",
+      "difficulty": 2,
+      "tags": [
+        "bsse",
+        "git",
+        "workflow"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q045",
+      "type": "select-all",
+      "prompt": "Which changes can often improve game performance on a PC? (Select all that apply)",
+      "choices": [
+        "Lower the game's graphics settings",
+        "Close extra background apps",
+        "Restart the game (or the PC)",
+        "Open more browser tabs while playing",
+        "Lower the game's screen resolution"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "explanation": "Lower settings/resolution and closing background apps reduce workload. Restarting can clear issues that build up over time.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "performance",
+        "games"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q046",
+      "type": "select-all",
+      "prompt": "Which are common ways games receive player input? (Select all that apply)",
+      "choices": [
+        "Keyboard",
+        "Mouse or touchpad",
+        "Game controller",
+        "Touchscreen taps/swipes",
+        "The room's temperature"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "explanation": "Games typically listen to device input (keyboard, mouse, controller, touch), not things like temperature.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "games",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q047",
+      "type": "select-all",
+      "prompt": "Which are examples of data formats you might store or send? (Select all that apply)",
+      "choices": [
+        "CSV",
+        "JSON",
+        "PNG",
+        "MP3",
+        "RAM"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "explanation": "CSV/JSON are common for structured data, and PNG/MP3 are common media file formats. RAM is memory, not a file format.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q048",
+      "type": "select-all",
+      "prompt": "Which issues can hurt data quality for analysis or AI? (Select all that apply)",
+      "choices": [
+        "Duplicate rows",
+        "Missing values",
+        "Inconsistent units (mixing inches and centimeters)",
+        "Clear column names",
+        "Typos in category labels (like 'Utah' vs 'Uath')"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "explanation": "Duplicates, missing info, inconsistent units, and messy labels can confuse analysis and lead to bad results.",
+      "difficulty": 2,
+      "tags": [
+        "bsaai",
+        "data",
+        "quality"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q049",
+      "type": "select-all",
+      "prompt": "Which statements about AI outputs are generally true? (Select all that apply)",
+      "choices": [
+        "AI can make mistakes or 'hallucinate' details",
+        "AI always knows the latest news without checking sources",
+        "AI output can reflect patterns in its training data",
+        "AI should be double-checked for high-stakes info",
+        "AI is the same as Wi-Fi"
+      ],
+      "correctIndices": [
+        0,
+        2,
+        3
+      ],
+      "explanation": "AI is useful but not perfect. It's best to verify important information and remember it's shaped by data it learned from.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q050",
+      "type": "select-all",
+      "prompt": "Which are input devices (things you use to send information to the computer)? (Select all that apply)",
+      "choices": [
+        "Keyboard",
+        "Mouse",
+        "Microphone",
+        "Monitor",
+        "Webcam"
+      ],
+      "correctIndices": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "explanation": "Input devices send data in (keys, clicks, sound, video). A monitor mainly outputs visuals.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "hardware",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q051",
+      "type": "written",
+      "prompt": "What does CPU stand for?",
+      "acceptedAnswers": [
+        "central processing unit",
+        "Central Processing Unit"
+      ],
+      "explanation": "CPU stands for Central Processing Unit - the part that runs instructions.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "hardware",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q052",
+      "type": "written",
+      "prompt": "What does RAM stand for?",
+      "acceptedAnswers": [
+        "random access memory",
+        "Random Access Memory"
+      ],
+      "explanation": "RAM is Random Access Memory - fast, temporary working memory for what you're doing right now.",
+      "difficulty": 1,
+      "tags": [
+        "bscs",
+        "hardware",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q053",
+      "type": "written",
+      "prompt": "In Git, what command word is used to send your local commits to a remote repository?",
+      "acceptedAnswers": [
+        "push",
+        "git push"
+      ],
+      "explanation": "You 'push' to upload your commits to the remote (like on GitHub).",
+      "difficulty": 1,
+      "tags": [
+        "bsse",
+        "git",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q054",
+      "type": "written",
+      "prompt": "What does 2FA stand for?",
+      "acceptedAnswers": [
+        "two factor authentication",
+        "two-factor authentication",
+        "Two Factor Authentication"
+      ],
+      "explanation": "2FA means Two-Factor Authentication - using a second proof step in addition to a password.",
+      "difficulty": 1,
+      "tags": [
+        "bsis",
+        "security",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q055",
+      "type": "written",
+      "prompt": "What does DNS stand for?",
+      "acceptedAnswers": [
+        "domain name system",
+        "Domain Name System"
+      ],
+      "explanation": "DNS is the Domain Name System. It helps turn names like example.com into the numeric addresses computers use.",
+      "difficulty": 3,
+      "tags": [
+        "bsis",
+        "internet",
+        "basics"
+      ],
+      "basePoints": 200
+    },
+    {
+      "id": "q056",
+      "type": "written",
+      "prompt": "What does FPS stand for in gaming?",
+      "acceptedAnswers": [
+        "frames per second",
+        "Frames Per Second",
+        "frame per second"
+      ],
+      "explanation": "FPS means Frames Per Second - how many frames are drawn each second.",
+      "difficulty": 1,
+      "tags": [
+        "bsgd",
+        "games",
+        "performance"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q057",
+      "type": "written",
+      "prompt": "What does CSV stand for?",
+      "acceptedAnswers": [
+        "comma separated values",
+        "comma-separated values",
+        "Comma Separated Values"
+      ],
+      "explanation": "CSV means Comma-Separated Values, a plain-text way to store rows and columns.",
+      "difficulty": 2,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q058",
+      "type": "written",
+      "prompt": "What do you call a collection of related data used for analysis (or to train a model)?",
+      "acceptedAnswers": [
+        "dataset",
+        "data set"
+      ],
+      "explanation": "A dataset is a collection of data points you can analyze or use for training/testing.",
+      "difficulty": 1,
+      "tags": [
+        "bsaai",
+        "data",
+        "basics"
+      ],
+      "basePoints": 100
+    },
+    {
+      "id": "q059",
+      "type": "written",
+      "prompt": "In AI, what do we call the step where a trained model uses what it learned to make a prediction?",
+      "acceptedAnswers": [
+        "inference"
+      ],
+      "explanation": "Inference is when the trained model produces an output (like a prediction or generated text).",
+      "difficulty": 2,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 150
+    },
+    {
+      "id": "q060",
+      "type": "written",
+      "prompt": "In AI chat tools, what do you call the text you type to ask the model to do something?",
+      "acceptedAnswers": [
+        "prompt",
+        "a prompt"
+      ],
+      "explanation": "Your prompt is the instruction or question you give the AI.",
+      "difficulty": 1,
+      "tags": [
+        "bsaie",
+        "ai",
+        "basics"
+      ],
+      "basePoints": 100
+    }
+  ]
+}
