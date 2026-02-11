@@ -1,6 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Phaser from "phaser";
 import createGame from "./game.ts";
+import { appEvents } from "./events/appEvents";
+import { isOverlayRoute } from "./utils/overlayRoutes";
 import DialogueUI from "./components/DialogueUI.tsx";
 import QuestTracker from "./components/QuestTracker.tsx";
 import PlayerProfile from "./components/PlayerProfile.tsx";
@@ -26,6 +29,8 @@ const TEST_PLAYER_USERNAME = "sarah_dev"; // Stable username from seed data
 
 function GamePage() {
   const gameRef = useRef<Phaser.Game | null>(null);
+  const location = useLocation();
+  const [isDailyQuizOpen, setIsDailyQuizOpen] = useState(false);
 
   // Fetch quest data for the current player by username (reseed-proof)
   console.log(`[Game] Using player username: ${TEST_PLAYER_USERNAME}`);
@@ -127,8 +132,40 @@ function GamePage() {
     }
   }, [error, playerError]);
 
+  useEffect(() => {
+    const game = gameRef.current;
+    if (!game) return;
+
+    const isOverlayRouteActive = isOverlayRoute(location.pathname);
+    const enabled = !isOverlayRouteActive && !isDailyQuizOpen;
+
+    const keyboard = (game as any).input?.keyboard as Phaser.Input.Keyboard.KeyboardPlugin | undefined;
+    if (keyboard) {
+      keyboard.enabled = enabled;
+    }
+
+    // Also toggle any active scene keyboard plugins (defensive).
+    for (const scene of game.scene.getScenes(true)) {
+      const sceneKeyboard = (scene as any)?.input?.keyboard as
+        | Phaser.Input.Keyboard.KeyboardPlugin
+        | undefined;
+      if (sceneKeyboard) {
+        sceneKeyboard.enabled = enabled;
+      }
+    }
+  }, [isDailyQuizOpen, location.pathname]);
+
+  useEffect(() => {
+    const offDailyQuizOpen = appEvents.onDailyQuizOpenChanged((isOpen) => {
+      setIsDailyQuizOpen(isOpen);
+    });
+    return () => {
+      offDailyQuizOpen();
+    };
+  }, []);
+
   return (
-    <div className="game-wrapper">
+    <div className="game-wrapper" style={{ position: "fixed", inset: 0 }}>
       <div id="game-container" />
       <DialogueUI />
 

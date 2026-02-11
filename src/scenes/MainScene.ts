@@ -27,6 +27,10 @@ export class MainScene extends Phaser.Scene {
   private bridge!: GameEventBridge;
   private playerState: "EXPLORING" | "DIALOGUE" = "EXPLORING";
   private escapeKey!: Phaser.Input.Keyboard.Key;
+  private interactKey!: Phaser.Input.Keyboard.Key;
+  private quizTerminal!: Phaser.GameObjects.Rectangle;
+  private quizTerminalZone!: Phaser.GameObjects.Zone;
+  private quizPromptText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "MainScene" });
@@ -74,6 +78,37 @@ export class MainScene extends Phaser.Scene {
     this.escapeKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.ESC,
     );
+    this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+    // Daily Quiz "terminal" (placeholder interactable)
+    const terminalX = spawnPos.x + 120;
+    const terminalY = spawnPos.y;
+
+    this.quizTerminal = this.add.rectangle(terminalX, terminalY, 78, 62, 0x7c3aed);
+    this.quizTerminal.setStrokeStyle(2, 0xffffff, 0.9);
+    this.quizTerminal.setDepth(2);
+
+    const terminalLabel = this.add.text(terminalX, terminalY - 6, "Daily Quiz", {
+      fontSize: "14px",
+      color: "#ffffff",
+      fontStyle: "600",
+    });
+    terminalLabel.setOrigin(0.5);
+    terminalLabel.setDepth(3);
+
+    // Overlap zone (slightly larger than the terminal so it feels usable)
+    this.quizTerminalZone = this.add.zone(terminalX, terminalY, 140, 120);
+    this.physics.add.existing(this.quizTerminalZone, true);
+
+    this.quizPromptText = this.add.text(terminalX, terminalY + 54, "Press E to start quiz", {
+      fontSize: "12px",
+      color: "#ffffff",
+      backgroundColor: "rgba(0, 0, 0, 0.55)",
+      padding: { x: 8, y: 4 },
+    });
+    this.quizPromptText.setOrigin(0.5);
+    this.quizPromptText.setVisible(false);
+    this.quizPromptText.setDepth(3);
 
     // Configure camera to follow player
     this.cameras.main.startFollow(this.player);
@@ -141,6 +176,9 @@ export class MainScene extends Phaser.Scene {
 
     // Disable player movement during dialogue
     if (this.playerState === "DIALOGUE") {
+      if (this.quizPromptText) {
+        this.quizPromptText.setVisible(false);
+      }
       playerBody.setVelocity(0, 0);
       return; // Skip movement input
     }
@@ -161,6 +199,34 @@ export class MainScene extends Phaser.Scene {
       playerBody.setVelocityY(PLAYER_SPEED);
     } else {
       playerBody.setVelocityY(0);
+    }
+
+    const isNearTerminal =
+      Boolean(
+        this.quizTerminalZone &&
+          this.physics.overlap(this.player, this.quizTerminalZone),
+      ) ||
+      Boolean(
+        this.quizTerminal &&
+          Phaser.Math.Distance.Between(
+            this.player.x,
+            this.player.y,
+            this.quizTerminal.x,
+            this.quizTerminal.y,
+          ) <= 90,
+      );
+
+    if (this.quizPromptText) {
+      this.quizPromptText.setVisible(isNearTerminal);
+    }
+
+    if (
+      isNearTerminal &&
+      this.interactKey &&
+      Phaser.Input.Keyboard.JustDown(this.interactKey)
+    ) {
+      console.log("[quiz] dailyQuiz:start dispatched");
+      window.dispatchEvent(new CustomEvent("dailyQuiz:start"));
     }
   }
 }
