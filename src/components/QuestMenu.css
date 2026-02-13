@@ -1,0 +1,467 @@
+/**
+ * QuestMenu Styles - Neumont Brand Identity
+ * Clean, high-tech, professional aesthetic
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
+ */
+
+/* Overlay */
+.quest-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Main Menu Container */
+.quest-menu {
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  background: linear-gradient(135deg, #1F1F1F 0%, #2a2a2a 100%);
+  border: 3px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 221, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scale(0.95) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Tech corner accents - Neumont Yellow */
+.quest-menu::before,
+.quest-menu::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #FFDD00;
+}
+
+.quest-menu::before {
+  top: -3px;
+  left: -3px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.quest-menu::after {
+  bottom: -3px;
+  right: -3px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Header */
+.quest-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 3px solid #3a3a3a;
+  position: relative;
+}
+
+.quest-menu-header::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  width: 80px;
+  height: 3px;
+  background: #FFDD00;
+}
+
+.quest-menu-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFDD00;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 12px rgba(255, 221, 0, 0.4);
+}
+
+.quest-menu-close-btn {
+  background: #2a2a2a;
+  border: 2px solid #FFDD00;
+  color: #FFDD00;
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  transition: all 0.2s ease;
+}
+
+.quest-menu-close-btn:hover {
+  background: #FFDD00;
+  color: #1F1F1F;
+  box-shadow: 0 0 16px rgba(255, 221, 0, 0.6);
+}
+
+/* Tabs */
+.quest-menu-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 28px;
+  background: rgba(58, 58, 58, 0.3);
+  border-bottom: 2px solid #3a3a3a;
+}
+
+.quest-menu-tab {
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 16px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.quest-menu-tab:hover {
+  color: #FFDD00;
+  background: rgba(58, 58, 58, 0.5);
+}
+
+.quest-menu-tab.active {
+  color: #FFDD00;
+  background: rgba(58, 58, 58, 0.6);
+}
+
+.quest-menu-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #FFDD00;
+}
+
+/* Content Area */
+.quest-menu-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  min-height: 300px;
+}
+
+/* Quest List */
+.quest-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Quest Item */
+.quest-menu-item {
+  background: linear-gradient(135deg, rgba(58, 58, 58, 0.3) 0%, rgba(42, 42, 42, 0.3) 100%);
+  border: 2px solid #3a3a3a;
+  border-radius: 0;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.quest-menu-item:hover {
+  border-color: #FFDD00;
+  background: linear-gradient(135deg, rgba(58, 58, 58, 0.5) 0%, rgba(42, 42, 42, 0.5) 100%);
+  transform: translateX(4px);
+  box-shadow: -4px 0 12px rgba(255, 221, 0, 0.2);
+}
+
+.quest-menu-item.selected {
+  border-color: #FFDD00;
+  background: linear-gradient(135deg, rgba(255, 221, 0, 0.15) 0%, rgba(255, 221, 0, 0.1) 100%);
+}
+
+.quest-menu-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #FFDD00;
+}
+
+.quest-menu-item.completed {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.quest-menu-item.completed:hover {
+  transform: none;
+  border-color: #3a3a3a;
+  box-shadow: none;
+}
+
+/* Quest Item Header */
+.quest-menu-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+.quest-menu-item-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quest-menu-item-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.quest-menu-item-badge {
+  background: #FFDD00;
+  color: #1F1F1F;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.quest-menu-item-badge.completed {
+  background: #4caf50;
+  color: #ffffff;
+}
+
+/* Remove Button */
+.quest-menu-item-remove-btn {
+  background: transparent;
+  border: 1px solid #3a3a3a;
+  color: #666;
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.quest-menu-item-remove-btn:hover {
+  background: #FFDD00;
+  color: #1F1F1F;
+  border-color: #FFDD00;
+  transform: rotate(90deg);
+}
+
+.quest-menu-item-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d0d0d0;
+  margin: 0 0 12px 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  font-weight: 400;
+}
+
+.quest-menu-item-rewards {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.quest-menu-item-reward {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quest-menu-item-reward.earned {
+  color: #4caf50;
+}
+
+/* Complete Button (TEST ONLY) */
+.quest-menu-item-complete-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  border: 2px solid #4caf50;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+}
+
+.quest-menu-item-complete-btn:hover {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  border-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.quest-menu-item-complete-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+}
+
+/* Empty State */
+.quest-menu-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+}
+
+.quest-menu-empty p {
+  font-size: 18px;
+  margin: 0 0 8px 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  font-weight: 700;
+}
+
+.quest-menu-empty-hint {
+  font-size: 14px;
+  color: #666;
+  font-style: normal;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Footer */
+.quest-menu-footer {
+  padding: 16px 28px;
+  border-top: 2px solid #3a3a3a;
+  background: rgba(58, 58, 58, 0.3);
+}
+
+.quest-menu-hint {
+  font-size: 12px;
+  color: #FFDD00;
+  text-align: center;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Scrollbar styling */
+.quest-menu-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quest-menu-content::-webkit-scrollbar-track {
+  background: rgba(58, 58, 58, 0.3);
+}
+
+.quest-menu-content::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 0;
+}
+
+.quest-menu-content::-webkit-scrollbar-thumb:hover {
+  background: #FFDD00;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .quest-menu {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .quest-menu-header {
+    padding: 18px 20px;
+  }
+
+  .quest-menu-title {
+    font-size: 22px;
+  }
+
+  .quest-menu-tabs {
+    padding: 0 20px;
+  }
+
+  .quest-menu-tab {
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+
+  .quest-menu-content {
+    padding: 18px 20px;
+  }
+
+  .quest-menu-item {
+    padding: 14px 16px;
+  }
+
+  .quest-menu-item-title {
+    font-size: 16px;
+  }
+
+  .quest-menu-item-desc {
+    font-size: 13px;
+  }
+}
+

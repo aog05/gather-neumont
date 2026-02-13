@@ -1,0 +1,212 @@
+/**
+ * QuestTracker Styles - Neumont Brand Identity
+ * Clean, high-tech, professional aesthetic
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
+ */
+
+/* Quest Tracker - Minimized State */
+.quest-tracker {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 280px;
+  background: linear-gradient(135deg, rgba(31, 31, 31, 0.95) 0%, rgba(25, 25, 25, 0.95) 100%);
+  border: 2px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 221, 0, 0.1);
+  padding: 16px;
+  z-index: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.quest-tracker:hover {
+  border-color: #FFDD00;
+  box-shadow:
+    0 6px 20px rgba(255, 221, 0, 0.3),
+    inset 0 1px 0 rgba(255, 221, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Tech corner accents - Neumont Yellow */
+.quest-tracker::before,
+.quest-tracker::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #FFDD00;
+}
+
+.quest-tracker::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.quest-tracker::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Header */
+.quest-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3a3a3a;
+  position: relative;
+}
+
+.quest-tracker-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: #FFDD00;
+}
+
+.quest-tracker-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 8px rgba(255, 221, 0, 0.3);
+}
+
+.quest-tracker-count {
+  background: #FFDD00;
+  color: #1F1F1F;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Content */
+.quest-tracker-content {
+  margin-bottom: 8px;
+}
+
+.quest-tracker-quest-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  line-height: 1.3;
+}
+
+.quest-tracker-quest-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d0d0d0;
+  margin: 0 0 10px 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  font-weight: 400;
+}
+
+.quest-tracker-reward {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(58, 58, 58, 0.4);
+  border-left: 3px solid #FFDD00;
+}
+
+.quest-tracker-reward-icon {
+  font-size: 14px;
+  color: #FFDD00;
+}
+
+.quest-tracker-reward-points {
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* No quest state */
+.quest-tracker-no-quest {
+  font-size: 14px;
+  color: #888;
+  margin: 0 0 4px 0;
+  font-style: normal;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+.quest-tracker-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Expand hint */
+.quest-tracker-expand-hint {
+  font-size: 10px;
+  color: #FFDD00;
+  text-align: center;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  opacity: 0.6;
+}
+
+/* Loading state */
+.quest-tracker-loading {
+  cursor: default;
+}
+
+.quest-tracker-loading:hover {
+  transform: none;
+  border-color: #3a3a3a;
+}
+
+.quest-tracker-loading-text {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+  text-align: center;
+  font-style: normal;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .quest-tracker {
+    width: 240px;
+    top: 10px;
+    right: 10px;
+    padding: 12px;
+  }
+
+  .quest-tracker-title {
+    font-size: 12px;
+  }
+
+  .quest-tracker-quest-title {
+    font-size: 14px;
+  }
+
+  .quest-tracker-quest-desc {
+    font-size: 12px;
+  }
+}
+

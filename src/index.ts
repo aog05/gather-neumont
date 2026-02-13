@@ -1,17 +1,41 @@
-import { serve } from "bun";
-import index from "./index.html";
+import { serve, file } from "bun";
+import { join } from "path";
+
+const projectRoot = join(import.meta.dir, "..");
+const distDir = join(projectRoot, "dist");
+const assetsDir = join(projectRoot, "assets");
 
 const server = serve({
-  routes: {
-    // Serve index.html for all unmatched routes.
-    "/*": index,
-  },
-  development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
-    hmr: true,
+  port: 3000,
+  async fetch(req) {
+    const url = new URL(req.url);
+    const pathname = url.pathname;
 
-    // Echo console logs from the browser to the server
-    console: true,
+    // Serve assets from the assets directory
+    if (pathname.startsWith("/assets/")) {
+      const assetPath = join(assetsDir, pathname.replace("/assets/", ""));
+      const assetFile = file(assetPath);
+
+      if (await assetFile.exists()) {
+        return new Response(assetFile);
+      }
+    }
+
+    // Serve built files from dist directory
+    if (pathname !== "/" && pathname !== "") {
+      const distPath = join(distDir, pathname);
+      const distFile = file(distPath);
+
+      if (await distFile.exists()) {
+        return new Response(distFile);
+      }
+    }
+
+    // Serve index.html for root and SPA routes
+    const indexPath = join(distDir, "index.html");
+    return new Response(file(indexPath), {
+      headers: { "Content-Type": "text/html" },
+    });
   },
 });
 

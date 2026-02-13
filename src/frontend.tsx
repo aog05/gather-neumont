@@ -8,6 +8,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { testDialogueLoading } from "./test-firebase-dialogue";
 
 const elem = document.getElementById("root")!;
 const app = (
@@ -24,3 +25,6 @@ if (import.meta.hot) {
   // The hot module reloading API is not available in production.
   createRoot(elem).render(app);
 }
+
+// Make test function available in console for debugging
+(window as any).testDialogueLoading = testDialogueLoading;
