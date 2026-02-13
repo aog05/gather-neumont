@@ -1,0 +1,275 @@
+/**
+ * DialogueUI Styles - Neumont Brand Identity
+ * Clean, high-tech, professional aesthetic
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
+ */
+
+/* Overlay that covers the entire screen */
+.dialogue-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* Main dialogue box - Industrial tech aesthetic */
+.dialogue-box {
+  width: 90%;
+  max-width: 800px;
+  background: linear-gradient(135deg, #1F1F1F 0%, #2a2a2a 100%);
+  border: 3px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow:
+    0 -8px 32px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 221, 0, 0.1);
+  margin-bottom: 40px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+/* Tech corner accents - Neumont Yellow */
+.dialogue-box::before,
+.dialogue-box::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #FFDD00;
+}
+
+.dialogue-box::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.dialogue-box::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Header with speaker name and close button - Bold & Direct */
+.dialogue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #3a3a3a;
+  position: relative;
+}
+
+.dialogue-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: #FFDD00;
+}
+
+.dialogue-speaker {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(255, 221, 0, 0.3);
+}
+
+.dialogue-close-btn {
+  background: #2a2a2a;
+  border: 2px solid #FFDD00;
+  color: #FFDD00;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  transition: all 0.2s ease;
+}
+
+.dialogue-close-btn:hover {
+  background: #FFDD00;
+  color: #1F1F1F;
+  box-shadow: 0 0 12px rgba(255, 221, 0, 0.6);
+}
+
+/* Dialogue content area - Technical & Energetic */
+.dialogue-content {
+  min-height: 90px;
+  position: relative;
+  padding: 12px;
+  background: rgba(58, 58, 58, 0.3);
+  border-left: 3px solid #FFDD00;
+}
+
+.dialogue-text {
+  font-size: 17px;
+  line-height: 1.7;
+  color: #f0f0f0;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  font-weight: 400;
+}
+
+.dialogue-typing-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  color: #FFDD00;
+  font-size: 18px;
+  font-weight: bold;
+  animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Response buttons container - Vocational & Action-Oriented */
+.dialogue-responses {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.dialogue-response-btn {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1F1F1F 100%);
+  border: 2px solid #3a3a3a;
+  color: #ffffff;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  transition: all 0.15s ease;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+}
+
+/* Tech accent line on hover */
+.dialogue-response-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #FFDD00;
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.dialogue-response-btn:hover::before {
+  transform: scaleY(1);
+}
+
+.dialogue-response-btn:hover {
+  background: linear-gradient(135deg, #1F1F1F 0%, #2a2a2a 100%);
+  border-color: #FFDD00;
+  transform: translateX(6px);
+  box-shadow: -4px 0 12px rgba(255, 221, 0, 0.3);
+}
+
+.dialogue-response-btn:active {
+  transform: translateX(3px);
+}
+
+/* Continue button - Bold & Direct */
+.dialogue-continue-btn {
+  text-align: center;
+  background: linear-gradient(135deg, #FFDD00 0%, #e6c700 100%);
+  border-color: #FFDD00;
+  color: #1F1F1F;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.dialogue-continue-btn:hover {
+  background: linear-gradient(135deg, #fff44d 0%, #FFDD00 100%);
+  border-color: #fff44d;
+  box-shadow: 0 0 16px rgba(255, 221, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Skip hint - Technical instruction style */
+.dialogue-hint {
+  font-size: 11px;
+  color: #FFDD00;
+  text-align: center;
+  font-style: normal;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: -4px;
+  opacity: 0.6;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .dialogue-box {
+    width: 95%;
+    margin-bottom: 20px;
+    padding: 18px;
+  }
+
+  .dialogue-speaker {
+    font-size: 17px;
+  }
+
+  .dialogue-text {
+    font-size: 15px;
+  }
+
+  .dialogue-response-btn {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+}

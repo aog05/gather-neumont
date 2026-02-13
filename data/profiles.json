@@ -1,0 +1,58 @@
+{
+  "dafsdfa": {
+    "displayName": "asdfasdf",
+    "email": "asdfasdf",
+    "location": "sdfadfas",
+    "intendedMajorId": "BSSE",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "b69d7c70-6a29-4e79-8921-9b7802ea9a28"
+    },
+    "updatedAt": "2026-02-07T17:58:09.749Z"
+  },
+  "qevans": {
+    "displayName": "quinn",
+    "email": "asdfasdf",
+    "intendedMajorId": "BSAAI",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "da58ffe2-220c-47df-9995-d066eb1fcdb3:63:2:2"
+    },
+    "updatedAt": "2026-02-10T17:35:03.328Z"
+  },
+  "qevan": {
+    "displayName": "quinn",
+    "location": "sale lake city",
+    "intendedMajorId": "BSCS",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "81e8ac3f-cd30-4f32-9100-16f0d3867c78"
+    },
+    "updatedAt": "2026-02-07T19:38:03.232Z"
+  },
+  "admin": {
+    "displayName": "Admin",
+    "location": "Neumont",
+    "intendedMajorId": "UNDECIDED",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "admin"
+    },
+    "updatedAt": "2026-02-08T00:51:45.477Z"
+  },
+  "dsfafdsaf": {
+    "displayName": "asfdasdfa",
+    "location": "fadsdfsaf",
+    "intendedMajorId": "BSCS",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "af001b23-1e49-4610-9c3d-9b4fdabb4703"
+    },
+    "updatedAt": "2026-02-08T00:52:57.265Z"
+  }
+}

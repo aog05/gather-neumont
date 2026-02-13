@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "description": "Master registry of all NPCs in Neumont Virtual Campus",
+  "npcs": {
+    "prof_smith": {
+      "name": "Professor Smith",
+      "floor": 1,
+      "file": "floor1-npcs.json"
+    },
+    "admissions_staff": {
+      "name": "Sarah Johnson",
+      "floor": 1,
+      "file": "floor1-npcs.json"
+    },
+    "tech_support": {
+      "name": "Mike Anderson",
+      "floor": 1,
+      "file": "floor1-npcs.json"
+    }
+  }
+}

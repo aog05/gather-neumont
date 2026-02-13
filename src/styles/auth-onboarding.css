@@ -1,0 +1,869 @@
+/* Auth & Onboarding UI Styles
+ * Reuses design tokens from quiz-ui.css for consistency
+ * Provides clean, production-ready overlays on top of the game
+ */
+
+.auth-overlay,
+.onboarding-overlay {
+  /* Import quiz-ui tokens */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  
+  /* Background Layers */
+  --panel: #0e1116;
+  --surface: #171a21;
+  --surface-strong: #1e2229;
+  --surface-hover: #252932;
+  --surface-selected: #2a2f3a;
+  
+  /* Borders - Increased visibility */
+  --border: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  
+  /* Text Colors */
+  --text: #f5f5f7;
+  --text-muted: #a8a8ad;
+  --faint: #8e8e93;
+  
+  /* Accent */
+  --accent: #f5a623;
+  --accent-ink: #1d1104;
+  
+  /* Semantic Colors */
+  --success: #52c97c;
+  --danger: #d65e5e;
+  
+  /* Interactive States */
+  --focus: rgba(245, 166, 35, 0.4);
+  --outline-hover: rgba(245, 166, 35, 0.25);
+  
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  
+  /* Spacing */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  
+  /* Shadows */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.2), 0 16px 48px rgba(0, 0, 0, 0.18);
+
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+
+/* Backdrop for overlays */
+.auth-overlay::before,
+.onboarding-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: -1;
+}
+
+/* Container for auth/onboarding content */
+.auth-container,
+.onboarding-container {
+  width: 100%;
+  max-width: 520px;
+  padding: var(--space-6);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+
+/* Typography */
+.auth-heading,
+.onboarding-heading {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.auth-description,
+.onboarding-description {
+  margin-top: var(--space-2);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Form Elements */
+.auth-form,
+.onboarding-form {
+  margin-top: var(--space-5);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.form-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.form-input::placeholder {
+  color: var(--faint);
+  opacity: 0.9;
+}
+
+.form-input:hover {
+  border-color: var(--outline-hover);
+  background: var(--surface-hover);
+}
+
+.form-input:focus {
+  border-color: var(--accent);
+  background: var(--surface-strong);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+/* Error Message */
+.form-error {
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--danger);
+  background: rgba(214, 94, 94, 0.08);
+  border: 1px solid rgba(214, 94, 94, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+/* Buttons */
+.btn {
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--outline-hover);
+}
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary button (main CTAs) */
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #f7b235;
+  border-color: #f7b235;
+}
+
+/* Secondary button */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Ghost button - now visible at rest */
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-strong);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: var(--outline-hover);
+}
+
+/* Button group */
+.button-group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.button-group-inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* Navigation links */
+.auth-footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-strong);
+  text-align: center;
+}
+
+.auth-link {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.auth-link-button {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.auth-link-button:hover {
+  color: #f7b235;
+  text-decoration: underline;
+}
+
+.auth-link-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Avatar preview */
+.avatar-preview-wrapper {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatar-preview {
+  width: 140px;
+  height: 140px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  box-shadow: var(--shadow-1);
+  image-rendering: pixelated;
+}
+
+.avatar-info {
+  text-align: center;
+}
+
+.avatar-info-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.avatar-info-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Major selection grid */
+.major-grid {
+  margin-top: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.major-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.major-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--outline-hover);
+}
+
+.major-card:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.major-card.selected {
+  background: var(--surface-selected);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.major-icon {
+  width: 36px;
+  height: 36px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.major-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+/* Logo display */
+.logo-display {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+
+.logo-image {
+  height: 56px;
+  width: auto;
+  display: block;
+}
+
+/* Helper text */
+.helper-text {
+  margin-top: var(--space-3);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Auth mode indicator (debug) */
+.auth-mode-indicator {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+}
+
+.auth-mode-value {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .auth-overlay,
+  .onboarding-overlay {
+    padding: var(--space-4);
+  }
+
+  .auth-container,
+  .onboarding-container {
+    padding: var(--space-5);
+  }
+
+  .auth-heading,
+  .onboarding-heading {
+    font-size: 28px;
+  }
+
+  .major-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Loading state */
+.btn.is-loading {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.btn.is-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  color: var(--text);
+}
+
+.btn-primary.is-loading::after {
+  color: var(--accent-ink);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   Profile HUD & Account Pages
+   ======================================== */
+
+/* Profile HUD - Fixed position in top-right */
+.profile-hud {
+  /* Import quiz-ui tokens */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  
+  /* Background Layers */
+  --panel: #0e1116;
+  --surface: #171a21;
+  --surface-strong: #1e2229;
+  --surface-hover: #252932;
+  --surface-selected: #2a2f3a;
+  
+  /* Borders - Increased visibility */
+  --border: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  
+  /* Text Colors */
+  --text: #f5f5f7;
+  --text-muted: #a8a8ad;
+  --faint: #8e8e93;
+  
+  /* Accent */
+  --accent: #f5a623;
+  --accent-ink: #1d1104;
+  
+  /* Interactive States */
+  --focus: rgba(245, 166, 35, 0.4);
+  --outline-hover: rgba(245, 166, 35, 0.25);
+  
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  
+  /* Spacing */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  
+  /* Shadows */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.2), 0 16px 48px rgba(0, 0, 0, 0.18);
+  
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+/* HUD toggle button */
+.profile-hud-toggle {
+  cursor: pointer;
+  border: 1px solid var(--border-strong);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-family: inherit;
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transition: all 0.15s ease;
+}
+
+.profile-hud-toggle:hover {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: var(--outline-hover);
+}
+
+.profile-hud-toggle:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus), 0 10px 30px rgba(0, 0, 0, 0.25);
+  outline: none;
+}
+
+.profile-hud-toggle-label {
+  font-size: 12px;
+  line-height: 1.1;
+  color: var(--text-muted);
+}
+
+.profile-hud-toggle-name {
+  font-size: 13px;
+  line-height: 1.15;
+  font-weight: 600;
+}
+
+/* HUD popover panel */
+.profile-hud-popover {
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-2);
+  padding: var(--space-3);
+  outline: none;
+}
+
+/* HUD header with avatar and name */
+.profile-hud-header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.profile-hud-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.profile-hud-user-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-hud-display-name {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.profile-hud-username {
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* HUD details section */
+.profile-hud-details {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.profile-hud-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.profile-hud-row-label {
+  color: var(--text-muted);
+}
+
+.profile-hud-row-value {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* HUD actions section */
+.profile-hud-actions {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-strong);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.profile-hud-btn {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: left;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.profile-hud-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--outline-hover);
+}
+
+.profile-hud-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+.profile-hud-btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.profile-hud-btn.primary:hover {
+  background: #f7b235;
+  border-color: #f7b235;
+}
+
+.profile-hud-notice {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+/* Account pages wrapper */
+.account-overlay {
+  /* Import quiz-ui tokens */
+  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  
+  /* Background Layers */
+  --panel: #0e1116;
+  --surface: #171a21;
+  --surface-strong: #1e2229;
+  --surface-hover: #252932;
+  --surface-selected: #2a2f3a;
+  
+  /* Borders - Increased visibility */
+  --border: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  
+  /* Text Colors */
+  --text: #f5f5f7;
+  --text-muted: #a8a8ad;
+  --faint: #8e8e93;
+  
+  /* Accent */
+  --accent: #f5a623;
+  --accent-ink: #1d1104;
+  
+  /* Interactive States */
+  --focus: rgba(245, 166, 35, 0.4);
+  --outline-hover: rgba(245, 166, 35, 0.25);
+  
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  
+  /* Spacing */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  
+  /* Shadows */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.2), 0 16px 48px rgba(0, 0, 0, 0.18);
+  
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+
+.account-container {
+  width: 100%;
+  max-width: 520px;
+  padding: var(--space-6);
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+
+.account-container.wide {
+  max-width: 640px;
+}
+
+/* Account page headers */
+.account-heading {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.account-description {
+  margin-top: var(--space-2);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Account hub navigation cards */
+.account-nav-cards {
+  margin-top: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-nav-card {
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.account-nav-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--outline-hover);
+}
+
+.account-nav-card:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.account-nav-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--space-1);
+}
+
+.account-nav-card-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Account action buttons */
+.account-actions {
+  margin-top: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-actions-inline {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* Account forms */
+.account-form {
+  margin-top: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Responsive adjustments for HUD and account pages */
+@media (max-width: 600px) {
+  .profile-hud {
+    top: 8px;
+    right: 8px;
+  }
+
+  .profile-hud-popover {
+    max-width: calc(100vw - 16px);
+  }
+
+  .account-overlay {
+    padding: var(--space-4);
+  }
+
+  .account-container {
+    padding: var(--space-5);
+  }
+
+  .account-heading {
+    font-size: 24px;
+  }
+
+  .account-nav-cards {
+    gap: var(--space-2);
+  }
+}

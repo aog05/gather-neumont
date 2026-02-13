@@ -8,11 +8,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { AuthProvider } from "./features/auth/AuthContext";
+import { ProfileProvider } from "./features/profile/ProfileContext";
+import "./styles/quiz-ui.css";
 
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <ProfileProvider>
+        <App />
+      </ProfileProvider>
+    </AuthProvider>
   </StrictMode>
 );
 
@@ -24,3 +31,4 @@ if (import.meta.hot) {
   // The hot module reloading API is not available in production.
   createRoot(elem).render(app);
 }
+

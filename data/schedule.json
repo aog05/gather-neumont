@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "schedule": [
+    {
+      "dateKey": "2026-02-01",
+      "questionId": "q001",
+      "assignedAt": "2026-02-01T20:36:52.304Z"
+    },
+    {
+      "dateKey": "2026-02-02",
+      "questionId": "q001",
+      "assignedAt": "2026-02-01T21:36:28.246Z"
+    },
+    {
+      "dateKey": "2026-02-03",
+      "questionId": "q001",
+      "assignedAt": "2026-02-01T21:36:36.301Z"
+    },
+    {
+      "dateKey": "2026-02-07",
+      "questionId": "q002",
+      "assignedAt": "2026-02-07T21:12:57.562Z"
+    },
+    {
+      "dateKey": "2026-02-08",
+      "questionId": "q003",
+      "assignedAt": "2026-02-08T18:28:21.119Z"
+    }
+  ]
+}

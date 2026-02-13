@@ -1,0 +1,86 @@
+[
+  {
+    "id": "dean_walsh",
+    "name": "Dean Jennifer Walsh",
+    "role": "Dean of Students",
+    "floor": 1,
+    "position": {
+      "x": 500,
+      "y": 400
+    },
+    "sprite": {
+      "key": "_placeholder",
+      "tint": 16724565,
+      "scale": 1
+    },
+    "interaction": {
+      "radius": 80,
+      "prompt": "Press E to talk"
+    },
+    "dialogue": {
+      "treeId": "walsh-greeting",
+      "defaultNode": "walsh-greeting"
+    },
+    "metadata": {
+      "department": "Student Affairs",
+      "office": "Room 101",
+      "bio": "Oversees student life and wellbeing at Neumont"
+    }
+  },
+  {
+    "id": "dr_chen",
+    "name": "Dr. Sarah Chen",
+    "role": "Academic Advisor",
+    "floor": 1,
+    "position": {
+      "x": 1200,
+      "y": 800
+    },
+    "sprite": {
+      "key": "_placeholder",
+      "tint": 5636095,
+      "scale": 1
+    },
+    "interaction": {
+      "radius": 80,
+      "prompt": "Press E to talk"
+    },
+    "dialogue": {
+      "treeId": "chen-greeting",
+      "defaultNode": "chen-greeting"
+    },
+    "metadata": {
+      "department": "Academic Advising",
+      "office": "Room 102",
+      "bio": "Helps students with course selection and career planning"
+    }
+  },
+  {
+    "id": "prof_rodriguez",
+    "name": "Professor Mike Rodriguez",
+    "role": "CS Professor",
+    "floor": 1,
+    "position": {
+      "x": 1800,
+      "y": 600
+    },
+    "sprite": {
+      "key": "_placeholder",
+      "tint": 16744448,
+      "scale": 1
+    },
+    "interaction": {
+      "radius": 80,
+      "prompt": "Press E to talk"
+    },
+    "dialogue": {
+      "treeId": "rodriguez-greeting",
+      "defaultNode": "rodriguez-greeting"
+    },
+    "metadata": {
+      "department": "Computer Science",
+      "office": "Room 109",
+      "bio": "Teaches Data Structures and Algorithms"
+    }
+  }
+]

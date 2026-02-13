@@ -1,0 +1,234 @@
+/**
+ * PlayerProfile Styles - Neumont Brand Identity
+ * Clean, high-tech, professional aesthetic
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
+ */
+
+/* Player Profile - Minimized State */
+.player-profile {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 280px;
+  background: linear-gradient(135deg, rgba(31, 31, 31, 0.95) 0%, rgba(25, 25, 25, 0.95) 100%);
+  border: 2px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 221, 0, 0.1);
+  padding: 16px;
+  z-index: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.player-profile:hover {
+  border-color: #FFDD00;
+  box-shadow:
+    0 6px 20px rgba(255, 221, 0, 0.3),
+    inset 0 1px 0 rgba(255, 221, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Tech corner accents - Neumont Yellow */
+.player-profile::before,
+.player-profile::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #FFDD00;
+}
+
+.player-profile::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.player-profile::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Header */
+.player-profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3a3a3a;
+  position: relative;
+}
+
+.player-profile-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: #FFDD00;
+}
+
+.player-profile-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 8px rgba(255, 221, 0, 0.3);
+}
+
+.player-profile-student-badge {
+  background: #FFDD00;
+  color: #1F1F1F;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Content */
+.player-profile-content {
+  margin-bottom: 8px;
+}
+
+.player-profile-username {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 10px 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  line-height: 1.3;
+  text-transform: lowercase;
+}
+
+/* Points Display */
+.player-profile-points {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(58, 58, 58, 0.4);
+  border-left: 3px solid #FFDD00;
+  margin-bottom: 10px;
+}
+
+.player-profile-points-icon {
+  font-size: 16px;
+  color: #FFDD00;
+}
+
+.player-profile-points-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+.player-profile-points-label {
+  font-size: 12px;
+  color: #888;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Quick Stats */
+.player-profile-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 8px 0;
+}
+
+.player-profile-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.player-profile-stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+.player-profile-stat-label {
+  font-size: 10px;
+  color: #888;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.player-profile-stat-divider {
+  width: 1px;
+  height: 30px;
+  background: #3a3a3a;
+}
+
+/* Expand hint */
+.player-profile-expand-hint {
+  font-size: 10px;
+  color: #FFDD00;
+  text-align: center;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 8px;
+  opacity: 0.6;
+}
+
+/* Loading state */
+.player-profile-loading {
+  cursor: default;
+}
+
+.player-profile-loading:hover {
+  transform: none;
+  border-color: #3a3a3a;
+}
+
+.player-profile-loading-text {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+  text-align: center;
+  font-style: normal;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .player-profile {
+    width: 240px;
+    top: 10px;
+    left: 10px;
+    padding: 12px;
+  }
+
+  .player-profile-title {
+    font-size: 12px;
+  }
+
+  .player-profile-username {
+    font-size: 14px;
+  }
+
+  .player-profile-points-value {
+    font-size: 16px;
+  }
+}
+

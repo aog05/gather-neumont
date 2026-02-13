@@ -1,0 +1,343 @@
+/**
+ * PlayerMenu Styles - Neumont Brand Identity
+ * Full-screen modal for player profile
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
+ */
+
+/* Overlay */
+.player-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Menu Container */
+.player-menu {
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  background: linear-gradient(135deg, rgba(31, 31, 31, 0.98) 0%, rgba(25, 25, 25, 0.98) 100%);
+  border: 2px solid #FFDD00;
+  border-radius: 0;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 221, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease;
+  position: relative;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Tech corner accents */
+.player-menu::before,
+.player-menu::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #FFDD00;
+}
+
+.player-menu::before {
+  top: -3px;
+  left: -3px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.player-menu::after {
+  bottom: -3px;
+  right: -3px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Header */
+.player-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 2px solid #3a3a3a;
+  position: relative;
+}
+
+.player-menu-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 32px;
+  width: 80px;
+  height: 2px;
+  background: #FFDD00;
+}
+
+.player-menu-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 0 12px rgba(255, 221, 0, 0.4);
+}
+
+.player-menu-close-btn {
+  background: transparent;
+  border: 2px solid #3a3a3a;
+  color: #888;
+  font-size: 32px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  line-height: 1;
+  padding: 0;
+}
+
+.player-menu-close-btn:hover {
+  background: #FFDD00;
+  color: #1F1F1F;
+  border-color: #FFDD00;
+  transform: rotate(90deg);
+}
+
+/* Content */
+.player-menu-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Custom scrollbar */
+.player-menu-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.player-menu-content::-webkit-scrollbar-track {
+  background: rgba(58, 58, 58, 0.3);
+}
+
+.player-menu-content::-webkit-scrollbar-thumb {
+  background: #FFDD00;
+  border-radius: 0;
+}
+
+/* Section */
+.player-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.player-menu-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3a3a3a;
+  position: relative;
+}
+
+.player-menu-section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 40px;
+  height: 2px;
+  background: #FFDD00;
+}
+
+/* Info Grid */
+.player-menu-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.player-menu-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: rgba(58, 58, 58, 0.3);
+  border-left: 3px solid #FFDD00;
+}
+
+.player-menu-info-label {
+  font-size: 11px;
+  color: #888;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.player-menu-info-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+/* Points Display */
+.player-menu-points-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(58, 58, 58, 0.3);
+  border-left: 4px solid #FFDD00;
+}
+
+.player-menu-points-icon {
+  font-size: 32px;
+  color: #FFDD00;
+}
+
+.player-menu-points-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-shadow: 0 0 12px rgba(255, 221, 0, 0.3);
+}
+
+.player-menu-points-label {
+  font-size: 14px;
+  color: #888;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Stats Grid */
+.player-menu-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.player-menu-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid #3a3a3a;
+  transition: all 0.2s ease;
+}
+
+.player-menu-stat-card:hover {
+  border-color: #FFDD00;
+  background: rgba(58, 58, 58, 0.5);
+}
+
+.player-menu-stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #FFDD00;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
+.player-menu-stat-label {
+  font-size: 12px;
+  color: #888;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* Footer */
+.player-menu-footer {
+  padding: 16px 32px;
+  border-top: 2px solid #3a3a3a;
+  text-align: center;
+}
+
+.player-menu-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .player-menu {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .player-menu-header {
+    padding: 20px 24px;
+  }
+
+  .player-menu-title {
+    font-size: 22px;
+  }
+
+  .player-menu-content {
+    padding: 24px;
+    gap: 24px;
+  }
+
+  .player-menu-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .player-menu-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .player-menu-points-value {
+    font-size: 28px;
+  }
+}
+
