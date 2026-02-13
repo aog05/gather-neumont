@@ -32,69 +32,6 @@ function GamePage() {
   const location = useLocation();
   const [isDailyQuizOpen, setIsDailyQuizOpen] = useState(false);
 
-  // Fetch quest data for the current player by username (reseed-proof)
-  console.log(`[Game] Using player username: ${TEST_PLAYER_USERNAME}`);
-  const { activeQuests, completedQuests, loading, error } = useQuestData(TEST_PLAYER_USERNAME);
-
-  // Fetch player profile data
-  const {
-    player,
-    loading: playerLoading,
-    error: playerError,
-    totalPoints,
-    activeQuestsCount,
-    completedQuestsCount,
-    totalPuzzlesCompleted,
-  } = usePlayerData(TEST_PLAYER_USERNAME);
-
-  // Manage selected quest for tracking
-  const { selectedQuest, selectQuest } = useSelectedQuest(activeQuests);
-
-  // Handle quest removal from Firebase
-  const handleRemoveQuest = async (questId: string) => {
-    try {
-      console.log(`[Game] Removing quest: ${questId}`);
-
-      // Get player by username
-      const playerDoc = await FirestoreHelpers.getPlayerByUsername(TEST_PLAYER_USERNAME);
-
-      if (!playerDoc) {
-        console.error(`[Game] Player not found: ${TEST_PLAYER_USERNAME}`);
-        return;
-      }
-
-      // Remove quest from ActiveQuests array in Firebase
-      const playerRef = doc(db, COLLECTIONS.PLAYER, playerDoc.id);
-      await updateDoc(playerRef, {
-        ActiveQuests: arrayRemove(questId)
-      });
-
-      console.log(`[Game] ✅ Quest removed from Firebase: ${questId}`);
-
-      // Emit event to notify UI to refresh quest data
-      const bridge = GameEventBridge.getInstance();
-      bridge.emit("quest:removed", { questId });
-    } catch (error) {
-      console.error(`[Game] Error removing quest:`, error);
-    }
-  };
-
-  // Handle quest completion (TEST ONLY)
-  const handleCompleteQuest = async (questId: string) => {
-    try {
-      console.log(`[Game] [TEST] Completing quest: ${questId}`);
-
-      // Use GameState to complete the quest (handles points, moving to completed, etc.)
-      const { GameState } = await import("./systems/GameState.ts");
-      const gameState = new GameState();
-      gameState.setPlayerUsername(TEST_PLAYER_USERNAME);
-      await gameState.completeQuest(questId);
-
-      console.log(`[Game] [TEST] ✅ Quest completion triggered`);
-    } catch (error) {
-      console.error(`[Game] [TEST] Error completing quest:`, error);
-    }
-  };
 
   // Fetch quest data for the current player by username (reseed-proof)
   console.log(`[Game] Using player username: ${TEST_PLAYER_USERNAME}`);

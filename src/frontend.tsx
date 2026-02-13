@@ -12,7 +12,6 @@ import { testDialogueLoading } from "./test-firebase-dialogue";
 import { AuthProvider } from "./features/auth/AuthContext";
 import { ProfileProvider } from "./features/profile/ProfileContext";
 import "./styles/quiz-ui.css";
-
 const elem = document.getElementById("root")!;
 const app = (
   <StrictMode>
@@ -33,8 +32,5 @@ if (import.meta.hot) {
   createRoot(elem).render(app);
 }
 
-<<<<<<< HEAD
 // Make test function available in console for debugging
 (window as any).testDialogueLoading = testDialogueLoading;
-=======
->>>>>>> 2fb6d0692d4eb9dc374edd01810722faf34e8fb8
