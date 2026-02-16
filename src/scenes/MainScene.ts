@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GroundFloor } from "./maps/GroundFloor";
 import { NPCManager } from "../entities/NPCManager";
+import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
@@ -43,15 +44,13 @@ export class MainScene extends Phaser.Scene {
     right: Phaser.Input.Keyboard.Key;
   };
   private npcManager!: NPCManager;
+  private quizTerminalManager!: QuizTerminalManager;
   private dialogueManager!: DialogueManager;
   private gameState!: GameState;
   private bridge!: GameEventBridge;
   private playerState: "EXPLORING" | "DIALOGUE" = "EXPLORING";
   private escapeKey!: Phaser.Input.Keyboard.Key;
-  private interactKey!: Phaser.Input.Keyboard.Key;
-  private quizTerminal!: Phaser.GameObjects.Rectangle;
-  private quizTerminalZone!: Phaser.GameObjects.Zone;
-  private quizPromptText!: Phaser.GameObjects.Text;
+  private interactionKey!: Phaser.Input.Keyboard.Key; // Shared E key for NPCs and terminal
 
   constructor() {
     super({ key: "MainScene" });
@@ -69,13 +68,17 @@ export class MainScene extends Phaser.Scene {
     // Create ground floor layout from map file
     groundFloor.createTiles(this, tiles);
 
-    // Get spawn position from map
-    const spawnPos = groundFloor.getSpawnPosition();
+    // Calculate center point between the three NPCs
+    // Dean Walsh: (500, 400), Dr. Chen: (1200, 800), Prof. Rodriguez: (1800, 600)
+    const npcCenterX = (500 + 1200 + 1800) / 3; // = 1166.67
+    const npcCenterY = (400 + 800 + 600) / 3;   // = 600
 
-    // Create player (blue square)
+    console.log(`[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`);
+
+    // Create player (blue square) at center of NPCs
     this.player = this.add.rectangle(
-      spawnPos.x,
-      spawnPos.y,
+      npcCenterX,
+      npcCenterY,
       PLAYER_SIZE,
       PLAYER_SIZE,
       0x0000ff,
@@ -99,24 +102,23 @@ export class MainScene extends Phaser.Scene {
     this.escapeKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.ESC,
     );
-    this.interactKey = this.input.keyboard!.addKey(
+
+    // Create shared interaction key (E) for NPCs and quiz terminal
+    // This prevents the key press from being consumed by the first manager
+    this.interactionKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.E,
     );
+    console.log(`[MainScene] Created shared E key for interactions`);
 
-    // Daily Quiz "terminal" (placeholder interactable)
-    const terminalX = spawnPos.x + 120;
-    const terminalY = spawnPos.y;
+    // Create quiz terminal manager (follows NPC pattern)
+    // Terminal spawns ABOVE the player (negative Y offset)
+    this.quizTerminalManager = new QuizTerminalManager(this, this.interactionKey);
+    const terminalX = npcCenterX;
+    const terminalY = npcCenterY - 150; // 150px above player
+    console.log(`[MainScene] Quiz terminal spawning above player at: (${terminalX}, ${terminalY})`);
+    this.quizTerminalManager.createTerminal(terminalX, terminalY);
 
-    this.quizTerminal = this.add.rectangle(
-      terminalX,
-      terminalY,
-      78,
-      62,
-      0x7c3aed,
-    );
-    this.quizTerminal.setStrokeStyle(2, 0xffffff, 0.9);
-    this.quizTerminal.setDepth(2);
-
+    // Add "Daily Quiz" label above terminal
     const terminalLabel = this.add.text(
       terminalX,
       terminalY - 6,
@@ -129,25 +131,6 @@ export class MainScene extends Phaser.Scene {
     );
     terminalLabel.setOrigin(0.5);
     terminalLabel.setDepth(3);
-
-    // Overlap zone (slightly larger than the terminal so it feels usable)
-    this.quizTerminalZone = this.add.zone(terminalX, terminalY, 140, 120);
-    this.physics.add.existing(this.quizTerminalZone, true);
-
-    this.quizPromptText = this.add.text(
-      terminalX,
-      terminalY + 54,
-      "Press E to start quiz",
-      {
-        fontSize: "12px",
-        color: "#ffffff",
-        backgroundColor: "rgba(0, 0, 0, 0.55)",
-        padding: { x: 8, y: 4 },
-      },
-    );
-    this.quizPromptText.setOrigin(0.5);
-    this.quizPromptText.setVisible(false);
-    this.quizPromptText.setDepth(3);
 
     // Configure camera to follow player
     this.cameras.main.startFollow(this.player);
@@ -162,8 +145,8 @@ export class MainScene extends Phaser.Scene {
 
     this.dialogueManager = new DialogueManager(this.gameState, this.bridge);
 
-    // Initialize NPC system
-    this.npcManager = new NPCManager(this);
+    // Initialize NPC system with shared interaction key
+    this.npcManager = new NPCManager(this, this.interactionKey);
     this.npcManager.loadNPCs(1); // Load ground floor NPCs
 
     // Listen for dialogue requests from NPCs
@@ -198,11 +181,13 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
+    // IMPORTANT: Update quiz terminal BEFORE NPCs
+    // This ensures terminal gets priority for E key interaction
+    // when player is near terminal (prevents NPCManager from consuming JustDown)
+    this.quizTerminalManager.update(this.player);
+
     // Update NPC system
     this.npcManager.update(this.player);
-
-    // Check quiz terminal interaction (same timing as NPC interaction)
-    this.checkQuizTerminalInteraction();
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
 
@@ -216,9 +201,6 @@ export class MainScene extends Phaser.Scene {
 
     // Disable player movement during dialogue
     if (this.playerState === "DIALOGUE") {
-      if (this.quizPromptText) {
-        this.quizPromptText.setVisible(false);
-      }
       playerBody.setVelocity(0, 0);
       return; // Skip movement input
     }
@@ -239,47 +221,6 @@ export class MainScene extends Phaser.Scene {
       playerBody.setVelocityY(PLAYER_SPEED);
     } else {
       playerBody.setVelocityY(0);
-    }
-  }
-
-  /**
-   * Check if player can interact with quiz terminal
-   * Called at the same timing as NPC interaction checks
-   */
-  private checkQuizTerminalInteraction(): void {
-    if (!this.player || !this.interactKey) {
-      return;
-    }
-
-    // Check if player is near terminal
-    const isNearTerminal =
-      Boolean(
-        this.quizTerminalZone &&
-        this.physics.overlap(this.player, this.quizTerminalZone),
-      ) ||
-      Boolean(
-        this.quizTerminal &&
-        Phaser.Math.Distance.Between(
-          this.player.x,
-          this.player.y,
-          this.quizTerminal.x,
-          this.quizTerminal.y,
-        ) <= 90,
-      );
-
-    // Update prompt visibility
-    if (this.quizPromptText) {
-      this.quizPromptText.setVisible(isNearTerminal);
-    }
-
-    // Check E key press (same pattern as NPCManager)
-    if (
-      isNearTerminal &&
-      Phaser.Input.Keyboard.JustDown(this.interactKey)
-    ) {
-      console.log("[MainScene] ✅ E key pressed near terminal!");
-      console.log("[MainScene] Dispatching dailyQuiz:start event");
-      window.dispatchEvent(new CustomEvent("dailyQuiz:start"));
     }
   }
 }

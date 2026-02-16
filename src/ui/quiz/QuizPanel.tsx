@@ -24,8 +24,14 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
 
   // Debug: Log when isOpen prop changes
   useEffect(() => {
-    console.log(`[QuizPanel] isOpen prop changed to: ${isOpen}`);
-  }, [isOpen]);
+    console.log(`[QuizPanel] 🎮 isOpen prop changed to: ${isOpen}`);
+    if (isOpen) {
+      console.log(`[QuizPanel] 📂 Panel opening - initializing component`);
+      console.log(`[QuizPanel] 👤 User: ${username} (${isAdmin ? 'Admin' : 'Player'})`);
+    } else {
+      console.log(`[QuizPanel] 📁 Panel closing - component will unmount`);
+    }
+  }, [isOpen, username, isAdmin]);
 
   const [tab, setTab] = useState<Tab>("quiz");
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -47,23 +53,32 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   const rankAnimKeyRef = useRef<string | null>(null);
 
   const handleClose = useCallback(() => {
+    console.log(`[QuizPanel] 🚪 Close requested`);
     if (quizModalCloseRef.current) {
+      console.log(`[QuizPanel] 🔄 Delegating close to QuizModal`);
       quizModalCloseRef.current();
       return;
     }
+    console.log(`[QuizPanel] ✅ Closing panel directly`);
     onClose();
   }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
+    console.log(`[QuizPanel] 🔄 Resetting tab to 'quiz' on panel open`);
     setTab("quiz");
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
+    console.log(`[QuizPanel] ⌨️ Setting up keyboard and click-outside listeners`);
+
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        console.log(`[QuizPanel] ⎋ Escape key pressed - closing panel`);
+        handleClose();
+      }
     }
 
     function onPointerDown(e: PointerEvent) {
@@ -72,12 +87,14 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       const panel = panelRef.current;
       if (!panel) return;
       if (panel.contains(target)) return;
+      console.log(`[QuizPanel] 🖱️ Click outside panel detected - closing`);
       handleClose();
     }
 
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
+      console.log(`[QuizPanel] 🧹 Cleaning up keyboard and click-outside listeners`);
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onPointerDown, true);
     };

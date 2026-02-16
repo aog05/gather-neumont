@@ -118,6 +118,8 @@ export function QuizModal({
   variant = "modal",
   closeHandleRef,
 }: QuizModalProps) {
+  console.log(`[QuizModal] 🎮 Component render - isOpen: ${isOpen}, variant: ${variant}, isAdmin: ${isAdmin}`);
+
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
   const [mode, setMode] = useState<"daily" | "test">("daily");
   const [adminQuestions, setAdminQuestions] = useState<Question[]>([]);
@@ -149,11 +151,21 @@ export function QuizModal({
   >({});
   const quiz = useQuiz();
 
+  console.log(`[QuizModal] 📊 Quiz hook state:`, {
+    state: quiz.state,
+    hasQuestion: !!quiz.question,
+    attemptNumber: quiz.attemptNumber,
+    error: quiz.error
+  });
+
   useEffect(() => {
+    console.log(`[QuizModal] 🔄 Tab initialization effect - isOpen: ${isOpen}, isAdmin: ${isAdmin}, initialTab: ${initialTab}`);
     if (isOpen && isAdmin && initialTab) {
+      console.log(`[QuizModal] 📑 Setting active tab to: ${initialTab}`);
       setActiveTab(initialTab);
     }
     if (isOpen && !isAdmin) {
+      console.log(`[QuizModal] 📑 Non-admin user - forcing tab to 'quiz'`);
       setActiveTab("quiz");
     }
   }, [isOpen, isAdmin, initialTab]);

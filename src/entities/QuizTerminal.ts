@@ -65,9 +65,10 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
       return;
     }
 
-    // Get player position
-    const playerX = (player.body as Phaser.Physics.Arcade.Body).x;
-    const playerY = (player.body as Phaser.Physics.Arcade.Body).y;
+    // Get player position (use center of body, same as NPC)
+    const playerBody = player.body as Phaser.Physics.Arcade.Body;
+    const playerX = playerBody.x + playerBody.halfWidth;
+    const playerY = playerBody.y + playerBody.halfHeight;
 
     // Check if player is within interaction radius
     const distance = Phaser.Math.Distance.Between(
@@ -80,10 +81,18 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
     const wasNearby = this.isPlayerNearby;
     this.isPlayerNearby = distance <= this.INTERACTION_RADIUS;
 
+    // Debug logging for proximity detection
+    if (this.isPlayerNearby && !wasNearby) {
+      console.log(`[QuizTerminal] 📍 Player entered interaction zone`);
+      console.log(`[QuizTerminal] Distance: ${distance.toFixed(2)}px (max: ${this.INTERACTION_RADIUS}px)`);
+      console.log(`[QuizTerminal] Terminal: (${this.x}, ${this.y}), Player: (${playerX.toFixed(2)}, ${playerY.toFixed(2)})`);
+    }
+
     // Show/hide interaction prompt based on proximity
     if (this.isPlayerNearby && !wasNearby) {
       this.showInteractionPrompt();
     } else if (!this.isPlayerNearby && wasNearby) {
+      console.log(`[QuizTerminal] 📍 Player left interaction zone`);
       this.hideInteractionPrompt();
     }
   }
@@ -96,8 +105,10 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
       return;
     }
 
-    // Create prompt container
-    this.interactionPrompt = this.scene.add.container(0, -54);
+    console.log(`[QuizTerminal] 💬 Showing interaction prompt`);
+
+    // Create prompt container (same pattern as NPC)
+    this.interactionPrompt = this.scene.add.container(0, -60);
 
     // Create background for prompt
     const bg = this.scene.add.rectangle(0, 0, 160, 30, 0x000000, 0.7);
@@ -105,7 +116,7 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
 
     // Create prompt text
     const text = this.scene.add.text(0, 0, "Press E to start quiz", {
-      fontSize: "12px",
+      fontSize: "14px",
       color: "#ffffff",
       fontFamily: "Arial",
     });
@@ -114,6 +125,16 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
 
     // Add to container
     this.add(this.interactionPrompt);
+
+    // Add bounce animation (same as NPC)
+    this.scene.tweens.add({
+      targets: this.interactionPrompt,
+      y: -70,
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
   }
 
   /**
@@ -121,6 +142,9 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
    */
   private hideInteractionPrompt(): void {
     if (this.interactionPrompt) {
+      console.log(`[QuizTerminal] 🚫 Hiding interaction prompt`);
+      // Kill tweens before destroying (same as NPC)
+      this.scene.tweens.killTweensOf(this.interactionPrompt);
       this.interactionPrompt.destroy();
       this.interactionPrompt = null;
     }

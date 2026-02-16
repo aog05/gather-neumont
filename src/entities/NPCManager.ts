@@ -28,22 +28,17 @@ export class NPCManager {
   /** Current floor number */
   private currentFloor: number = 0;
 
-  /** Interaction key ('E' for talking to NPCs) */
-  private interactionKey: Phaser.Input.Keyboard.Key | null = null;
+  /** Interaction key ('E' for talking to NPCs) - shared with QuizTerminalManager */
+  private interactionKey: Phaser.Input.Keyboard.Key;
 
   /** Currently nearest NPC within interaction range */
   private nearestNPC: NPC | null = null;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, interactionKey: Phaser.Input.Keyboard.Key) {
     this.scene = scene;
     this.npcs = new Map();
-
-    // Set up interaction key
-    if (scene.input.keyboard) {
-      this.interactionKey = scene.input.keyboard.addKey(
-        Phaser.Input.Keyboard.KeyCodes.E,
-      );
-    }
+    this.interactionKey = interactionKey;
+    console.log(`[NPCManager] Using shared E key for interaction`);
   }
 
   /**
@@ -126,13 +121,24 @@ export class NPCManager {
     // Update each NPC and track nearest one in range
     this.checkPlayerProximity(player);
 
+    // DEBUG: Log key state when key is down
+    if (this.interactionKey.isDown) {
+      console.log(`[NPCManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
+    }
+
     // Handle interaction key press
-    if (
-      this.interactionKey &&
-      Phaser.Input.Keyboard.JustDown(this.interactionKey)
-    ) {
+    // Note: Using shared key, so check NPC proximity first to avoid conflicts
+    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
+
+    if (justDown) {
+      console.log(`[NPCManager] ⌨️ E key JustDown triggered!`);
+      console.log(`[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || 'none'}, nearby: ${this.nearestNPC?.isPlayerNearby}`);
+
       if (this.nearestNPC && this.nearestNPC.isPlayerNearby) {
+        console.log(`[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`);
         this.nearestNPC.startDialogue();
+      } else {
+        console.log(`[NPCManager] ❌ No NPC in range`);
       }
     }
   }

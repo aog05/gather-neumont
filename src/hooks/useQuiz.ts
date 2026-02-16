@@ -99,8 +99,20 @@ export function useQuiz(): UseQuizReturn {
   const intervalRef = useRef<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
 
+  console.log(`[useQuiz] 🎯 Hook state:`, {
+    state,
+    hasQuestion: !!question,
+    quizDate,
+    attemptNumber,
+    hasLastResult: !!lastResult,
+    error,
+    elapsedMs
+  });
+
   useEffect(() => {
+    console.log(`[useQuiz] 🏁 Hook initialized - setting up cleanup`);
     return () => {
+      console.log(`[useQuiz] 🧹 Hook cleanup - clearing timer interval`);
       if (intervalRef.current) {
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -120,10 +132,12 @@ export function useQuiz(): UseQuizReturn {
   const guestToken = getGuestToken();
 
   const startQuiz = useCallback(async () => {
+    console.log(`[useQuiz] 🚀 Starting quiz...`);
     setState("loading");
     setError(null);
 
     try {
+      console.log(`[useQuiz] 📡 Fetching quiz from /api/quiz/start`);
       const response = await fetch("/api/quiz/start", {
         method: "POST",
         credentials: "include",
@@ -132,12 +146,15 @@ export function useQuiz(): UseQuizReturn {
       });
 
       const data = await response.json();
+      console.log(`[useQuiz] 📦 Received response:`, data);
 
       if (!response.ok) {
+        console.error(`[useQuiz] ❌ API error:`, data.error);
         throw new Error(data.error || "Failed to start quiz");
       }
 
       if (data.alreadyCompleted) {
+        console.log(`[useQuiz] ✅ Quiz already completed for today`);
         setQuestion(null);
         setQuizDate(data.quizDate);
         setAttemptNumber(0);
@@ -145,6 +162,13 @@ export function useQuiz(): UseQuizReturn {
         setState("completed");
         return;
       }
+
+      console.log(`[useQuiz] 📝 Quiz started - Question loaded:`, {
+        type: data.question.type,
+        difficulty: data.question.difficulty,
+        basePoints: data.question.basePoints,
+        quizDate: data.quizDate
+      });
 
       setQuestion(data.question);
       setQuizDate(data.quizDate);
@@ -159,8 +183,11 @@ export function useQuiz(): UseQuizReturn {
           setElapsedMs(Date.now() - startTimeRef.current);
         }
       }, 250);
+      console.log(`[useQuiz] ⏱️ Timer started - tracking elapsed time`);
       setState("active");
+      console.log(`[useQuiz] ✅ Quiz state set to 'active'`);
     } catch (err) {
+      console.error(`[useQuiz] ❌ Error starting quiz:`, err);
       setError(err instanceof Error ? err.message : "Unknown error");
       setState("error");
     }
@@ -168,8 +195,12 @@ export function useQuiz(): UseQuizReturn {
 
   const submitAnswer = useCallback(
     async (answer: unknown): Promise<SubmitResult | null> => {
-      if (!question) return null;
+      if (!question) {
+        console.warn(`[useQuiz] ⚠️ Cannot submit - no question loaded`);
+        return null;
+      }
 
+      console.log(`[useQuiz] 📤 Submitting answer:`, { questionId: question.id, answer });
       setState("submitting");
 
       // Calculate elapsed time
@@ -177,8 +208,10 @@ export function useQuiz(): UseQuizReturn {
         ? Date.now() - startTimeRef.current
         : 0;
       setElapsedMs(elapsed);
+      console.log(`[useQuiz] ⏱️ Elapsed time: ${(elapsed / 1000).toFixed(2)}s`);
 
       try {
+        console.log(`[useQuiz] 📡 Posting to /api/quiz/submit`);
         const response = await fetch("/api/quiz/submit", {
           method: "POST",
           credentials: "include",
@@ -192,13 +225,16 @@ export function useQuiz(): UseQuizReturn {
         });
 
         const data: SubmitResult = await response.json();
+        console.log(`[useQuiz] 📦 Submit response:`, data);
 
         setLastResult(data);
         if (typeof data.attemptNumber === "number") {
+          console.log(`[useQuiz] 🔢 Attempt number: ${data.attemptNumber}`);
           setAttemptNumber(data.attemptNumber);
         }
 
         if (data.alreadyCompleted) {
+          console.log(`[useQuiz] ✅ Quiz completed!`);
           setQuestion(null);
           setState("completed");
           if (intervalRef.current) {
@@ -206,6 +242,7 @@ export function useQuiz(): UseQuizReturn {
             intervalRef.current = null;
           }
         } else if (data.rollover && data.newQuestion) {
+          console.log(`[useQuiz] 🔄 Day rollover detected - loading new question`);
           // Day rolled over, update to new question
           setQuestion(data.newQuestion);
           setQuizDate(data.quizDate);
@@ -213,17 +250,20 @@ export function useQuiz(): UseQuizReturn {
           setElapsedMs(0);
           setState("active");
         } else if (data.correct) {
+          console.log(`[useQuiz] ✅ Answer CORRECT! Points: ${data.pointsEarned}`);
           setState("correct");
           if (intervalRef.current) {
             window.clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
         } else {
+          console.log(`[useQuiz] ❌ Answer INCORRECT - try again`);
           setState("incorrect");
         }
 
         return data;
       } catch (err) {
+        console.error(`[useQuiz] ❌ Error submitting answer:`, err);
         setError(err instanceof Error ? err.message : "Unknown error");
         setState("error");
         return null;
