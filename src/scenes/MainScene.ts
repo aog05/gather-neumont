@@ -5,29 +5,23 @@ import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
+import { MapParser } from "@/utils/MapParser";
 
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
 
 const temporaryMap = `
--0007,-0003 ob
-+0005,-0005 ob
-+0005,+0001 ob
-+0000,-0001
--0005,-0007
-+0002,-0007
--0002,-0004
-+0002,-0005
--0005,+0005
--0006,+0002
-+0003,+0002
-+0001,+0005
-+0006,+0000
--0008,+0000 ob
--0008,-0007 ob
-+0002,-0009 ob
-+0008,-0004 ob
--0003,+0007 ob
+-0002,-0001 tex=assets/test-images/IMG_5026.png
++0000,-0001 tex=assets/test-images/IMG_5090.png
++0001,-0006 tex=assets/test-images/IMG_5093.png
+-0003,+0005 tex=assets/test-images/waterfall_pixel_art.png
++0010,+0002 tex=assets/test-images/waterfall_pixel_art.png
+-000d,-0005 tex=assets/test-images/IMG_4948.png
+-0005,-0005 tex=assets/test-images/IMG_4948.png
++0004,+0001 tex=assets/test-images/IMG_2025.png
++0005,-0005 ob tex=assets/test-images/IMG_2025.png
++0006,-0008 ob tex=assets/test-images/IMG_2025.png
+-0009,+0004 ob tex=assets/test-images/IMG_5090.png
 `;
 
 /**
@@ -57,7 +51,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // No assets to load for MVP - using simple shapes
+    MapParser.preloadMapAssets(temporaryMap, this);
   }
 
   create(): void {
@@ -71,9 +65,11 @@ export class MainScene extends Phaser.Scene {
     // Calculate center point between the three NPCs
     // Dean Walsh: (500, 400), Dr. Chen: (1200, 800), Prof. Rodriguez: (1800, 600)
     const npcCenterX = (500 + 1200 + 1800) / 3; // = 1166.67
-    const npcCenterY = (400 + 800 + 600) / 3;   // = 600
+    const npcCenterY = (400 + 800 + 600) / 3; // = 600
 
-    console.log(`[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`);
+    console.log(
+      `[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`,
+    );
 
     // Create player (blue square) at center of NPCs
     this.player = this.add.rectangle(
@@ -112,10 +108,15 @@ export class MainScene extends Phaser.Scene {
 
     // Create quiz terminal manager (follows NPC pattern)
     // Terminal spawns ABOVE the player (negative Y offset)
-    this.quizTerminalManager = new QuizTerminalManager(this, this.interactionKey);
+    this.quizTerminalManager = new QuizTerminalManager(
+      this,
+      this.interactionKey,
+    );
     const terminalX = npcCenterX;
     const terminalY = npcCenterY - 150; // 150px above player
-    console.log(`[MainScene] Quiz terminal spawning above player at: (${terminalX}, ${terminalY})`);
+    console.log(
+      `[MainScene] Quiz terminal spawning above player at: (${terminalX}, ${terminalY})`,
+    );
     this.quizTerminalManager.createTerminal(terminalX, terminalY);
 
     // Add "Daily Quiz" label above terminal

@@ -20,20 +20,16 @@ export class GroundFloor {
     scene: Phaser.Scene,
     tileGroup: Phaser.Physics.Arcade.StaticGroup,
   ): void {
-    const map = MapParser.parseMapFile(this.mapData);
+    const map = MapParser.parseMapFile(this.mapData, scene);
 
     map.tiles.forEach((tile) => {
-      const wall = scene.add.rectangle(
-        tile.x,
-        tile.y,
-        MapParser.TILE_SIZE,
-        MapParser.TILE_SIZE,
-        tile.obstacle ? 0xff0000 : 0x0000ff,
-      );
-      scene.physics.add.existing(wall, true);
+      const tileObject = scene.add
+        .sprite(tile.x, tile.y, tile.image)
+        . setDisplaySize(MapParser.TILE_SIZE, MapParser.TILE_SIZE);
+      scene.physics.add.existing(tileObject, true);
 
       if (tile.obstacle) {
-        tileGroup.add(wall);
+        tileGroup.add(tileObject);
       }
     });
   }
