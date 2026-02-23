@@ -28,20 +28,17 @@ export default function DialogueUI() {
     const bridge = bridgeRef.current;
 
     const handleDialogueStart = (data: { npcId: string; node: DialogueNode }) => {
-      console.log("DialogueUI: Dialogue started", data);
       setCurrentNode(data.node);
       setIsVisible(true);
       setCanAdvance(false);
     };
 
     const handleDialogueUpdate = (data: { node: DialogueNode }) => {
-      console.log("DialogueUI: Dialogue updated", data);
       setCurrentNode(data.node);
       setCanAdvance(false);
     };
 
     const handleDialogueEnd = () => {
-      console.log("DialogueUI: Dialogue ended");
       setIsVisible(false);
       setCurrentNode(null);
       setDisplayedText("");

@@ -5,16 +5,16 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuiz } from "../../hooks/useQuiz";
 import type { Question } from "../../types/quiz.types";
+import NeumontPanelShell from "../NeumontPanelShell";
 import { QuizCards } from "./QuizCards";
-import { WrittenResponse } from "./WrittenResponse";
 import { QuizResult } from "./QuizResult";
-import "./QuizModal.css";
 
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   isAdmin?: boolean;
   initialTab?: Tab;
+  activeTabOverride?: Tab;
   onViewLeaderboard?: () => void;
   variant?: "modal" | "embedded";
   closeHandleRef?: { current: null | (() => void) };
@@ -38,10 +38,9 @@ type AdminTestResult = {
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
-  acceptedAnswers?: string[];
 };
 
-type QuestionType = "mcq" | "select-all" | "written";
+type QuestionType = "mcq" | "select-all";
 
 type EditorState = {
   mode: "create" | "edit";
@@ -55,7 +54,6 @@ type EditorState = {
   choices: string[];
   correctIndex: number;
   correctIndices: number[];
-  acceptedAnswersText: string;
 };
 
 type ScheduleEntry = {
@@ -114,12 +112,11 @@ export function QuizModal({
   onClose,
   isAdmin = false,
   initialTab,
+  activeTabOverride,
   onViewLeaderboard,
   variant = "modal",
   closeHandleRef,
 }: QuizModalProps) {
-  console.log(`[QuizModal] 🎮 Component render - isOpen: ${isOpen}, variant: ${variant}, isAdmin: ${isAdmin}`);
-
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
   const [mode, setMode] = useState<"daily" | "test">("daily");
   const [adminQuestions, setAdminQuestions] = useState<Question[]>([]);
@@ -151,24 +148,21 @@ export function QuizModal({
   >({});
   const quiz = useQuiz();
 
-  console.log(`[QuizModal] 📊 Quiz hook state:`, {
-    state: quiz.state,
-    hasQuestion: !!quiz.question,
-    attemptNumber: quiz.attemptNumber,
-    error: quiz.error
-  });
-
   useEffect(() => {
-    console.log(`[QuizModal] 🔄 Tab initialization effect - isOpen: ${isOpen}, isAdmin: ${isAdmin}, initialTab: ${initialTab}`);
     if (isOpen && isAdmin && initialTab) {
-      console.log(`[QuizModal] 📑 Setting active tab to: ${initialTab}`);
       setActiveTab(initialTab);
     }
     if (isOpen && !isAdmin) {
-      console.log(`[QuizModal] 📑 Non-admin user - forcing tab to 'quiz'`);
       setActiveTab("quiz");
     }
   }, [isOpen, isAdmin, initialTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!activeTabOverride) return;
+    if (activeTab === activeTabOverride) return;
+    setActiveTab(activeTabOverride);
+  }, [activeTab, activeTabOverride, isOpen]);
 
 
   useEffect(() => {
@@ -244,22 +238,10 @@ export function QuizModal({
     };
   }, [closeHandleRef, handleClose]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Only close if clicking the backdrop itself, not the panel
-      if (e.target === e.currentTarget) {
-        // Do nothing - clicking backdrop should not close
-      }
-    },
-    []
-  );
-
   const handleSubmit = useCallback(
     async (answer: unknown) => {
       if (mode === "daily") {
-        console.log("[QuizModal] 📤 Submitting answer to daily quiz:", answer);
-        const result = await quiz.submitAnswer(answer);
-        console.log("[QuizModal] 📦 Submit result:", result);
+        await quiz.submitAnswer(answer);
         return;
       }
       if (!testQuestion) return;
@@ -495,7 +477,6 @@ export function QuizModal({
       choices: [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: [0],
-      acceptedAnswersText: "",
     });
   };
 
@@ -510,7 +491,7 @@ export function QuizModal({
       difficulty: question.difficulty,
       basePoints: question.basePoints,
       tags: question.tags ?? [],
-      choices: question.type === "written" ? [...EMPTY_MCQ_CHOICES] : [...(question.choices ?? [])],
+      choices: [...(question.choices ?? [])],
       correctIndex: question.type === "mcq" ? question.correctIndex : 0,
       correctIndices:
         question.type === "select-all"
@@ -518,10 +499,6 @@ export function QuizModal({
           : question.type === "mcq"
             ? [question.correctIndex]
             : [],
-      acceptedAnswersText:
-        question.type === "written"
-          ? (question.acceptedAnswers ?? []).join("\n")
-          : "",
     });
   };
 
@@ -559,7 +536,6 @@ export function QuizModal({
           nextType === "select-all"
             ? nextCorrectIndices
             : editorState.correctIndices,
-        acceptedAnswersText: "",
       });
       return;
     }
@@ -570,7 +546,6 @@ export function QuizModal({
       choices: nextType === "select-all" ? [...EMPTY_SELECT_CHOICES] : [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: nextType === "select-all" ? [0] : [],
-      acceptedAnswersText: "",
     });
   };
 
@@ -614,11 +589,6 @@ export function QuizModal({
     setEditorState({ ...editorState, correctIndices: Array.from(set).sort() });
   };
 
-  const handleAcceptedAnswersChange = (value: string) => {
-    if (!editorState) return;
-    setEditorState({ ...editorState, acceptedAnswersText: value });
-  };
-
   const buildEditorPayload = () => {
     if (!editorState) return null;
     const payload: any = {
@@ -637,12 +607,6 @@ export function QuizModal({
     if (editorState.type === "select-all") {
       payload.choices = editorState.choices.slice(0, 5);
       payload.correctIndices = editorState.correctIndices;
-    }
-    if (editorState.type === "written") {
-      payload.acceptedAnswers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
     }
     return payload;
   };
@@ -676,15 +640,6 @@ export function QuizModal({
       }
       if (editorState.correctIndices.length < 1) {
         return { valid: false, error: "Select at least one correct answer." };
-      }
-    }
-    if (editorState.type === "written") {
-      const answers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (answers.length < 1) {
-        return { valid: false, error: "Provide at least one accepted answer." };
       }
     }
     return { valid: true, error: "" };
@@ -785,17 +740,6 @@ export function QuizModal({
               />
             )}
 
-          {testQuestion.type === "written" && (
-            <WrittenResponse
-              key={testQuestion.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-              showCorrect
-              acceptedAnswers={testQuestion.acceptedAnswers}
-            />
-          )}
-
           {testResult && (
             <div className="quiz-test-result">
               <p
@@ -811,7 +755,7 @@ export function QuizModal({
                 Points: {testResult.pointsEarned}
               </p>
               <button
-                className="quiz-submit-btn"
+                className="quest-menu-action-btn"
                 onClick={handleNextQuestion}
               >
                 Next Question
@@ -847,7 +791,7 @@ export function QuizModal({
         <div className="quiz-loading">
           <p className="quiz-feedback error">{quiz.error}</p>
           <button
-            className="quiz-submit-btn"
+            className="quest-menu-action-btn quest-menu-action-btn--primary"
             onClick={quiz.startQuiz}
             style={{ marginTop: 16, width: "auto" }}
           >
@@ -875,7 +819,7 @@ export function QuizModal({
             Ready to test your CS knowledge?
           </p>
           <button
-            className="quiz-submit-btn"
+            className="quest-menu-action-btn quest-menu-action-btn--primary"
             onClick={quiz.startQuiz}
             style={{ width: "auto", padding: "14px 40px" }}
           >
@@ -905,14 +849,8 @@ export function QuizModal({
           explanation={quiz.lastResult.explanation}
           correctIndex={quiz.lastResult.correctIndex}
           correctIndices={quiz.lastResult.correctIndices}
-          acceptedAnswers={quiz.lastResult.acceptedAnswers}
           attemptNumber={quiz.attemptNumber}
           onViewLeaderboard={onViewLeaderboard ? handleViewLeaderboard : undefined}
-          onReset={() => {
-            console.log("[QuizModal] 🔄 Resetting quiz...");
-            quiz.reset();
-            quiz.startQuiz();
-          }}
         />
       );
     }
@@ -950,16 +888,6 @@ export function QuizModal({
               />
             )}
 
-          {/* Written */}
-          {quiz.question.type === "written" && (
-            <WrittenResponse
-              key={quiz.question.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-            />
-          )}
-
           {/* Feedback message */}
           {showIncorrect && (
             <p className="quiz-feedback incorrect">Incorrect. Try again.</p>
@@ -971,89 +899,47 @@ export function QuizModal({
     return null;
   };
 
-  const panel = (
-    <div
-      className="quiz-modal-panel quiz-ui"
-      style={
-        variant === "embedded"
-          ? {
-              width: "100%",
-              height: "100%",
-              border: "none",
-              borderRadius: 0,
-              boxShadow: "none",
-              animation: "none",
-            }
-          : undefined
-      }
-    >
-        <header className="quiz-modal-header">
-          <div className="quiz-modal-tabs">
-            <button
-              className={`quiz-modal-tab ${activeTab === "quiz" ? "active" : ""}`}
-              onClick={() => setActiveTab("quiz")}
-            >
-              Quiz
-            </button>
-            {isAdmin && (
-              <>
-                <button
-                  className={`quiz-modal-tab ${activeTab === "admin" ? "active" : ""}`}
-                  onClick={() => setActiveTab("admin")}
-                >
-                  Admin
-                </button>
-                <button
-                  className={`quiz-modal-tab ${
-                    activeTab === "questions" ? "active" : ""
-                  }`}
-                  onClick={() => setActiveTab("questions")}
-                >
-                  Questions
-                </button>
-                <button
-                  className={`quiz-modal-tab ${
-                    activeTab === "schedule" ? "active" : ""
-                  }`}
-                  onClick={() => setActiveTab("schedule")}
-                >
-                  Schedule
-                </button>
-              </>
-            )}
-          </div>
-          <div className="quiz-modal-header-actions">
-            {activeTab === "quiz" && mode === "daily" && (
-              <span className="quiz-modal-timer nums">
-                {(() => {
-                  const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
-                  const minutes = Math.floor(totalSeconds / 60);
-                  const seconds = totalSeconds % 60;
-                  return `${minutes.toString().padStart(2, "0")}:${seconds
-                    .toString()
-                    .padStart(2, "0")}`;
-                })()}
-              </span>
-            )}
-            <button className="quiz-modal-close" onClick={handleClose}>
-              ✕
-            </button>
-          </div>
-        </header>
+  const shellTabs = useMemo(
+    () => [
+      { id: "quiz", label: "Quiz" },
+      ...(isAdmin
+        ? [
+            { id: "admin", label: "Admin" },
+            { id: "questions", label: "Questions" },
+            { id: "schedule", label: "Schedule" },
+          ]
+        : []),
+    ],
+    [isAdmin]
+  );
 
-        <div className="quiz-modal-body">
-          {activeTab === "quiz" && renderQuizContent()}
-          {activeTab === "admin" && isAdmin && (
+  const shellTitle =
+    (activeTabOverride ?? activeTab) === "admin"
+      ? "Quiz Admin"
+      : (activeTabOverride ?? activeTab) === "questions"
+        ? "Question Bank"
+        : (activeTabOverride ?? activeTab) === "schedule"
+          ? "Quiz Schedule"
+          : mode === "test"
+            ? "Quiz Test Mode"
+            : "Daily Quiz";
+
+  const effectiveActiveTab = activeTabOverride ?? activeTab;
+
+  const panelContent = (
+    <>
+          {effectiveActiveTab === "quiz" && renderQuizContent()}
+          {effectiveActiveTab === "admin" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-row">
                 <button
-                  className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
+                  className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
                   onClick={handleLoadDaily}
                 >
                   Load Daily Quiz
                 </button>
                 <button
-                  className="quiz-submit-btn quiz-admin-btn"
+                  className="quest-menu-action-btn quiz-admin-btn"
                   onClick={handleStartSequence}
                   disabled={adminLoading || orderedQuestions.length === 0}
                 >
@@ -1069,6 +955,7 @@ export function QuizModal({
                     value={selectedQuestionId}
                     onChange={(event) => setSelectedQuestionId(event.target.value)}
                     placeholder="q001"
+                    className="quest-menu-auth-input"
                   />
                   <datalist id="admin-question-list">
                     {orderedQuestions.map((question) => (
@@ -1077,7 +964,7 @@ export function QuizModal({
                   </datalist>
                 </div>
                 <button
-                  className="quiz-submit-btn quiz-admin-btn"
+                  className="quest-menu-action-btn quiz-admin-btn"
                   onClick={handleLoadSelected}
                   disabled={!selectedQuestionId || adminLoading}
                 >
@@ -1090,12 +977,12 @@ export function QuizModal({
               )}
             </div>
           )}
-          {activeTab === "questions" && isAdmin && (
+          {effectiveActiveTab === "questions" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-header">
                 <h3>Questions</h3>
                 <button
-                  className="quiz-submit-btn quiz-admin-btn"
+                  className="quest-menu-action-btn quiz-admin-btn"
                   onClick={openCreateEditor}
                 >
                   Create Question
@@ -1167,12 +1054,13 @@ export function QuizModal({
                       {editorState.mode === "edit" && (
                         <label className="quiz-admin-field">
                           <span>ID</span>
-                          <input value={editorState.id ?? ""} disabled />
+                          <input value={editorState.id ?? ""} disabled className="quest-menu-auth-input" />
                         </label>
                       )}
                       <label className="quiz-admin-field">
                         <span>Type</span>
                         <select
+                          className="quest-menu-auth-select"
                           value={editorState.type}
                           onChange={(event) =>
                             handleTypeChange(event.target.value as QuestionType)
@@ -1180,12 +1068,12 @@ export function QuizModal({
                         >
                           <option value="mcq">mcq</option>
                           <option value="select-all">select-all</option>
-                          <option value="written">written</option>
                         </select>
                       </label>
                       <label className="quiz-admin-field">
                         <span>Prompt</span>
                         <textarea
+                          className="quest-menu-auth-input"
                           value={editorState.prompt}
                           onChange={(event) =>
                             setEditorState({
@@ -1198,6 +1086,7 @@ export function QuizModal({
                       <label className="quiz-admin-field">
                         <span>Explanation</span>
                         <textarea
+                          className="quest-menu-auth-input"
                           value={editorState.explanation}
                           onChange={(event) =>
                             setEditorState({
@@ -1211,6 +1100,7 @@ export function QuizModal({
                         <label className="quiz-admin-field">
                           <span>Difficulty</span>
                           <select
+                            className="quest-menu-auth-select"
                             value={editorState.difficulty}
                             onChange={(event) =>
                               handleDifficultyChange(
@@ -1225,14 +1115,14 @@ export function QuizModal({
                         </label>
                         <label className="quiz-admin-field">
                           <span>Base Points</span>
-                          <input value={editorState.basePoints} disabled />
+                          <input value={editorState.basePoints} disabled className="quest-menu-auth-input" />
                         </label>
                       </div>
                       <div className="quiz-admin-field">
                         <span>Tags</span>
                         <button
                           type="button"
-                          className="quiz-admin-tag-toggle"
+                          className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-tag-toggle"
                           onClick={() => setTagDropdownOpen((prev) => !prev)}
                         >
                           {editorState.tags.length
@@ -1282,22 +1172,11 @@ export function QuizModal({
                                     updateChoice(index, event.target.value)
                                   }
                                   placeholder={`Choice ${index + 1}`}
+                                  className="quest-menu-auth-input"
                                 />
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
-                      {editorState.type === "written" && (
-                        <div className="quiz-admin-field">
-                          <span>Accepted Answers (one per line)</span>
-                          <textarea
-                            value={editorState.acceptedAnswersText}
-                            onChange={(event) =>
-                              handleAcceptedAnswersChange(event.target.value)
-                            }
-                            placeholder="answer one\nanswer two"
-                          />
                         </div>
                       )}
                       {editorError && (
@@ -1306,14 +1185,14 @@ export function QuizModal({
                       <div className="quiz-admin-row quiz-admin-actions">
                         <button
                           type="button"
-                          className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
+                          className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
                           onClick={closeEditor}
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          className="quiz-submit-btn quiz-admin-btn"
+                          className="quest-menu-action-btn quiz-admin-btn"
                           onClick={handleSave}
                           disabled={editorSaving || !validateEditor().valid}
                         >
@@ -1326,11 +1205,12 @@ export function QuizModal({
               )}
             </div>
           )}
-          {activeTab === "schedule" && isAdmin && (
+          {effectiveActiveTab === "schedule" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-header">
                 <h3>Schedule</h3>
                 <select
+                  className="quest-menu-auth-select"
                   value={scheduleRange}
                   onChange={(event) =>
                     setScheduleRange(event.target.value as RangeOption)
@@ -1397,6 +1277,7 @@ export function QuizModal({
                       {assignDate === date && (
                         <div className="quiz-admin-assign">
                           <select
+                            className="quest-menu-auth-select"
                             value={assignQuestionId}
                             onChange={(event) => setAssignQuestionId(event.target.value)}
                           >
@@ -1409,14 +1290,14 @@ export function QuizModal({
                           <div className="quiz-admin-row">
                             <button
                               type="button"
-                              className="quiz-submit-btn quiz-admin-btn"
+                              className="quest-menu-action-btn quiz-admin-btn"
                               onClick={() => handleAssignSave(date)}
                             >
                               Save
                             </button>
                             <button
                               type="button"
-                              className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
+                              className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
                               onClick={closeAssign}
                             >
                               Cancel
@@ -1435,17 +1316,56 @@ export function QuizModal({
               </div>
             </div>
           )}
-        </div>
-      </div>
+    </>
   );
 
   if (variant === "embedded") {
-    return panel;
+    return (
+      <div className="quest-menu-content quiz-modal-body" style={{ height: "100%" }}>
+        {panelContent}
+      </div>
+    );
   }
 
   return (
-    <div className="quiz-modal-backdrop" onClick={handleBackdropClick}>
-      {panel}
-    </div>
+    <NeumontPanelShell
+      title={shellTitle}
+      onClose={handleClose}
+      tabs={shellTabs}
+      activeTabId={effectiveActiveTab}
+      onTabSelect={(tabId) => setActiveTab(tabId as Tab)}
+      maxWidth={760}
+      panelClassName="quiz-modal-panel"
+      contentClassName="quiz-modal-body"
+      panelStyle={{
+        width: "min(760px, 92vw)",
+        height: "min(88vh, 820px)",
+      }}
+      headerRight={
+        effectiveActiveTab === "quiz" && mode === "daily" ? (
+          <span className="quiz-modal-timer nums">
+            {(() => {
+              const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
+              const minutes = Math.floor(totalSeconds / 60);
+              const seconds = totalSeconds % 60;
+              return `${minutes.toString().padStart(2, "0")}:${seconds
+                .toString()
+                .padStart(2, "0")}`;
+            })()}
+          </span>
+        ) : undefined
+      }
+      footerHint={
+        effectiveActiveTab === "quiz"
+          ? "Complete today's quiz to build your streak."
+          : effectiveActiveTab === "admin"
+            ? "Run tests and load quiz questions."
+            : effectiveActiveTab === "questions"
+              ? "Create and manage quiz questions."
+              : "Review daily schedule coverage."
+      }
+    >
+      {panelContent}
+    </NeumontPanelShell>
   );
 }
