@@ -2,10 +2,10 @@ import Phaser from "phaser";
 
 /**
  * QuizTerminal - Interactive terminal for daily quiz
- * 
+ *
  * Follows the same pattern as NPC entities with proximity detection
  * and E key interaction.
- * 
+ *
  * @example
  * ```typescript
  * const terminal = new QuizTerminal(scene, x, y);
@@ -60,7 +60,7 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
    * Call this every frame
    * @param player - The player game object
    */
-  public update(player: Phaser.GameObjects.GameObject): void {
+  public override update(player: Phaser.GameObjects.GameObject): void {
     if (!player || !player.body) {
       return;
     }
@@ -84,8 +84,12 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
     // Debug logging for proximity detection
     if (this.isPlayerNearby && !wasNearby) {
       console.log(`[QuizTerminal] 📍 Player entered interaction zone`);
-      console.log(`[QuizTerminal] Distance: ${distance.toFixed(2)}px (max: ${this.INTERACTION_RADIUS}px)`);
-      console.log(`[QuizTerminal] Terminal: (${this.x}, ${this.y}), Player: (${playerX.toFixed(2)}, ${playerY.toFixed(2)})`);
+      console.log(
+        `[QuizTerminal] Distance: ${distance.toFixed(2)}px (max: ${this.INTERACTION_RADIUS}px)`,
+      );
+      console.log(
+        `[QuizTerminal] Terminal: (${this.x}, ${this.y}), Player: (${playerX.toFixed(2)}, ${playerY.toFixed(2)})`,
+      );
     }
 
     // Show/hide interaction prompt based on proximity
@@ -167,4 +171,3 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
     super.destroy(fromScene);
   }
 }
-

@@ -50,9 +50,7 @@ export class NPCManager {
 
     try {
       // Fetch NPC configuration for this floor
-      const response = await fetch(
-        `/assets/data/npcs/floor${floor}-npcs.json`,
-      );
+      const response = await fetch(`/assets/data/npcs/floor${floor}-npcs.json`);
 
       if (!response.ok) {
         console.warn(`No NPCs found for floor ${floor}`);
@@ -113,7 +111,10 @@ export class NPCManager {
    * Call this every frame from scene update()
    * @param player - The player game object
    */
-  public update(player: Phaser.GameObjects.GameObject): void {
+  public update(
+    player: Phaser.GameObjects.GameObject,
+    interactionJustDown: boolean,
+  ): void {
     if (!player) {
       return;
     }
@@ -121,21 +122,18 @@ export class NPCManager {
     // Update each NPC and track nearest one in range
     this.checkPlayerProximity(player);
 
-    // DEBUG: Log key state when key is down
-    if (this.interactionKey.isDown) {
-      console.log(`[NPCManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
-    }
-
     // Handle interaction key press
     // Note: Using shared key, so check NPC proximity first to avoid conflicts
-    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
-
-    if (justDown) {
+    if (interactionJustDown) {
       console.log(`[NPCManager] ⌨️ E key JustDown triggered!`);
-      console.log(`[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || 'none'}, nearby: ${this.nearestNPC?.isPlayerNearby}`);
+      console.log(
+        `[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || "none"}, nearby: ${this.nearestNPC?.isPlayerNearby}`,
+      );
 
       if (this.nearestNPC && this.nearestNPC.isPlayerNearby) {
-        console.log(`[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`);
+        console.log(
+          `[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`,
+        );
         this.nearestNPC.startDialogue();
       } else {
         console.log(`[NPCManager] ❌ No NPC in range`);

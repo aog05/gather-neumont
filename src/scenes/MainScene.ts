@@ -6,9 +6,7 @@ import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
 import { MapParser } from "@/utils/MapParser";
-
-const PLAYER_SPEED = 200;
-const PLAYER_SIZE = 50;
+import { PlayerController } from "../entities/PlayerController";
 
 const temporaryMap = `
 -0002,-0001 tex=assets/test-images/IMG_5026.png
@@ -29,21 +27,12 @@ const temporaryMap = `
  * Features the ground floor layout with multiple rooms and collision detection
  */
 export class MainScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Rectangle;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
-    up: Phaser.Input.Keyboard.Key;
-    down: Phaser.Input.Keyboard.Key;
-    left: Phaser.Input.Keyboard.Key;
-    right: Phaser.Input.Keyboard.Key;
-  };
+  private playerController!: PlayerController;
   private npcManager!: NPCManager;
   private quizTerminalManager!: QuizTerminalManager;
   private dialogueManager!: DialogueManager;
   private gameState!: GameState;
   private bridge!: GameEventBridge;
-  private playerState: "EXPLORING" | "DIALOGUE" = "EXPLORING";
-  private escapeKey!: Phaser.Input.Keyboard.Key;
   private interactionKey!: Phaser.Input.Keyboard.Key; // Shared E key for NPCs and terminal
 
   constructor() {
@@ -71,39 +60,16 @@ export class MainScene extends Phaser.Scene {
       `[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`,
     );
 
-    // Create player (blue square) at center of NPCs
-    this.player = this.add.rectangle(
-      npcCenterX,
-      npcCenterY,
-      PLAYER_SIZE,
-      PLAYER_SIZE,
-      0x0000ff,
-    );
-
-    // Enable physics on player
-    this.physics.add.existing(this.player);
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-
-    // Set up collision between player and tiles
-    this.physics.add.collider(this.player, tiles);
-
-    // Set up keyboard controls
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = {
-      up: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-    };
-    this.escapeKey = this.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.ESC,
-    );
+    this.playerController = new PlayerController(this);
+    this.playerController.create(npcCenterX, npcCenterY, tiles);
+    const player = this.playerController.getPlayer();
 
     // Create shared interaction key (E) for NPCs and quiz terminal
     // This prevents the key press from being consumed by the first manager
     this.interactionKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.E,
     );
+    this.playerController.setInteractionKey(this.interactionKey);
     console.log(`[MainScene] Created shared E key for interactions`);
 
     // Create quiz terminal manager (follows NPC pattern)
@@ -134,7 +100,7 @@ export class MainScene extends Phaser.Scene {
     terminalLabel.setDepth(3);
 
     // Configure camera to follow player
-    this.cameras.main.startFollow(this.player);
+    this.cameras.main.startFollow(player);
     this.cameras.main.setZoom(1.0);
 
     // Initialize game systems
@@ -167,61 +133,41 @@ export class MainScene extends Phaser.Scene {
 
     // Listen for player state changes
     this.bridge.on("dialogue:start", () => {
-      this.playerState = "DIALOGUE";
+      this.playerController.setDialogueActive(true);
       console.log("Player state: DIALOGUE");
     });
 
     this.bridge.on("dialogue:end", () => {
-      this.playerState = "EXPLORING";
+      this.playerController.setDialogueActive(false);
       console.log("Player state: EXPLORING");
     });
   }
 
   override update(): void {
-    if (!this.player || !this.player.body) {
+    const player = this.playerController?.getPlayer();
+    if (!player || !player.body) {
       return;
     }
+
+    this.playerController.captureJustDownStates();
+    const interactionJustDown = this.playerController.getInteractionJustDown();
 
     // IMPORTANT: Update quiz terminal BEFORE NPCs
     // This ensures terminal gets priority for E key interaction
     // when player is near terminal (prevents NPCManager from consuming JustDown)
-    this.quizTerminalManager.update(this.player);
+    const terminalHandledInteraction = this.quizTerminalManager.update(
+      player,
+      interactionJustDown,
+    );
 
     // Update NPC system
-    this.npcManager.update(this.player);
+    this.npcManager.update(
+      player,
+      interactionJustDown && !terminalHandledInteraction,
+    );
 
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-
-    // Handle Escape key to close dialogue
-    if (
-      this.playerState === "DIALOGUE" &&
-      Phaser.Input.Keyboard.JustDown(this.escapeKey)
-    ) {
+    this.playerController.update(() => {
       this.bridge.emit("dialogue:close", {});
-    }
-
-    // Disable player movement during dialogue
-    if (this.playerState === "DIALOGUE") {
-      playerBody.setVelocity(0, 0);
-      return; // Skip movement input
-    }
-
-    // Handle horizontal movement (Arrow keys or WASD)
-    if (this.cursors.left.isDown || this.wasd.left.isDown) {
-      playerBody.setVelocityX(-PLAYER_SPEED);
-    } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
-      playerBody.setVelocityX(PLAYER_SPEED);
-    } else {
-      playerBody.setVelocityX(0);
-    }
-
-    // Handle vertical movement (Arrow keys or WASD)
-    if (this.cursors.up.isDown || this.wasd.up.isDown) {
-      playerBody.setVelocityY(-PLAYER_SPEED);
-    } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
-      playerBody.setVelocityY(PLAYER_SPEED);
-    } else {
-      playerBody.setVelocityY(0);
-    }
+    });
   }
 }

@@ -3,15 +3,15 @@ import { QuizTerminal } from "./QuizTerminal";
 
 /**
  * QuizTerminalManager - Manages quiz terminal interaction
- * 
+ *
  * Follows the same pattern as NPCManager for consistent interaction handling.
- * 
+ *
  * @example
  * ```typescript
  * // In MainScene.create()
  * this.quizTerminalManager = new QuizTerminalManager(this);
  * this.quizTerminalManager.createTerminal(x, y);
- * 
+ *
  * // In MainScene.update()
  * this.quizTerminalManager.update(this.player);
  * ```
@@ -62,34 +62,35 @@ export class QuizTerminalManager {
    * Call this every frame from scene update()
    * @param player - The player game object
    */
-  public update(player: Phaser.GameObjects.GameObject): void {
+  public update(
+    player: Phaser.GameObjects.GameObject,
+    interactionJustDown: boolean,
+  ): boolean {
     if (!player || !this.terminal) {
-      return;
+      return false;
     }
 
     // Update terminal proximity check
     this.terminal.update(player);
 
-    // DEBUG: Log key state when key is down
-    if (this.interactionKey.isDown) {
-      console.log(`[QuizTerminalManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
-    }
-
     // Handle interaction key press (same pattern as NPCManager)
     // Note: Using shared key, so check terminal proximity first to avoid conflicts
-    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
-
-    if (justDown) {
+    if (interactionJustDown) {
       console.log(`[QuizTerminalManager] ⌨️ E key JustDown triggered!`);
-      console.log(`[QuizTerminalManager] Player nearby: ${this.terminal.isPlayerNearby}`);
+      console.log(
+        `[QuizTerminalManager] Player nearby: ${this.terminal.isPlayerNearby}`,
+      );
 
       if (this.terminal.isPlayerNearby) {
         console.log(`[QuizTerminalManager] ✅ Starting quiz...`);
         this.terminal.startQuiz();
+        return true;
       } else {
         console.log(`[QuizTerminalManager] ❌ Player not in range`);
       }
     }
+
+    return false;
   }
 
   /**
@@ -110,4 +111,3 @@ export class QuizTerminalManager {
     return this.terminal;
   }
 }
-
