@@ -10,8 +10,6 @@ export namespace MapParser {
   export type TiledTileset = {
     firstgid: number;
     name: string;
-    tilewidth: number;
-    tileheight: number;
     image?: string;
     imagewidth?: number;
     imageheight?: number;
@@ -61,8 +59,6 @@ export namespace MapParser {
   export type TiledMapData = {
     width: number;
     height: number;
-    tilewidth: number;
-    tileheight: number;
     layers: TiledLayer[];
     tilesets: TiledTileset[];
   };
@@ -95,8 +91,8 @@ export namespace MapParser {
       }
 
       scene.load.spritesheet(key, tileset.image, {
-        frameWidth: tileset.tilewidth,
-        frameHeight: tileset.tileheight,
+        frameWidth: MapParser.TILE_SIZE,
+        frameHeight: MapParser.TILE_SIZE,
         margin: 0,
         spacing: 0,
       });
@@ -130,8 +126,8 @@ export namespace MapParser {
             const obstacle = isObstacleLayer(layer);
 
             tiles.push({
-              x: col * map.tilewidth,
-              y: row * map.tileheight,
+              x: col * MapParser.TILE_SIZE,
+              y: row * MapParser.TILE_SIZE,
               obstacle,
               textureKey: getTilesetTextureKey(tileset.name),
               frame: isSingleTileImageTileset(tileset) ? undefined : frame,

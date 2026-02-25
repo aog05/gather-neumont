@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { QuizTerminal } from "./QuizTerminal";
+import type { PlayerController } from "./PlayerController";
+import { GameEventBridge } from "@/systems/GameEventBridge";
 
 /**
  * QuizTerminalManager - Manages quiz terminal interaction
@@ -62,20 +64,17 @@ export class QuizTerminalManager {
    * Call this every frame from scene update()
    * @param player - The player game object
    */
-  public update(
-    player: Phaser.GameObjects.GameObject,
-    interactionJustDown: boolean,
-  ): boolean {
-    if (!player || !this.terminal) {
+  public update(player: PlayerController): boolean {
+    if (!this.terminal) {
       return false;
     }
 
     // Update terminal proximity check
-    this.terminal.update(player);
+    this.terminal.update(player.getGameObject());
 
     // Handle interaction key press (same pattern as NPCManager)
     // Note: Using shared key, so check terminal proximity first to avoid conflicts
-    if (interactionJustDown) {
+    if (player.isInteracting()) {
       console.log(`[QuizTerminalManager] ⌨️ E key JustDown triggered!`);
       console.log(
         `[QuizTerminalManager] Player nearby: ${this.terminal.isPlayerNearby}`,
@@ -83,6 +82,8 @@ export class QuizTerminalManager {
 
       if (this.terminal.isPlayerNearby) {
         console.log(`[QuizTerminalManager] ✅ Starting quiz...`);
+        const bridge = GameEventBridge.getInstance();
+        bridge.emit("popup:show");
         this.terminal.startQuiz();
         return true;
       } else {

@@ -1,3 +1,4 @@
+import { GameEventBridge } from "@/systems/GameEventBridge";
 import Phaser from "phaser";
 
 /**
@@ -61,10 +62,6 @@ export class QuizTerminal extends Phaser.GameObjects.Container {
    * @param player - The player game object
    */
   public override update(player: Phaser.GameObjects.GameObject): void {
-    if (!player || !player.body) {
-      return;
-    }
-
     // Get player position (use center of body, same as NPC)
     const playerBody = player.body as Phaser.Physics.Arcade.Body;
     const playerX = playerBody.x + playerBody.halfWidth;

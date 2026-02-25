@@ -4,23 +4,16 @@ import type { PlayerSnapshot } from "../systems/multiplayer";
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
 
-type PlayerState = "EXPLORING" | "DIALOGUE";
+type PlayerState = "EXPLORING" | "DIALOGUE" | "POPUP";
 
 export class PlayerController {
   private scene: Phaser.Scene;
   private player!: Phaser.GameObjects.Rectangle;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: {
-    up: Phaser.Input.Keyboard.Key;
-    down: Phaser.Input.Keyboard.Key;
-    left: Phaser.Input.Keyboard.Key;
-    right: Phaser.Input.Keyboard.Key;
-  };
-  private escapeKey!: Phaser.Input.Keyboard.Key;
-  private interactionKey: Phaser.Input.Keyboard.Key | null = null;
+  private downKeys: Set<string> = new Set();
+  private pressedKeys: Set<string> = new Set();
   private playerState: PlayerState = "EXPLORING";
-  private escapeJustDown = false;
-  private interactionJustDown = false;
+  private onDialogueCloseCallback: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -30,7 +23,9 @@ export class PlayerController {
     spawnX: number,
     spawnY: number,
     tiles: Phaser.Physics.Arcade.StaticGroup,
+    onDialogueClose: () => void,
   ): void {
+    this.onDialogueCloseCallback = onDialogueClose;
     this.player = this.scene.add.rectangle(
       spawnX,
       spawnY,
@@ -43,20 +38,9 @@ export class PlayerController {
     this.scene.physics.add.collider(this.player, tiles);
 
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
-    this.wasd = {
-      up: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: this.scene.input.keyboard!.addKey(
-        Phaser.Input.Keyboard.KeyCodes.D,
-      ),
-    };
-    this.escapeKey = this.scene.input.keyboard!.addKey(
-      Phaser.Input.Keyboard.KeyCodes.ESC,
-    );
   }
 
-  getPlayer(): Phaser.GameObjects.Rectangle {
+  getGameObject(): Phaser.GameObjects.Rectangle {
     return this.player;
   }
 
@@ -75,55 +59,71 @@ export class PlayerController {
     };
   }
 
-  setInteractionKey(key: Phaser.Input.Keyboard.Key): void {
-    this.interactionKey = key;
+  private capturePressedKeys(): void {
+    this.pressedKeys.clear();
+    const keyboard = this.scene.input.keyboard!;
+    keyboard.on("keydown", (event: KeyboardEvent) => {
+      if (!this.downKeys.has(event.key)) {
+        this.pressedKeys.add(event.key);
+        console.log(`[PlayerController] Key just pressed: ${event.key}`);
+      }
+      this.downKeys.add(event.key);
+    });
+
+    keyboard.on("keyup", (event: KeyboardEvent) => {
+      this.downKeys.delete(event.key);
+    });
   }
 
-  captureJustDownStates(): void {
-    this.escapeJustDown = Phaser.Input.Keyboard.JustDown(this.escapeKey);
-    this.interactionJustDown = this.interactionKey
-      ? Phaser.Input.Keyboard.JustDown(this.interactionKey)
-      : false;
+  setPlayerState(state: PlayerState): void {
+    this.playerState = state;
   }
 
-  getInteractionJustDown(): boolean {
-    return this.interactionJustDown;
+  isInteracting(): boolean {
+    return this.pressedKeys.has("e");
   }
 
-  setDialogueActive(isActive: boolean): void {
-    this.playerState = isActive ? "DIALOGUE" : "EXPLORING";
-  }
+  private move(playerBody: Phaser.Physics.Arcade.Body): void {
+    let xVelocity = 0;
+    let yVelocity = 0;
 
-  update(onDialogueClose: () => void): void {
-    if (!this.player || !this.player.body) {
-      return;
+    if (this.cursors.left.isDown || this.downKeys.has("a")) {
+      xVelocity -= PLAYER_SPEED;
     }
 
+    if (this.cursors.right.isDown || this.downKeys.has("d")) {
+      xVelocity += PLAYER_SPEED;
+    }
+
+    if (this.cursors.up.isDown || this.downKeys.has("w")) {
+      yVelocity -= PLAYER_SPEED;
+    }
+
+    if (this.cursors.down.isDown || this.downKeys.has("s")) {
+      yVelocity += PLAYER_SPEED;
+    }
+
+    playerBody.setVelocity(xVelocity, yVelocity);
+  }
+
+  update(): void {
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    this.capturePressedKeys();
 
-    if (this.playerState === "DIALOGUE" && this.escapeJustDown) {
-      onDialogueClose();
-    }
+    switch (this.playerState) {
+      case "EXPLORING":
+        this.move(playerBody);
+        break;
+      case "DIALOGUE":
+        playerBody.setVelocity(0, 0);
 
-    if (this.playerState === "DIALOGUE") {
-      playerBody.setVelocity(0, 0);
-      return;
-    }
-
-    if (this.cursors.left.isDown || this.wasd.left.isDown) {
-      playerBody.setVelocityX(-PLAYER_SPEED);
-    } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
-      playerBody.setVelocityX(PLAYER_SPEED);
-    } else {
-      playerBody.setVelocityX(0);
-    }
-
-    if (this.cursors.up.isDown || this.wasd.up.isDown) {
-      playerBody.setVelocityY(-PLAYER_SPEED);
-    } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
-      playerBody.setVelocityY(PLAYER_SPEED);
-    } else {
-      playerBody.setVelocityY(0);
+        if (this.pressedKeys.has("Escape")) {
+          this.onDialogueCloseCallback?.();
+        }
+        break;
+      case "POPUP":
+        playerBody.setVelocity(0, 0);
+        break;
     }
   }
 }

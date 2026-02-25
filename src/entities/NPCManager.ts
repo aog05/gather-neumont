@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { NPC } from "./NPC";
 import type { NPCConfig } from "../types/npc.types";
+import type { PlayerController } from "./PlayerController";
 
 /**
  * NPCManager - Manages lifecycle of all NPCs in the current scene
@@ -111,20 +112,13 @@ export class NPCManager {
    * Call this every frame from scene update()
    * @param player - The player game object
    */
-  public update(
-    player: Phaser.GameObjects.GameObject,
-    interactionJustDown: boolean,
-  ): void {
-    if (!player) {
-      return;
-    }
-
+  public update(player: PlayerController): void {
     // Update each NPC and track nearest one in range
-    this.checkPlayerProximity(player);
+    this.checkPlayerProximity(player.getGameObject());
 
     // Handle interaction key press
     // Note: Using shared key, so check NPC proximity first to avoid conflicts
-    if (interactionJustDown) {
+    if (player.isInteracting()) {
       console.log(`[NPCManager] ⌨️ E key JustDown triggered!`);
       console.log(
         `[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || "none"}, nearby: ${this.nearestNPC?.isPlayerNearby}`,

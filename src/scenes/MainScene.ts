@@ -56,15 +56,16 @@ export class MainScene extends Phaser.Scene {
     );
 
     this.playerController = new PlayerController(this);
-    this.playerController.create(npcCenterX, npcCenterY, tiles);
-    const player = this.playerController.getPlayer();
+    this.playerController.create(npcCenterX, npcCenterY, tiles, () =>
+      this.bridge.emit("dialogue:close", {}),
+    );
+    const player = this.playerController.getGameObject();
 
     // Create shared interaction key (E) for NPCs and quiz terminal
     // This prevents the key press from being consumed by the first manager
     this.interactionKey = this.input.keyboard!.addKey(
       Phaser.Input.Keyboard.KeyCodes.E,
     );
-    this.playerController.setInteractionKey(this.interactionKey);
     console.log(`[MainScene] Created shared E key for interactions`);
 
     // Create quiz terminal manager (follows NPC pattern)
@@ -129,12 +130,22 @@ export class MainScene extends Phaser.Scene {
 
     // Listen for player state changes
     this.bridge.on("dialogue:start", () => {
-      this.playerController.setDialogueActive(true);
+      this.playerController.setPlayerState("DIALOGUE");
       console.log("Player state: DIALOGUE");
     });
 
     this.bridge.on("dialogue:end", () => {
-      this.playerController.setDialogueActive(false);
+      this.playerController.setPlayerState("EXPLORING");
+      console.log("Player state: EXPLORING");
+    });
+
+    this.bridge.on("popup:show", () => {
+      this.playerController.setPlayerState("POPUP");
+      console.log("Player state: POPUP");
+    });
+
+    this.bridge.on("popup:hide", () => {
+      this.playerController.setPlayerState("EXPLORING");
       console.log("Player state: EXPLORING");
     });
 
@@ -150,31 +161,18 @@ export class MainScene extends Phaser.Scene {
   }
 
   override update(): void {
-    const player = this.playerController?.getPlayer();
+    const player = this.playerController?.getGameObject();
     if (!player || !player.body) {
       return;
     }
 
-    this.playerController.captureJustDownStates();
-    const interactionJustDown = this.playerController.getInteractionJustDown();
-
-    // IMPORTANT: Update quiz terminal BEFORE NPCs
-    // This ensures terminal gets priority for E key interaction
-    // when player is near terminal (prevents NPCManager from consuming JustDown)
-    const terminalHandledInteraction = this.quizTerminalManager.update(
-      player,
-      interactionJustDown,
-    );
+    // Update quiz terminal system
+    this.quizTerminalManager.update(this.playerController);
 
     // Update NPC system
-    this.npcManager.update(
-      player,
-      interactionJustDown && !terminalHandledInteraction,
-    );
+    this.npcManager.update(this.playerController);
 
-    this.playerController.update(() => {
-      this.bridge.emit("dialogue:close", {});
-    });
+    this.playerController.update();
 
     this.publishMultiplayerState();
   }
