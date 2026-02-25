@@ -32,34 +32,9 @@ You are setting up the **Neumont Virtual Campus Web App** - a browser-based virt
 - **Audio**: Audio will be supplied.
   - Don't create any audio yourself.
   - Don't change any audio unless told.
-
-## Project Structure
-
-```
-.
-├── assets/
-│   ├── images/
-│   │   └── map/
-│   │       └── this will include the layout of the building
-│   ├── audio
-│   └── spritesheets
-├── src/
-│   ├── scenes/
-│   │   ├── maps
-│   │   │   └── environments will be instantiated in here, like walls, NPCs, etc. to be used in scenes
-│   │   └── scenes to be placed here
-│   ├── utils/
-│   │   └── utility functions like collisions scripts and math files
-│   ├── components/
-│   │   └── directory for components
-│   ├── App.tsx (Routes can be found in here)
-│   ├── frontend.tsx
-│   ├── index.html
-│   ├── index.css
-│   └── index.ts
-├── bun.lock
-└── package.json
-```
+- **Multiplayer**
+  - Multiplayer will be added later.
+  - Structure the project with multiplayer in mind.
 
 ## Core Objectives
 
@@ -68,15 +43,6 @@ You are setting up the **Neumont Virtual Campus Web App** - a browser-based virt
 3. **Create** recurring engagement through daily puzzles, streaks, and leaderboards
 4. **Provide** community connection via forum and live basement chat
 5. **Support** persistent user profiles with avatars and skill trees
-
-## Agent Configuration
-
-The repository includes a custom agent definition in `.github/agents/mdplanning.agent.md`:
-
-- **Purpose**: Planning phase agent for creating markdown files before prompting AI to write scripts
-- **Name**: MDPlanning
-- **Tools**: vscode, read, search, web
-- **Usage Guideline**: Use context7 at the end of each prompt to get relevant project information
 
 ## Claude Code Settings
 

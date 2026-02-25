@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { PlayerSnapshot } from "../systems/multiplayer";
 
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
@@ -57,6 +58,21 @@ export class PlayerController {
 
   getPlayer(): Phaser.GameObjects.Rectangle {
     return this.player;
+  }
+
+  getMultiplayerSnapshot(): PlayerSnapshot {
+    const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
+    const vx = body?.velocity.x ?? 0;
+    const vy = body?.velocity.y ?? 0;
+
+    return {
+      x: this.player?.x ?? 0,
+      y: this.player?.y ?? 0,
+      vx,
+      vy,
+      isMoving: Math.abs(vx) > 0 || Math.abs(vy) > 0,
+      timestamp: Date.now(),
+    };
   }
 
   setInteractionKey(key: Phaser.Input.Keyboard.Key): void {

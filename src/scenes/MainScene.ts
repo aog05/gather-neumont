@@ -7,6 +7,11 @@ import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
 import { MapParser } from "@/utils/MapParser";
 import { PlayerController } from "../entities/PlayerController";
+import { MULTIPLAYER_CONFIG } from "../config/multiplayer";
+import {
+  LocalLoopbackTransport,
+  MultiplayerSession,
+} from "../systems/multiplayer";
 
 const temporaryMap = `
 -0002,-0001 tex=assets/test-images/IMG_5026.png
@@ -34,6 +39,9 @@ export class MainScene extends Phaser.Scene {
   private gameState!: GameState;
   private bridge!: GameEventBridge;
   private interactionKey!: Phaser.Input.Keyboard.Key; // Shared E key for NPCs and terminal
+  private multiplayerSession: MultiplayerSession | null = null;
+  private lastMultiplayerPublishAt = 0;
+  private remotePlayerCount = 0;
 
   constructor() {
     super({ key: "MainScene" });
@@ -111,6 +119,7 @@ export class MainScene extends Phaser.Scene {
     this.gameState.setPlayerUsername("sarah_dev");
 
     this.dialogueManager = new DialogueManager(this.gameState, this.bridge);
+    this.setupMultiplayer();
 
     // Initialize NPC system with shared interaction key
     this.npcManager = new NPCManager(this, this.interactionKey);
@@ -141,6 +150,16 @@ export class MainScene extends Phaser.Scene {
       this.playerController.setDialogueActive(false);
       console.log("Player state: EXPLORING");
     });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.multiplayerSession?.stop();
+      this.multiplayerSession = null;
+    });
+
+    this.events.once(Phaser.Scenes.Events.DESTROY, () => {
+      this.multiplayerSession?.stop();
+      this.multiplayerSession = null;
+    });
   }
 
   override update(): void {
@@ -169,5 +188,64 @@ export class MainScene extends Phaser.Scene {
     this.playerController.update(() => {
       this.bridge.emit("dialogue:close", {});
     });
+
+    this.publishMultiplayerState();
+  }
+
+  private setupMultiplayer(): void {
+    if (MULTIPLAYER_CONFIG.mode === "disabled") {
+      console.log("[MainScene] Multiplayer disabled");
+      return;
+    }
+
+    if (MULTIPLAYER_CONFIG.mode === "local-loopback") {
+      this.multiplayerSession = new MultiplayerSession(
+        new LocalLoopbackTransport(),
+      );
+
+      this.multiplayerSession.onStatusChange((status) => {
+        console.log(`[MainScene] Multiplayer status: ${status}`);
+      });
+
+      this.multiplayerSession.onRemotePlayersChange((players) => {
+        if (players.length !== this.remotePlayerCount) {
+          this.remotePlayerCount = players.length;
+          console.log(
+            `[MainScene] Remote players connected: ${players.length}`,
+          );
+        }
+      });
+
+      void this.multiplayerSession
+        .start({
+          roomId: MULTIPLAYER_CONFIG.roomId,
+          displayName: "sarah_dev",
+        })
+        .catch((error) => {
+          console.error(
+            "[MainScene] Failed to start multiplayer session:",
+            error,
+          );
+        });
+    }
+  }
+
+  private publishMultiplayerState(): void {
+    if (!this.multiplayerSession) {
+      return;
+    }
+
+    const now = this.time.now;
+    if (
+      now - this.lastMultiplayerPublishAt <
+      MULTIPLAYER_CONFIG.statePublishIntervalMs
+    ) {
+      return;
+    }
+
+    this.multiplayerSession.publishLocalState(
+      this.playerController.getMultiplayerSnapshot(),
+    );
+    this.lastMultiplayerPublishAt = now;
   }
 }
