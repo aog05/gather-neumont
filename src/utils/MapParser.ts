@@ -1,72 +1,245 @@
-const mapLineRegex = /^([-+][0-9,a-f]{4}),([-+][0-9,a-f]{4})(.*)$/i;
-
 export namespace MapParser {
   export const TILE_SIZE = 50;
 
-  export type Tile = {
+  export type TiledProperty = {
+    name: string;
+    type?: string;
+    value: unknown;
+  };
+
+  export type TiledTileset = {
+    firstgid: number;
+    name: string;
+    tilewidth: number;
+    tileheight: number;
+    image?: string;
+    imagewidth?: number;
+    imageheight?: number;
+    tilecount?: number;
+    columns?: number;
+    tiles?: Array<{
+      id: number;
+      properties?: TiledProperty[];
+    }>;
+  };
+
+  export type TiledTileLayer = {
+    id: number;
+    name: string;
+    type: "tilelayer";
+    width: number;
+    height: number;
+    data: number[];
+    visible?: boolean;
+    opacity?: number;
+    properties?: TiledProperty[];
+  };
+
+  export type TiledObject = {
+    id: number;
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    gid?: number;
+    visible?: boolean;
+    properties?: TiledProperty[];
+  };
+
+  export type TiledObjectLayer = {
+    id: number;
+    name: string;
+    type: "objectgroup";
+    objects: TiledObject[];
+    visible?: boolean;
+    opacity?: number;
+    properties?: TiledProperty[];
+  };
+
+  export type TiledLayer = TiledTileLayer | TiledObjectLayer;
+
+  export type TiledMapData = {
+    width: number;
+    height: number;
+    tilewidth: number;
+    tileheight: number;
+    layers: TiledLayer[];
+    tilesets: TiledTileset[];
+  };
+
+  export type ParsedTile = {
     x: number;
     y: number;
     obstacle: boolean;
-    image: string;
+    textureKey: string;
+    frame?: number;
   };
 
-  export type MapData = {
-    tiles: Tile[];
+  export type ParsedMapData = {
+    tiles: ParsedTile[];
   };
 
-  export function preloadMapAssets(map: string, scene: Phaser.Scene): void {
-    const uniqueImages = new Set<string>();
-    const regex = /tex=([^\s]+)/;
-
-    map.split("\n").forEach((line) => {
-      const match = line.match(regex);
-      if (match) {
-        const image = match[1];
-        console.log(`Preloading image: ${image}`);
-        if (image) uniqueImages.add(image);
+  export function preloadTiledMapAssets(
+    map: TiledMapData,
+    scene: Phaser.Scene,
+  ): void {
+    for (const tileset of map.tilesets) {
+      if (!tileset.image) {
+        continue;
       }
-    });
 
-    uniqueImages.forEach((image) => scene.load.image(image, image));
+      const key = getTilesetTextureKey(tileset.name);
+      if (isSingleTileImageTileset(tileset)) {
+        scene.load.image(key, tileset.image);
+        continue;
+      }
+
+      scene.load.spritesheet(key, tileset.image, {
+        frameWidth: tileset.tilewidth,
+        frameHeight: tileset.tileheight,
+        margin: 0,
+        spacing: 0,
+      });
+    }
   }
 
-  export function parseMapFile(map: string, scene: Phaser.Scene): MapData {
-    let mapData: MapData = { tiles: [] };
-    map.split("\n").forEach((line, lineNumber) => {
-      const match = line.match(mapLineRegex);
-      let tile: Tile = { x: 0, y: 0, obstacle: false, image: "" };
+  export function parseTiledMap(map: TiledMapData): ParsedMapData {
+    const tiles: ParsedTile[] = [];
 
-      if (match) {
-        const x = getCoordinate(match[1]) * TILE_SIZE;
-        const y = getCoordinate(match[2]) * TILE_SIZE;
-        const flags = parseFlags(match[3]);
+    for (const layer of map.layers) {
+      if (layer.visible === false) {
+        continue;
+      }
 
-        const obstacle = flags.includes("ob");
-        const image = flags.find((f) => f.includes("tex="))?.split("=")[1];
+      if (layer.type === "tilelayer") {
+        for (let row = 0; row < layer.height; row++) {
+          for (let col = 0; col < layer.width; col++) {
+            const index = row * layer.width + col;
+            const gid = layer.data[index] ?? 0;
 
-        if (!image) {
-          console.warn(`Invalid map line ${lineNumber + 1}: ${line}`);
-          return;
+            if (gid <= 0) {
+              continue;
+            }
+
+            const tileset = findTilesetForGid(gid, map.tilesets);
+            if (!tileset?.image) {
+              continue;
+            }
+
+            const frame = gid - tileset.firstgid;
+            const obstacle = isObstacleLayer(layer);
+
+            tiles.push({
+              x: col * map.tilewidth,
+              y: row * map.tileheight,
+              obstacle,
+              textureKey: getTilesetTextureKey(tileset.name),
+              frame: isSingleTileImageTileset(tileset) ? undefined : frame,
+            });
+          }
         }
 
-        tile = { x, y, obstacle, image };
-      } else {
-        console.warn(`Invalid map line ${lineNumber + 1}: ${line}`);
-        return;
+        continue;
       }
 
-      mapData.tiles.push(tile);
-    });
+      if (layer.type === "objectgroup") {
+        for (const object of layer.objects) {
+          if (object.visible === false || !object.gid) {
+            continue;
+          }
 
-    return mapData;
+          const tileset = findTilesetForGid(object.gid, map.tilesets);
+          if (!tileset?.image) {
+            continue;
+          }
+
+          const frame = object.gid - tileset.firstgid;
+          const obstacle = isObstacleLayer(layer) || isObstacleObject(object);
+
+          tiles.push({
+            x: object.x,
+            y: object.y,
+            obstacle,
+            textureKey: getTilesetTextureKey(tileset.name),
+            frame: isSingleTileImageTileset(tileset) ? undefined : frame,
+          });
+        }
+
+        continue;
+      }
+    }
+
+    return { tiles };
   }
 
-  function getCoordinate(match: string | undefined): number {
-    if (!match) return 0;
-    return parseInt(match, 16);
+  function findTilesetForGid(
+    gid: number,
+    tilesets: TiledTileset[],
+  ): TiledTileset | undefined {
+    const sortedTilesets = [...tilesets].sort(
+      (a, b) => a.firstgid - b.firstgid,
+    );
+
+    let resolved: TiledTileset | undefined;
+    for (const tileset of sortedTilesets) {
+      if (gid >= tileset.firstgid) {
+        resolved = tileset;
+      }
+    }
+
+    return resolved;
   }
 
-  function parseFlags(match: string | undefined): string[] {
-    return match !== undefined ? match.trim().split(/\s+/) : [];
+  function getTilesetTextureKey(tilesetName: string): string {
+    return `tiled-tileset-${tilesetName}`;
+  }
+
+  function isSingleTileImageTileset(tileset: TiledTileset): boolean {
+    return (tileset.tilecount ?? 0) <= 1 || (tileset.columns ?? 0) <= 1;
+  }
+
+  function isObstacleLayer(layer: TiledLayer): boolean {
+    const hasCollisionName = /collision|collider|obstacle|blocked/i.test(
+      layer.name,
+    );
+    if (hasCollisionName) {
+      return true;
+    }
+
+    return getBooleanProperty(layer.properties, [
+      "collision",
+      "collidable",
+      "obstacle",
+      "blocked",
+    ]);
+  }
+
+  function isObstacleObject(object: TiledObject): boolean {
+    return getBooleanProperty(object.properties, [
+      "collision",
+      "collidable",
+      "obstacle",
+      "blocked",
+    ]);
+  }
+
+  function getBooleanProperty(
+    properties: TiledProperty[] | undefined,
+    names: string[],
+  ): boolean {
+    if (!properties || properties.length === 0) {
+      return false;
+    }
+
+    const loweredNames = names.map((name) => name.toLowerCase());
+    const property = properties.find((entry) =>
+      loweredNames.includes(entry.name.toLowerCase()),
+    );
+
+    if (!property) {
+      return false;
+    }
+
+    return property.value === true;
   }
 }

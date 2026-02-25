@@ -1,31 +1,18 @@
 import Phaser from "phaser";
 import { GroundFloor } from "./maps/GroundFloor";
+import { GROUND_FLOOR_TILED_MAP } from "./maps/groundFloorMap";
 import { NPCManager } from "../entities/NPCManager";
 import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
-import { MapParser } from "@/utils/MapParser";
 import { PlayerController } from "../entities/PlayerController";
+import { MapParser } from "@/utils/MapParser";
 import { MULTIPLAYER_CONFIG } from "../config/multiplayer";
 import {
   LocalLoopbackTransport,
   MultiplayerSession,
 } from "../systems/multiplayer";
-
-const temporaryMap = `
--0002,-0001 tex=assets/test-images/IMG_5026.png
-+0000,-0001 tex=assets/test-images/IMG_5090.png
-+0001,-0006 tex=assets/test-images/IMG_5093.png
--0003,+0005 tex=assets/test-images/waterfall_pixel_art.png
-+0010,+0002 tex=assets/test-images/waterfall_pixel_art.png
--000d,-0005 tex=assets/test-images/IMG_4948.png
--0005,-0005 tex=assets/test-images/IMG_4948.png
-+0004,+0001 tex=assets/test-images/IMG_2025.png
-+0005,-0005 ob tex=assets/test-images/IMG_2025.png
-+0006,-0008 ob tex=assets/test-images/IMG_2025.png
--0009,+0004 ob tex=assets/test-images/IMG_5090.png
-`;
 
 /**
  * MainScene - The primary game scene for the Neumont Virtual Campus
@@ -48,13 +35,13 @@ export class MainScene extends Phaser.Scene {
   }
 
   preload(): void {
-    MapParser.preloadMapAssets(temporaryMap, this);
+    MapParser.preloadTiledMapAssets(GROUND_FLOOR_TILED_MAP, this);
   }
 
   create(): void {
     // Create tiles group for physics
     const tiles = this.physics.add.staticGroup();
-    const groundFloor = new GroundFloor(temporaryMap);
+    const groundFloor = new GroundFloor(GROUND_FLOOR_TILED_MAP);
 
     // Create ground floor layout from map file
     groundFloor.createTiles(this, tiles);
