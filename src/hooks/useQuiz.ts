@@ -84,7 +84,9 @@ export interface UseQuizReturn {
   lastResult: SubmitResult | null;
   error: string | null;
   startQuiz: () => Promise<void>;
+  startPracticeQuiz: () => Promise<void>;
   submitAnswer: (answer: unknown) => Promise<SubmitResult | null>;
+  submitPracticeAnswer: (answer: unknown) => Promise<SubmitResult | null>;
   reset: () => void;
   elapsedMs: number;
 }
@@ -121,12 +123,12 @@ export function useQuiz(): UseQuizReturn {
 
   const guestToken = getGuestToken();
 
-  const startQuiz = useCallback(async () => {
+  const startQuizAt = useCallback(async (endpoint: string) => {
     setState("loading");
     setError(null);
 
     try {
-      const response = await fetch("/api/quiz/start", {
+      const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -168,8 +170,16 @@ export function useQuiz(): UseQuizReturn {
     }
   }, [guestToken]);
 
-  const submitAnswer = useCallback(
-    async (answer: unknown): Promise<SubmitResult | null> => {
+  const startQuiz = useCallback(async () => {
+    await startQuizAt("/api/quiz/start");
+  }, [startQuizAt]);
+
+  const startPracticeQuiz = useCallback(async () => {
+    await startQuizAt("/api/quiz/practice/start");
+  }, [startQuizAt]);
+
+  const submitAnswerAt = useCallback(
+    async (endpoint: string, answer: unknown): Promise<SubmitResult | null> => {
       if (!question) return null;
 
       setState("submitting");
@@ -181,7 +191,7 @@ export function useQuiz(): UseQuizReturn {
       setElapsedMs(elapsed);
 
       try {
-        const response = await fetch("/api/quiz/submit", {
+        const response = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -234,6 +244,18 @@ export function useQuiz(): UseQuizReturn {
     [question, guestToken]
   );
 
+  const submitAnswer = useCallback(
+    async (answer: unknown): Promise<SubmitResult | null> =>
+      submitAnswerAt("/api/quiz/submit", answer),
+    [submitAnswerAt]
+  );
+
+  const submitPracticeAnswer = useCallback(
+    async (answer: unknown): Promise<SubmitResult | null> =>
+      submitAnswerAt("/api/quiz/practice/submit", answer),
+    [submitAnswerAt]
+  );
+
   const reset = useCallback(() => {
     setState("idle");
     setQuestion(null);
@@ -257,7 +279,9 @@ export function useQuiz(): UseQuizReturn {
     lastResult,
     error,
     startQuiz,
+    startPracticeQuiz,
     submitAnswer,
+    submitPracticeAnswer,
     reset,
     elapsedMs,
   };

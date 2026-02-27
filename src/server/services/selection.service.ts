@@ -154,6 +154,7 @@ export async function getQuestionForDate(
       questionById.set(question.id, question);
     }
   }
+  const legacySchedule = await getJsonScheduleEntries(new Set(questionById.keys()));
 
   const firestoreScheduledId = await getScheduledQuestionId(dateKey);
   if (firestoreScheduledId) {
@@ -167,7 +168,6 @@ export async function getQuestionForDate(
     );
   }
 
-  const legacySchedule = await getJsonScheduleEntries();
   const jsonScheduledId =
     legacySchedule.find((entry) => entry.dateKey === dateKey)?.questionId ?? null;
   if (jsonScheduledId) {

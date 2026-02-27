@@ -118,7 +118,7 @@ export function QuizModal({
   closeHandleRef,
 }: QuizModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
-  const [mode, setMode] = useState<"daily" | "test">("daily");
+  const [mode, setMode] = useState<"daily" | "test" | "practice">("daily");
   const [adminQuestions, setAdminQuestions] = useState<Question[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
@@ -244,6 +244,10 @@ export function QuizModal({
         await quiz.submitAnswer(answer);
         return;
       }
+      if (mode === "practice") {
+        await quiz.submitPracticeAnswer(answer);
+        return;
+      }
       if (!testQuestion) return;
       setTestState("submitting");
       setTestError(null);
@@ -315,10 +319,21 @@ export function QuizModal({
     loadTestQuestion(selectedQuestionId, null);
   };
 
+  const startPracticeQuizFromAdmin = () => {
+    setMode("practice");
+    setTestQuestion(null);
+    setTestResult(null);
+    setTestError(null);
+    setSequenceIds(null);
+    setSequenceIndex(0);
+    setSequenceMessage(null);
+    quiz.reset();
+    setActiveTab("quiz");
+    void quiz.startPracticeQuiz();
+  };
+
   const handleStartSequence = () => {
-    if (orderedQuestions.length === 0) return;
-    const ids = orderedQuestions.map((question) => question.id);
-    loadTestQuestion(ids[0], ids, 0);
+    startPracticeQuizFromAdmin();
   };
 
   const handleNextQuestion = () => {
@@ -348,14 +363,7 @@ export function QuizModal({
   };
 
   const handleLoadDaily = () => {
-    setMode("daily");
-    setTestQuestion(null);
-    setTestResult(null);
-    setTestError(null);
-    setSequenceIds(null);
-    setSequenceMessage(null);
-    quiz.reset();
-    setActiveTab("quiz");
+    startPracticeQuizFromAdmin();
   };
 
   const handleViewLeaderboard = () => {
@@ -434,11 +442,21 @@ export function QuizModal({
       }));
       return;
     }
+    const selectedQuestion = adminQuestions.find(
+      (question) => question.id === assignQuestionId
+    );
+    if (!selectedQuestion) {
+      setScheduleErrorsByDate((prev) => ({
+        ...prev,
+        [date]: "Select a valid question.",
+      }));
+      return;
+    }
     try {
       const res = await fetch("/api/admin/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, questionId: assignQuestionId }),
+        body: JSON.stringify({ date, questionId: selectedQuestion.id }),
       });
       if (res.status === 409) {
         setScheduleErrorsByDate((prev) => ({
@@ -780,7 +798,7 @@ export function QuizModal({
       return (
         <div className="quiz-loading">
           <div className="quiz-loading-spinner" />
-          <p>Loading today's quiz...</p>
+          <p>{mode === "practice" ? "Loading practice quiz..." : "Loading today's quiz..."}</p>
         </div>
       );
     }
@@ -792,7 +810,7 @@ export function QuizModal({
           <p className="quiz-feedback error">{quiz.error}</p>
           <button
             className="quest-menu-action-btn quest-menu-action-btn--primary"
-            onClick={quiz.startQuiz}
+            onClick={mode === "practice" ? quiz.startPracticeQuiz : quiz.startQuiz}
             style={{ marginTop: 16, width: "auto" }}
           >
             Try Again
@@ -820,10 +838,10 @@ export function QuizModal({
           </p>
           <button
             className="quest-menu-action-btn quest-menu-action-btn--primary"
-            onClick={quiz.startQuiz}
+            onClick={mode === "practice" ? quiz.startPracticeQuiz : quiz.startQuiz}
             style={{ width: "auto", padding: "14px 40px" }}
           >
-            Start Today's Quiz
+            {mode === "practice" ? "Start Practice Quiz" : "Start Today's Quiz"}
           </button>
         </div>
       );
@@ -922,6 +940,8 @@ export function QuizModal({
           ? "Quiz Schedule"
           : mode === "test"
             ? "Quiz Test Mode"
+            : mode === "practice"
+              ? "Practice Quiz"
             : "Daily Quiz";
 
   const effectiveActiveTab = activeTabOverride ?? activeTab;
@@ -941,7 +961,7 @@ export function QuizModal({
                 <button
                   className="quest-menu-action-btn quiz-admin-btn"
                   onClick={handleStartSequence}
-                  disabled={adminLoading || orderedQuestions.length === 0}
+                  disabled={adminLoading}
                 >
                   Start Sequence
                 </button>
@@ -1342,7 +1362,7 @@ export function QuizModal({
         height: "min(88vh, 820px)",
       }}
       headerRight={
-        effectiveActiveTab === "quiz" && mode === "daily" ? (
+        effectiveActiveTab === "quiz" && (mode === "daily" || mode === "practice") ? (
           <span className="quiz-modal-timer nums">
             {(() => {
               const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
@@ -1357,7 +1377,9 @@ export function QuizModal({
       }
       footerHint={
         effectiveActiveTab === "quiz"
-          ? "Complete today's quiz to build your streak."
+          ? mode === "practice"
+            ? "Practice mode does not save progress."
+            : "Complete today's quiz to build your streak."
           : effectiveActiveTab === "admin"
             ? "Run tests and load quiz questions."
             : effectiveActiveTab === "questions"

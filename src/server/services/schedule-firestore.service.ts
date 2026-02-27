@@ -1,9 +1,10 @@
 import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { getAdminQuestionById } from "./admin-questions-firestore.service";
+import { getAllQuizQuestions } from "./firebase-quiz.service";
 import type { FirestoreQuizScheduleEntry } from "../../types/firestore.types";
 
 const QUIZ_SCHEDULE_COLLECTION = "QUIZ_SCHEDULE";
+const QUESTION_ID_SUFFIX_REGEX = /^(.*)_q(\d+)$/i;
 
 function isValidDateKey(dateKey: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return false;
@@ -42,6 +43,64 @@ function toScheduleEntry(
   };
 }
 
+function parseQuestionId(questionId: string): {
+  puzzleId: string;
+  questionIndex: number;
+} | null {
+  const match = QUESTION_ID_SUFFIX_REGEX.exec(questionId.trim());
+  if (!match) return null;
+  const puzzleId = match[1]?.trim();
+  const questionIndex = Number.parseInt(match[2], 10);
+  if (!puzzleId || Number.isNaN(questionIndex) || questionIndex < 0) {
+    return null;
+  }
+  return { puzzleId, questionIndex };
+}
+
+async function resolveScheduleQuestion(
+  questionId: string
+): Promise<{
+  questionId?: string;
+  puzzleId?: string;
+  correctedFromQuestionId?: string;
+  error?: string;
+}> {
+  const normalized = questionId.trim();
+  if (!normalized) {
+    return { error: "invalid_question" };
+  }
+
+  const allQuestions = await getAllQuizQuestions();
+  const availableQuestionIds = new Set(allQuestions.map((question) => question.id));
+  if (availableQuestionIds.has(normalized)) {
+    const parsed = parseQuestionId(normalized);
+    if (!parsed) {
+      return { error: "invalid_question_id" };
+    }
+    return {
+      questionId: normalized,
+      puzzleId: parsed.puzzleId,
+    };
+  }
+
+  const parsed = parseQuestionId(normalized);
+  if (parsed && parsed.questionIndex !== 0) {
+    const correctedId = `${parsed.puzzleId}_q0`;
+    if (availableQuestionIds.has(correctedId)) {
+      console.warn(
+        `[schedule] autocorrected scheduled questionId ${normalized} -> ${correctedId}`
+      );
+      return {
+        questionId: correctedId,
+        puzzleId: parsed.puzzleId,
+        correctedFromQuestionId: normalized,
+      };
+    }
+  }
+
+  return { error: "invalid_question_id" };
+}
+
 export async function getScheduledQuestionId(
   dateKey: string
 ): Promise<string | null> {
@@ -60,7 +119,11 @@ export async function getScheduledQuestionId(
 export async function setScheduleEntry(
   dateKey: string,
   questionId: string
-): Promise<{ entry?: FirestoreQuizScheduleEntry; error?: string }> {
+): Promise<{
+  entry?: FirestoreQuizScheduleEntry;
+  correctedFromQuestionId?: string;
+  error?: string;
+}> {
   const normalizedDateKey = dateKey.trim();
   const normalizedQuestionId = questionId.trim();
 
@@ -71,16 +134,13 @@ export async function setScheduleEntry(
     return { error: "invalid_question" };
   }
 
-  const question = await getAdminQuestionById(normalizedQuestionId);
-  if (!question) {
-    return { error: "not_found" };
+  const resolved = await resolveScheduleQuestion(normalizedQuestionId);
+  if (!resolved.questionId || !resolved.puzzleId) {
+    return { error: resolved.error ?? "invalid_question_id" };
   }
 
-  const puzzleId = question.puzzleId;
-  const resolvedQuestionId = question.questionId;
-  if (!puzzleId) {
-    return { error: "invalid_question" };
-  }
+  const puzzleId = resolved.puzzleId;
+  const resolvedQuestionId = resolved.questionId;
 
   const ref = doc(db, QUIZ_SCHEDULE_COLLECTION, normalizedDateKey);
   const existing = await getDoc(ref);
@@ -101,6 +161,7 @@ export async function setScheduleEntry(
 
   await setDoc(ref, payload);
   return {
+    correctedFromQuestionId: resolved.correctedFromQuestionId,
     entry: {
       id: normalizedDateKey,
       ...payload,

@@ -102,13 +102,17 @@ async function handleSchedule(req: Request): Promise<Response> {
 
     const result = await setScheduleEntry(date, questionId);
     if (result.error) {
-      if (result.error === "not_found") {
-        logValidationFailure("POST /api/admin/schedule", "question not found", questionId);
-        return Response.json({ error: "not_found" }, { status: 404 });
-      }
       if (result.error === "invalid_date") {
         logValidationFailure("POST /api/admin/schedule", "invalid date", date);
         return Response.json({ error: "invalid_date" }, { status: 400 });
+      }
+      if (result.error === "invalid_question_id") {
+        logValidationFailure(
+          "POST /api/admin/schedule",
+          "invalid questionId",
+          questionId
+        );
+        return Response.json({ error: "invalid_question_id" }, { status: 400 });
       }
       if (result.error === "invalid_question") {
         logValidationFailure(
@@ -121,7 +125,11 @@ async function handleSchedule(req: Request): Promise<Response> {
       return Response.json({ error: "failed_to_save" }, { status: 500 });
     }
 
-    return Response.json({ success: true });
+    return Response.json({
+      success: true,
+      questionId: result.entry?.questionId,
+      correctedFromQuestionId: result.correctedFromQuestionId,
+    });
   }
 
   return Response.json({ error: "Not found" }, { status: 404 });

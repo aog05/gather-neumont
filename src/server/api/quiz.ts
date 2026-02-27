@@ -3,6 +3,8 @@
  * GET  /api/quiz/today  - Check if there's a quiz available today
  * POST /api/quiz/start  - Start today's quiz and get the question
  * POST /api/quiz/submit - Submit an answer for today's quiz
+ * POST /api/quiz/practice/start  - Start practice quiz (non-persistent)
+ * POST /api/quiz/practice/submit - Submit practice answer (non-persistent)
  *
  * UPDATED: Now integrates with Firebase for quiz completion persistence
  */
@@ -230,6 +232,147 @@ function getCorrectAnswerInfo(question: Question): Record<string, unknown> {
     default:
       return {};
   }
+}
+
+/**
+ * POST /api/quiz/practice/start
+ * Start today's practice quiz and return the question.
+ * Body: { guestToken?: string }
+ *
+ * IMPORTANT: Practice mode does not persist progress/completions.
+ */
+export async function handleStartPracticeQuiz(req: Request): Promise<Response> {
+  let body: { guestToken?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    // Body is optional for authenticated sessions.
+  }
+
+  const sessionUser = getSessionUserFromRequest(req);
+  const resolvedUserId = sessionUser?.userId ?? null;
+  const resolvedGuestToken = resolvedUserId ? null : body.guestToken?.trim();
+  if (!resolvedUserId && !resolvedGuestToken) {
+    return Response.json(
+      { error: "guestToken is required for guest sessions" },
+      { status: 400 }
+    );
+  }
+
+  const dateKey = getMountainDateKey();
+  const question = await getQuestionForDate(dateKey);
+  if (!question) {
+    return Response.json(
+      { error: "No quiz available today", quizDate: dateKey },
+      { status: 404 }
+    );
+  }
+
+  return Response.json({
+    quizDate: dateKey,
+    question: stripCorrectAnswers(question),
+    alreadyStarted: false,
+  });
+}
+
+/**
+ * POST /api/quiz/practice/submit
+ * Submit an answer for practice mode.
+ * Body: { guestToken: string, questionId: string, answer: unknown, elapsedMs: number }
+ *
+ * IMPORTANT: Practice mode does not persist progress/completions.
+ */
+export async function handleSubmitPracticeQuiz(req: Request): Promise<Response> {
+  let body: {
+    guestToken?: string;
+    questionId: string;
+    answer: unknown;
+    elapsedMs: number;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { guestToken, questionId, answer, elapsedMs } = body;
+  const sessionUser = getSessionUserFromRequest(req);
+  const resolvedUserId = sessionUser?.userId ?? null;
+  const resolvedGuestToken = resolvedUserId ? null : guestToken?.trim();
+
+  if (!resolvedUserId && !resolvedGuestToken) {
+    return Response.json(
+      { error: "guestToken is required for guest sessions" },
+      { status: 400 }
+    );
+  }
+  if (!questionId) {
+    return Response.json({ error: "questionId is required" }, { status: 400 });
+  }
+  if (answer === undefined) {
+    return Response.json({ error: "answer is required" }, { status: 400 });
+  }
+  if (typeof elapsedMs !== "number") {
+    return Response.json(
+      { error: "elapsedMs must be a number" },
+      { status: 400 }
+    );
+  }
+
+  const dateKey = getMountainDateKey();
+  const todayQuestion = await getQuestionForDate(dateKey);
+  if (!todayQuestion) {
+    return Response.json(
+      { error: "No quiz available today", quizDate: dateKey },
+      { status: 404 }
+    );
+  }
+
+  if (questionId !== todayQuestion.id) {
+    const safeQuestion = stripCorrectAnswers(todayQuestion);
+    return Response.json({
+      error: "Question has rolled over",
+      rollover: true,
+      quizDate: dateKey,
+      newQuestion: safeQuestion,
+    });
+  }
+
+  const attemptNumber = 1;
+  const checkResult = checkAnswer(todayQuestion, answer);
+  if (!checkResult.correct) {
+    const feedback: Record<string, unknown> = {};
+    if (todayQuestion.type === "mcq" && checkResult.selectedIndex !== undefined) {
+      feedback.wrongIndex = checkResult.selectedIndex;
+    }
+    if (todayQuestion.type === "select-all" && checkResult.selectedIndices) {
+      feedback.selectedIndices = checkResult.selectedIndices;
+    }
+
+    return Response.json({
+      correct: false,
+      attemptNumber,
+      feedback,
+      quizDate: dateKey,
+    });
+  }
+
+  const pointsBreakdown = calculatePoints(
+    todayQuestion.basePoints,
+    attemptNumber,
+    elapsedMs
+  );
+  const correctAnswerInfo = getCorrectAnswerInfo(todayQuestion);
+  return Response.json({
+    correct: true,
+    attemptNumber,
+    alreadyCompleted: false,
+    pointsEarned: pointsBreakdown.totalPoints,
+    pointsBreakdown,
+    explanation: todayQuestion.explanation,
+    ...correctAnswerInfo,
+    quizDate: dateKey,
+  });
 }
 
 /**
@@ -509,9 +652,19 @@ export async function handleQuizApi(req: Request): Promise<Response> {
     return handleStartQuiz(req);
   }
 
+  // POST /api/quiz/practice/start
+  if (method === "POST" && path === "/api/quiz/practice/start") {
+    return handleStartPracticeQuiz(req);
+  }
+
   // POST /api/quiz/submit
   if (method === "POST" && path === "/api/quiz/submit") {
     return handleSubmitQuiz(req);
+  }
+
+  // POST /api/quiz/practice/submit
+  if (method === "POST" && path === "/api/quiz/practice/submit") {
+    return handleSubmitPracticeQuiz(req);
   }
 
   // 404 for unknown quiz endpoints
