@@ -49,6 +49,9 @@ export interface SubmitResult {
     selectedIndices?: number[];
   };
   pointsEarned?: number;
+  totalPoints?: number | null;
+  streakDays?: number | null;
+  completedAt?: string | null;
   pointsBreakdown?: PointsBreakdown;
   explanation?: string;
   correctIndex?: number;

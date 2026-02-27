@@ -35,14 +35,13 @@
   },
   "admin": {
     "displayName": "Admin",
-    "location": "Neumont",
     "intendedMajorId": "UNDECIDED",
     "avatar": {
       "provider": "dicebear",
       "style": "pixelArt",
       "seed": "admin"
     },
-    "updatedAt": "2026-02-08T00:51:45.477Z"
+    "updatedAt": "2026-02-26T19:08:37.287Z"
   },
   "dsfafdsaf": {
     "displayName": "asfdasdfa",
@@ -54,5 +53,15 @@
       "seed": "af001b23-1e49-4610-9c3d-9b4fdabb4703"
     },
     "updatedAt": "2026-02-08T00:52:57.265Z"
+  },
+  "john1": {
+    "displayName": "john",
+    "intendedMajorId": "UNDECIDED",
+    "avatar": {
+      "provider": "dicebear",
+      "style": "pixelArt",
+      "seed": "6bb5f09b-ef65-4e1e-9c02-0a6699b8a364"
+    },
+    "updatedAt": "2026-02-23T03:37:44.844Z"
   }
 }

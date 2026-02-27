@@ -2,16 +2,14 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useAuth } from "../../features/auth/AuthContext";
 import { QuizModal } from "../../components/quiz/QuizModal";
 import NeumontPanelShell from "../../components/NeumontPanelShell";
-import { DEMO_LEADERBOARD } from "../../demo/demoLeaderboard";
 
-type Tab = "quiz" | "leaderboard" | "data" | "admin";
+type Tab = "quiz" | "leaderboard" | "admin";
 type AdminSubTab = "admin" | "questions" | "schedule";
 
 type LeaderboardEntry = {
-  rank: number;
-  username: string;
-  longestStreak: number;
-  currentStreak: number;
+  playerId: string;
+  displayName: string;
+  streakDays: number;
   totalPoints: number;
 };
 
@@ -25,11 +23,9 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>("admin");
   const quizModalCloseRef = useRef<null | (() => void)>(null);
 
-  const [useDemoLeaderboard, setUseDemoLeaderboard] = useState(true);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
-  const [leaderboardUsingDemo, setLeaderboardUsingDemo] = useState(false);
   const leaderboardScrollRef = useRef(false);
   const [leaderboardAnimNonce, setLeaderboardAnimNonce] = useState(0);
   const leaderboardLoadedRef = useRef(false);
@@ -68,41 +64,24 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   }, [handleClose, isOpen]);
 
   const loadLeaderboard = useCallback(async () => {
-    if (useDemoLeaderboard) {
-      setLeaderboardUsingDemo(true);
-      setLeaderboard(DEMO_LEADERBOARD.entries);
-      leaderboardLoadedRef.current = true;
-      return;
-    }
     setLeaderboardLoading(true);
     setLeaderboardError(null);
     try {
       const res = await fetch("/api/leaderboard?limit=50");
       const data = (await res.json()) as { entries?: LeaderboardEntry[] };
       if (!res.ok) {
-        setLeaderboardError("Failed to load leaderboard");
-        setLeaderboardUsingDemo(true);
-        setLeaderboard(DEMO_LEADERBOARD.entries);
-        return;
+        throw new Error("Failed to load leaderboard");
       }
-      if (!data.entries || data.entries.length === 0) {
-        setLeaderboardUsingDemo(true);
-        setLeaderboard(DEMO_LEADERBOARD.entries);
-        leaderboardLoadedRef.current = true;
-        return;
-      }
-      setLeaderboardUsingDemo(false);
       setLeaderboard(data.entries);
       leaderboardLoadedRef.current = true;
     } catch {
       setLeaderboardError("Failed to load leaderboard");
-      setLeaderboardUsingDemo(true);
-      setLeaderboard(DEMO_LEADERBOARD.entries);
+      setLeaderboard([]);
       leaderboardLoadedRef.current = true;
     } finally {
       setLeaderboardLoading(false);
     }
-  }, [useDemoLeaderboard]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -111,14 +90,13 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       leaderboardScrollRef.current = false;
       void loadLeaderboard();
     }
-  }, [isOpen, leaderboardLoading, loadLeaderboard, tab, useDemoLeaderboard]);
+  }, [isOpen, leaderboardLoading, loadLeaderboard, tab]);
 
   const showAdminTab = isAdmin;
   const tabs = useMemo(() => {
     const base: Array<{ key: Tab; label: string }> = [
       { key: "quiz", label: "Quiz" },
       { key: "leaderboard", label: "Leaderboard" },
-      { key: "data", label: "Data" },
     ];
     if (showAdminTab) base.push({ key: "admin", label: "Admin" });
     return base;
@@ -133,11 +111,15 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
     []
   );
 
-  const displayedLeaderboard = useDemoLeaderboard ? DEMO_LEADERBOARD : { entries: leaderboard };
-  const entries = displayedLeaderboard.entries ?? [];
+  const entries = leaderboard.map((entry, index) => ({
+    ...entry,
+    rank: index + 1,
+  }));
   const meUsername = auth.me?.username;
   const myEntry = meUsername
-    ? entries.find((entry) => entry.username.toLowerCase() === meUsername.toLowerCase())
+    ? entries.find(
+        (entry) => entry.displayName.toLowerCase() === meUsername.toLowerCase()
+      )
     : undefined;
 
   const handleViewLeaderboard = useCallback(() => {
@@ -176,8 +158,11 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
         {isTied && <span className="quest-leaderboard-podium-tie-label">Tied for #{rankNum}</span>}
         <div className="quest-leaderboard-podium-names">
           {visible.map((entry, idx) => (
-            <span className="quest-leaderboard-podium-name" key={`${rankNum}-${entry.username}-${idx}`}>
-              {entry.username}
+            <span
+              className="quest-leaderboard-podium-name"
+              key={`${rankNum}-${entry.playerId}-${idx}`}
+            >
+              {entry.displayName}
             </span>
           ))}
           {remaining > 0 && <span className="quest-leaderboard-podium-more">+{remaining} more</span>}
@@ -196,7 +181,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
     if (leaderboardAnimNonce === 0) {
       return;
     }
-    const targetUsername = myEntry.username.toLowerCase();
+    const targetUsername = myEntry.displayName.toLowerCase();
     const el = document.querySelector(`[data-username="${targetUsername}"]`) as HTMLElement | null;
     if (el) {
       leaderboardScrollRef.current = true;
@@ -217,7 +202,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       return;
     }
 
-    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.username}:${myEntry.rank}`;
+    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.playerId}:${myEntry.rank}`;
     if (rankAnimKeyRef.current === animKey) {
       return;
     }
@@ -348,31 +333,9 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
               <div className="quest-leaderboard-side">
                 <div className="quest-leaderboard-title-row">
                   <h3 className="quest-leaderboard-title">Leaderboard</h3>
-                  {(useDemoLeaderboard || leaderboardUsingDemo) && (
-                    <span className="quest-leaderboard-demo-label">Demo</span>
-                  )}
                 </div>
 
                 <div className="quest-leaderboard-controls">
-                  <label className="quest-leaderboard-toggle">
-                    <input
-                      type="checkbox"
-                      checked={useDemoLeaderboard}
-                      onChange={(event) => {
-                        setUseDemoLeaderboard(event.target.checked);
-                        leaderboardLoadedRef.current = false;
-                        leaderboardScrollRef.current = false;
-                        if (event.target.checked) {
-                          setLeaderboardUsingDemo(true);
-                          setLeaderboard(DEMO_LEADERBOARD.entries);
-                        } else {
-                          setLeaderboardUsingDemo(false);
-                          setLeaderboard([]);
-                        }
-                      }}
-                    />
-                    <span>Use demo data</span>
-                  </label>
                   <button
                     type="button"
                     className="quest-menu-action-btn quest-leaderboard-refresh-btn"
@@ -412,7 +375,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                         <div className="quest-leaderboard-stat-separator"></div>
                         <div className="quest-leaderboard-stat">
                           <span className="quest-leaderboard-stat-label">Streak</span>
-                          <span className="quest-leaderboard-stat-value">{myEntry.longestStreak}</span>
+                          <span className="quest-leaderboard-stat-value">{myEntry.streakDays}</span>
                         </div>
                         <div className="quest-leaderboard-stat-separator"></div>
                         <div className="quest-leaderboard-stat">
@@ -422,7 +385,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                       </div>
                     </div>
                   )
-                ) : auth.me?.username && !useDemoLeaderboard && !leaderboardUsingDemo ? (
+                ) : auth.me?.username ? (
                   <div className="quest-leaderboard-card quest-leaderboard-card--empty">
                     <span className="quest-leaderboard-empty-text">
                       Complete a quiz to appear on the leaderboard.
@@ -474,15 +437,17 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                   ) : (
                     <div className="quest-leaderboard-table-body" role="table">
                       {entries.map((entry, index) => {
-                        const isMe = auth.me?.username?.toLowerCase() === entry.username.toLowerCase();
+                        const isMe =
+                          auth.me?.username?.toLowerCase() ===
+                          entry.displayName.toLowerCase();
                         const showDivider = index > 0 && (index === 3 || index === 10 || index % 10 === 0);
-                        const rowKey = `${entry.rank}-${entry.username}`;
+                        const rowKey = `${entry.rank}-${entry.playerId}`;
                         return (
                           <Fragment key={rowKey}>
                             {showDivider && <div className="quest-leaderboard-table-divider"></div>}
                             <div
                               className={`quest-leaderboard-row ${isMe ? "quest-leaderboard-row--me" : ""}`}
-                              data-username={entry.username.toLowerCase()}
+                              data-username={entry.displayName.toLowerCase()}
                               role="row"
                             >
                               <span className="quest-leaderboard-rank-cell">
@@ -491,10 +456,10 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                                 </span>
                               </span>
                               <span className="quest-leaderboard-user">
-                                {entry.username}
+                                {entry.displayName}
                                 {isMe && <span className="quest-leaderboard-you-badge">YOU</span>}
                               </span>
-                              <span className="quest-leaderboard-streak">{entry.longestStreak}</span>
+                              <span className="quest-leaderboard-streak">{entry.streakDays}</span>
                               <span className="quest-leaderboard-points">{entry.totalPoints}</span>
                             </div>
                           </Fragment>
@@ -508,27 +473,6 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
           </section>
         ) : null}
 
-        {tab === "data" ? (
-          <section className="quest-quiz-data">
-            <h3 className="quest-quiz-data-title">Data</h3>
-            <p className="quest-quiz-data-subtitle">
-              Static demo leaderboard dataset used by the standalone quiz page.
-            </p>
-
-            <div className="quest-quiz-data-stats">
-              <div className="quest-quiz-data-row">
-                <span className="quest-quiz-data-label">Total participants:</span>
-                <span className="quest-quiz-data-value">{DEMO_LEADERBOARD.totalParticipants}</span>
-              </div>
-              <div className="quest-quiz-data-row">
-                <span className="quest-quiz-data-label">Last updated:</span>
-                <span className="quest-quiz-data-value">{DEMO_LEADERBOARD.lastUpdated}</span>
-              </div>
-            </div>
-
-            <pre className="quest-quiz-data-json">{JSON.stringify(DEMO_LEADERBOARD, null, 2)}</pre>
-          </section>
-        ) : null}
       </div>
     </NeumontPanelShell>
   );

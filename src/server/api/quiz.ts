@@ -18,33 +18,71 @@ import {
   getGuestAttempt,
   updateGuestAttempt,
 } from "../data/guest-sessions";
-import {
-  getProgressByUserId,
-  getOrCreateProgress,
-  saveProgress,
-} from "../data/progress.store";
 import { checkAnswer } from "../services/answer-checker.service";
 import { calculatePoints } from "../services/scoring.service";
 import type { Question } from "../../types/quiz.types";
-import { getUserIdFromRequest } from "./auth";
-import { getUserById } from "../data/users.store";
+import { getSessionUserFromRequest } from "./auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db, COLLECTIONS } from "../../lib/firebase";
 import {
-  saveQuizCompletionToPuzzleDay,
-  saveQuizCompletionToPlayer,
-} from "../services/firebase-quiz-completion.service";
-import { FirestoreQueries } from "../../lib/firestore-helpers";
+  getPlayerQuizCompletionForDate,
+  recordPlayerQuizCompletion,
+} from "../services/player-leaderboard.service";
 
 const userAttemptCounts = new Map<string, number>();
+const isQuizDebugEnabled = process.env.QUIZ_DEBUG === "1";
+
+function logQuizDebug(payload: {
+  playerId: string;
+  dateKey: string;
+  pointsAwarded: number;
+  alreadyCompleted: boolean;
+  totalPoints: number;
+  streakDays: number;
+}): void {
+  if (!isQuizDebugEnabled) return;
+  console.log("[quiz][debug] submit", payload);
+}
+
+function parseNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function isMissingField(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && value.trim().length === 0) return true;
+  return false;
+}
+
+async function getPlayerSubmitSummary(playerId: string): Promise<{
+  totalPoints: number;
+  streakDays: number;
+}> {
+  const playerRef = doc(db, COLLECTIONS.PLAYER, playerId);
+  const playerSnap = await getDoc(playerRef);
+  if (!playerSnap.exists()) {
+    return { totalPoints: 0, streakDays: 0 };
+  }
+
+  const data = playerSnap.data() as Record<string, unknown>;
+  const totalPoints = isMissingField(data.totalPoints)
+    ? parseNumber(data.Wallet, 0)
+    : parseNumber(data.totalPoints, 0);
+  const streakDays = parseNumber(data.streakDays, 0);
+  return { totalPoints, streakDays };
+}
 
 function getAttemptKey(userId: string, dateKey: string): string {
   return `${userId}|${dateKey}`;
-}
-
-function getPreviousDateKey(dateKey: string): string {
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return dateKey;
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
 }
 
 /**
@@ -54,16 +92,12 @@ function getPreviousDateKey(dateKey: string): string {
 export async function handleGetToday(req: Request): Promise<Response> {
   const dateKey = getMountainDateKey();
   const question = await getQuestionForDate(dateKey);
-  const sessionUserId = getUserIdFromRequest(req);
-  const user = sessionUserId ? await getUserById(sessionUserId) : undefined;
-  const isAdmin = !!user?.isAdmin;
-  const progress =
+  const sessionUser = getSessionUserFromRequest(req);
+  const sessionUserId = sessionUser?.userId ?? null;
+  const isAdmin = sessionUser?.isAdmin ?? false;
+  const completion =
     sessionUserId && !isAdmin
-      ? await getProgressByUserId(sessionUserId)
-      : undefined;
-  const lastCompletion =
-    progress?.lastCompletion && progress.lastCompletion.date === dateKey
-      ? progress.lastCompletion
+      ? await getPlayerQuizCompletionForDate(sessionUserId, dateKey)
       : null;
 
   if (!question) {
@@ -78,12 +112,11 @@ export async function handleGetToday(req: Request): Promise<Response> {
     hasQuiz: true,
     quizDate: dateKey,
     questionId: question.id,
-    ...(lastCompletion
+    ...(completion
       ? {
           alreadyCompleted: true,
-          attemptsUsed: lastCompletion.attemptsUsed,
-          pointsEarned: lastCompletion.pointsEarned,
-          completedAt: lastCompletion.completedAt,
+          pointsEarned: completion.pointsAwarded,
+          completedAt: completion.createdAt,
         }
       : {}),
   });
@@ -107,11 +140,10 @@ export async function handleStartQuiz(req: Request): Promise<Response> {
   }
 
   const { guestToken } = body;
-  const sessionUserId = getUserIdFromRequest(req);
-  const resolvedUserId = sessionUserId ?? null;
+  const sessionUser = getSessionUserFromRequest(req);
+  const resolvedUserId = sessionUser?.userId ?? null;
   const resolvedGuestToken = resolvedUserId ? null : guestToken?.trim();
-  const resolvedUser = resolvedUserId ? await getUserById(resolvedUserId) : null;
-  const isAdmin = !!resolvedUser?.isAdmin;
+  const isAdmin = sessionUser?.isAdmin ?? false;
 
   if (!resolvedUserId && !resolvedGuestToken) {
     return Response.json(
@@ -145,14 +177,19 @@ export async function handleStartQuiz(req: Request): Promise<Response> {
   }
 
   if (resolvedUserId && !isAdmin) {
-    const progress = await getProgressByUserId(resolvedUserId);
-    if (progress?.lastCompletion?.date === dateKey) {
+    const completion = await getPlayerQuizCompletionForDate(
+      resolvedUserId,
+      dateKey
+    );
+    if (completion) {
       console.log(
         `[quiz] alreadyCompleted start blocked dateKey=${dateKey} userId=${resolvedUserId}`
       );
       return Response.json({
         alreadyCompleted: true,
         quizDate: dateKey,
+        pointsEarned: completion.pointsAwarded,
+        completedAt: completion.createdAt,
         message: "You already completed today's quiz.",
       });
     }
@@ -190,8 +227,6 @@ function getCorrectAnswerInfo(question: Question): Record<string, unknown> {
       return { correctIndex: question.correctIndex };
     case "select-all":
       return { correctIndices: question.correctIndices };
-    case "written":
-      return { acceptedAnswers: question.acceptedAnswers };
     default:
       return {};
   }
@@ -217,11 +252,10 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
   }
 
   const { guestToken, questionId, answer, elapsedMs } = body;
-  const sessionUserId = getUserIdFromRequest(req);
-  const resolvedUserId = sessionUserId ?? null;
+  const sessionUser = getSessionUserFromRequest(req);
+  const resolvedUserId = sessionUser?.userId ?? null;
   const resolvedGuestToken = resolvedUserId ? null : guestToken?.trim();
-  const resolvedUser = resolvedUserId ? await getUserById(resolvedUserId) : null;
-  const isAdmin = !!resolvedUser?.isAdmin;
+  const isAdmin = sessionUser?.isAdmin ?? false;
 
   // Validate required fields
   if (!resolvedUserId && !resolvedGuestToken) {
@@ -272,26 +306,49 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
 
   // Check if already solved
   if (attemptData?.solved) {
-    console.log(
-      `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} guestToken=${resolvedGuestToken}`
-    );
+    if (isQuizDebugEnabled) {
+      console.log(
+        `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} guestToken=${resolvedGuestToken}`
+      );
+    }
     return Response.json({
       alreadyCompleted: true,
       quizDate: dateKey,
+      totalPoints: null,
+      streakDays: null,
+      completedAt: null,
       canRetry: false,
       message: "You already completed today's quiz.",
     });
   }
 
   if (resolvedUserId && !isAdmin) {
-    const progress = await getProgressByUserId(resolvedUserId);
-    if (progress?.lastCompletion?.date === dateKey) {
-      console.log(
-        `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} userId=${resolvedUserId}`
-      );
+    const completion = await getPlayerQuizCompletionForDate(
+      resolvedUserId,
+      dateKey
+    );
+    if (completion) {
+      const summary = await getPlayerSubmitSummary(resolvedUserId);
+      if (isQuizDebugEnabled) {
+        console.log(
+          `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} userId=${resolvedUserId}`
+        );
+      }
+      logQuizDebug({
+        playerId: resolvedUserId,
+        dateKey,
+        pointsAwarded: completion.pointsAwarded,
+        alreadyCompleted: true,
+        totalPoints: summary.totalPoints,
+        streakDays: summary.streakDays,
+      });
       return Response.json({
         alreadyCompleted: true,
         quizDate: dateKey,
+        pointsEarned: completion.pointsAwarded,
+        totalPoints: summary.totalPoints,
+        streakDays: summary.streakDays,
+        completedAt: completion.createdAt,
         canRetry: false,
         message: "You already completed today's quiz.",
       });
@@ -305,13 +362,15 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
 
   // Check the answer
   const checkResult = checkAnswer(todayQuestion, answer);
-  console.log(`[quiz] 🔍 Answer check:`, {
-    questionId: todayQuestion.id,
-    questionType: todayQuestion.type,
-    answer,
-    checkResult,
-    attemptNumber
-  });
+  if (isQuizDebugEnabled) {
+    console.log(`[quiz] 🔍 Answer check:`, {
+      questionId: todayQuestion.id,
+      questionType: todayQuestion.type,
+      answer,
+      checkResult,
+      attemptNumber,
+    });
+  }
 
   if (!checkResult.correct) {
     // Update attempt count in session
@@ -324,9 +383,9 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
         elapsedMs: null,
       });
     }
-  if (resolvedUserId) {
-    userAttemptCounts.set(getAttemptKey(resolvedUserId, dateKey), attemptNumber);
-  }
+    if (resolvedUserId) {
+      userAttemptCounts.set(getAttemptKey(resolvedUserId, dateKey), attemptNumber);
+    }
 
     // Build feedback based on question type
     const feedback: Record<string, unknown> = {};
@@ -336,7 +395,6 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
     if (todayQuestion.type === "select-all" && checkResult.selectedIndices) {
       feedback.selectedIndices = checkResult.selectedIndices;
     }
-    // For written, we don't give extra details on wrong answer
 
     return Response.json({
       correct: false,
@@ -363,67 +421,52 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
       elapsedMs,
     });
   }
+  let completionResult: Awaited<
+    ReturnType<typeof recordPlayerQuizCompletion>
+  > | null = null;
   if (resolvedUserId && !isAdmin) {
-    const progress = await getOrCreateProgress(resolvedUserId);
-    const previousDateKey = getPreviousDateKey(dateKey);
-    const currentStreak =
-      progress.lastCorrectDate === previousDateKey
-        ? progress.currentStreak + 1
-        : 1;
-    const longestStreak = Math.max(progress.longestStreak, currentStreak);
-    const updated = {
-      ...progress,
-      currentStreak,
-      longestStreak,
-      totalPoints: progress.totalPoints + pointsBreakdown.totalPoints,
-      lastCorrectDate: dateKey,
-      lastCompletion: {
-        date: dateKey,
-        questionId: todayQuestion.id,
-        attemptsUsed: attemptNumber,
-        pointsEarned: pointsBreakdown.totalPoints,
-        completedAt: new Date().toISOString(),
-        elapsedMs,
-      },
-    };
-    await saveProgress(updated);
+    completionResult = await recordPlayerQuizCompletion({
+      playerId: resolvedUserId,
+      dateKey,
+      displayName: sessionUser?.username ?? resolvedUserId,
+      pointsAwarded: pointsBreakdown.totalPoints,
+    });
 
-    // Save completion to Firebase
-    try {
-      // Extract puzzle ID from question ID (format: {puzzleId}_q{index})
-      const puzzleId = todayQuestion.id.split("_")[0];
-
-      // Get player's Firebase document ID by username
-      const user = await getUserById(resolvedUserId);
-      if (user?.username) {
-        const player = await FirestoreQueries.getPlayerByUsername(user.username);
-        if (player) {
-          console.log(`[quiz] Saving Firebase completion for player: ${player.Username} (${player.id})`);
-
-          // Save to PuzzleDay subcollection
-          await saveQuizCompletionToPuzzleDay(
-            puzzleId,
-            player.id,
-            pointsBreakdown.totalPoints,
-            elapsedMs
-          );
-
-          // Save to Player.PuzzleRecord and update Wallet
-          await saveQuizCompletionToPlayer(
-            player.id,
-            puzzleId,
-            pointsBreakdown.totalPoints
-          );
-
-          console.log(`[quiz] ✅ Firebase completion saved successfully - ${pointsBreakdown.totalPoints} points awarded`);
-        } else {
-          console.warn(`[quiz] Player not found in Firebase for username: ${user.username}`);
-        }
+    if (completionResult.alreadyCompleted) {
+      userAttemptCounts.delete(getAttemptKey(resolvedUserId, dateKey));
+      if (isQuizDebugEnabled) {
+        console.log(
+          `[quiz] alreadyCompleted submit blocked by transaction dateKey=${dateKey} userId=${resolvedUserId}`
+        );
       }
-    } catch (error) {
-      console.error(`[quiz] ❌ Error saving to Firebase:`, error);
-      // Don't fail the request if Firebase save fails
+      logQuizDebug({
+        playerId: resolvedUserId,
+        dateKey,
+        pointsAwarded: completionResult.completion.pointsAwarded,
+        alreadyCompleted: true,
+        totalPoints: completionResult.totalPoints,
+        streakDays: completionResult.streakDays,
+      });
+      return Response.json({
+        alreadyCompleted: true,
+        quizDate: dateKey,
+        canRetry: false,
+        pointsEarned: completionResult.completion.pointsAwarded,
+        totalPoints: completionResult.totalPoints,
+        streakDays: completionResult.streakDays,
+        completedAt: completionResult.completion.createdAt,
+        message: "You already completed today's quiz.",
+      });
     }
+
+    logQuizDebug({
+      playerId: resolvedUserId,
+      dateKey,
+      pointsAwarded: completionResult.completion.pointsAwarded,
+      alreadyCompleted: false,
+      totalPoints: completionResult.totalPoints,
+      streakDays: completionResult.streakDays,
+    });
   }
   if (resolvedUserId) {
     userAttemptCounts.delete(getAttemptKey(resolvedUserId, dateKey));
@@ -435,7 +478,11 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
   return Response.json({
     correct: true,
     attemptNumber,
+    alreadyCompleted: false,
     pointsEarned: pointsBreakdown.totalPoints,
+    totalPoints: completionResult?.totalPoints ?? null,
+    streakDays: completionResult?.streakDays ?? null,
+    completedAt: completionResult?.completion.createdAt ?? null,
     pointsBreakdown,
     explanation: todayQuestion.explanation,
     ...correctAnswerInfo,

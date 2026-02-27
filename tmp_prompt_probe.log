@@ -1,0 +1,125 @@
+
+🎯 Testing Quiz Render from Firebase
+
+============================================================
+
+📡 Fetching quiz questions from Firebase...
+[firebase-quiz] Fetching all Quiz puzzles from Firebase
+[firebase-quiz] Found 3 Quiz puzzles
+[firebase-quiz] Transformed question: {
+  puzzleId: "0JNCYfgz3A6CcuJt4HCC",
+  questionId: "0JNCYfgz3A6CcuJt4HCC_q0",
+  rawType: "one-select",
+  type: "mcq",
+  prompt: "Database Design Quiz - Question 1",
+  basePoints: 15,
+}
+[firebase-quiz] Transformed question: {
+  puzzleId: "oSgH66AWFMYWC1wpNPgC",
+  questionId: "oSgH66AWFMYWC1wpNPgC_q0",
+  rawType: "multiple-choice",
+  type: "select-all",
+  prompt: "Web Security Challenge - Question 1",
+  basePoints: 20,
+}
+[firebase-quiz] Transformed question: {
+  puzzleId: "qRw9ZVMS7FLpC8Vb2W1p",
+  questionId: "qRw9ZVMS7FLpC8Vb2W1p_q0",
+  rawType: "one-select",
+  type: "mcq",
+  prompt: "CS Fundamentals Quiz - Question 1",
+  basePoints: 10,
+}
+[firebase-quiz] Transformed 3 questions from 3 puzzles
+✅ Found 3 quiz questions
+
+
+📝 Question 1:
+------------------------------------------------------------
+ID: 0JNCYfgz3A6CcuJt4HCC_q0
+Type: mcq
+Prompt: Database Design Quiz - Question 1
+Base Points: 15
+Difficulty: 2
+Tags: databases
+
+Choices:
+  1. Adding more tables
+  2. Organizing data to reduce redundancy
+  3. Making database faster
+  4. Encrypting data
+
+✅ Correct Answer: Choice 2
+
+📝 Question 2:
+------------------------------------------------------------
+ID: oSgH66AWFMYWC1wpNPgC_q0
+Type: select-all
+Prompt: Web Security Challenge - Question 1
+Base Points: 20
+Difficulty: 2
+Tags: cybersecurity
+
+Choices:
+  1. Disable error messages
+  2. Use parameterized queries
+  3. Validate user input
+  4. Trust user input
+  5. Use prepared statements
+  6. Use string concatenation
+
+✅ Correct Answers: Choices 2, 3, 5
+
+📝 Question 3:
+------------------------------------------------------------
+ID: qRw9ZVMS7FLpC8Vb2W1p_q0
+Type: mcq
+Prompt: CS Fundamentals Quiz - Question 1
+Base Points: 10
+Difficulty: 2
+Tags: computer science
+
+Choices:
+  1. O(n) best case
+  2. O(log n) always
+  3. O(n²) always
+  4. O(n log n) average case
+
+✅ Correct Answer: Choice 4
+
+
+👤 Checking for sarah_dev player...
+✅ Found player: sarah_dev
+   Player ID: rvESrDG8X3F21MOcBM2V
+   Email: smartinez@student.neumont.edu
+   Wallet: 4800 points
+   Completed Puzzles: 4
+   Active Quests: 0
+
+
+🎮 Recommended Quiz for sarah_dev:
+============================================================
+
+Question ID: 0JNCYfgz3A6CcuJt4HCC_q0
+Prompt: Database Design Quiz - Question 1
+Points: 15
+
+Choices:
+  A. Adding more tables
+  B. Organizing data to reduce redundancy
+  C. Making database faster
+  D. Encrypting data
+
+
+✅ Quiz system is ready!
+
+📋 Next Steps:
+1. Start the dev server: bun run dev
+2. Walk to the quiz terminal in the game
+3. Press E to start the quiz
+4. Answer the question and submit
+5. Check Firebase Console to verify completion data
+
+
+✅ Test completed successfully!
+

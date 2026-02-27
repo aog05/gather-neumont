@@ -2,34 +2,26 @@
  * Daily question selection service.
  * Deterministically selects a question for a given date.
  *
- * UPDATED: Now uses Firebase Quiz puzzles instead of JSON files
+ * Source priority:
+ * 1) Firestore schedule (QUIZ_SCHEDULE)
+ * 2) Legacy JSON schedule fallback
+ * 3) Deterministic fallback selection
  */
 
 import { getAllQuizQuestions } from "./firebase-quiz.service";
-import {
-  addScheduleEntry,
-  getScheduleEntries,
-} from "../data/schedule.store";
+import { getScheduleEntries as getJsonScheduleEntries } from "../data/schedule.store";
+import { getScheduledQuestionId } from "./schedule-firestore.service";
 import type { Question } from "../../types/quiz.types";
-
-const BASE_POINTS_BY_DIFFICULTY: Record<number, number> = {
-  1: 100,
-  2: 150,
-  3: 200,
-};
 
 function isValidQuestion(question: Question): boolean {
   if (!question?.id) {
     return false;
   }
-  if (typeof question.basePoints !== "number") {
+  if (typeof question.prompt !== "string" || question.prompt.trim().length === 0) {
     return false;
   }
-  const expectedBase = BASE_POINTS_BY_DIFFICULTY[question.difficulty];
-  if (expectedBase && question.basePoints !== expectedBase) {
-    console.warn(
-      `[quiz] basePoints mismatch for ${question.id}: ${question.basePoints} != ${expectedBase}`
-    );
+  if (typeof question.basePoints !== "number") {
+    return false;
   }
 
   switch (question.type) {
@@ -42,7 +34,7 @@ function isValidQuestion(question: Question): boolean {
         question.correctIndex < 4
       );
     case "select-all":
-      if (!Array.isArray(question.choices) || question.choices.length !== 5) {
+      if (!Array.isArray(question.choices) || question.choices.length < 2) {
         return false;
       }
       if (!Array.isArray(question.correctIndices)) {
@@ -56,22 +48,63 @@ function isValidQuestion(question: Question): boolean {
         return false;
       }
       return question.correctIndices.every(
-        (index) => Number.isInteger(index) && index >= 0 && index < 5
-      );
-    case "written":
-      return (
-        Array.isArray(question.acceptedAnswers) &&
-        question.acceptedAnswers.length > 0
+        (index) =>
+          Number.isInteger(index) &&
+          index >= 0 &&
+          index < question.choices.length
       );
     default:
       return false;
   }
 }
 
-function getQuestionSortKey(question: Question): number {
-  const match = /^q(\d+)$/i.exec(question.id);
-  if (!match) return Number.MAX_SAFE_INTEGER;
-  return Number.parseInt(match[1], 10);
+function parseFirestoreQuestionId(
+  questionId: string
+): { puzzleId: string; questionIndex: number } | null {
+  const match = /^(.*)_q(\d+)$/i.exec(questionId);
+  if (!match) return null;
+  const puzzleId = match[1]?.trim();
+  const questionIndex = Number.parseInt(match[2], 10);
+  if (!puzzleId || Number.isNaN(questionIndex) || questionIndex < 0) {
+    return null;
+  }
+  return { puzzleId, questionIndex };
+}
+
+function compareQuestionIds(a: string, b: string): number {
+  const parsedA = parseFirestoreQuestionId(a);
+  const parsedB = parseFirestoreQuestionId(b);
+
+  if (parsedA && parsedB) {
+    const byPuzzle = parsedA.puzzleId.localeCompare(parsedB.puzzleId);
+    if (byPuzzle !== 0) return byPuzzle;
+    if (parsedA.questionIndex !== parsedB.questionIndex) {
+      return parsedA.questionIndex - parsedB.questionIndex;
+    }
+    return a.localeCompare(b);
+  }
+
+  if (parsedA && !parsedB) return -1;
+  if (!parsedA && parsedB) return 1;
+  return a.localeCompare(b);
+}
+
+function hashDateKey(dateKey: string): number {
+  let hash = 0;
+  for (let index = 0; index < dateKey.length; index += 1) {
+    hash = (hash * 31 + dateKey.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function pickDeterministicFallback(questions: Question[], dateKey: string): Question | null {
+  if (questions.length === 0) {
+    return null;
+  }
+
+  const ordered = [...questions].sort((a, b) => compareQuestionIds(a.id, b.id));
+  const selectedIndex = hashDateKey(dateKey) % ordered.length;
+  return ordered[selectedIndex] ?? null;
 }
 
 function logDuplicateIds(questions: Question[]): void {
@@ -92,68 +125,69 @@ function logDuplicateIds(questions: Question[]): void {
 
 /**
  * Get the question for a specific date.
- * Uses schedule-based selection (write-once per date).
+ * Uses Firestore schedule first, then legacy JSON schedule, then deterministic fallback.
  * Returns null if no questions are available.
- *
- * UPDATED: Now fetches from Firebase Quiz puzzles
  */
 export async function getQuestionForDate(
   dateKey: string
 ): Promise<Question | null> {
   console.log(`[selection] Getting question for date: ${dateKey}`);
-  const questions = await getAllQuizQuestions();
+  const allQuestions = await getAllQuizQuestions();
 
-  if (questions.length === 0) {
+  if (allQuestions.length === 0) {
     console.warn(`[selection] No quiz questions available from Firebase`);
     return null;
   }
 
-  console.log(`[selection] Loaded ${questions.length} questions from Firebase`);
-  logDuplicateIds(questions);
+  console.log(`[selection] Loaded ${allQuestions.length} questions from Firebase`);
+  logDuplicateIds(allQuestions);
 
-  const scheduleEntries = await getScheduleEntries();
-  const todayEntry = scheduleEntries.find(
-    (entry) => entry.dateKey === dateKey
-  );
-
-  if (todayEntry) {
-    const scheduled = questions.find(
-      (question) => question.id === todayEntry.questionId
-    );
-    if (scheduled && isValidQuestion(scheduled)) {
-      return scheduled;
-    }
-    console.error(
-      `[quiz] scheduled question invalid/missing for ${dateKey}: ${todayEntry.questionId}`
-    );
-  }
-
-  const scheduledIds = new Set(scheduleEntries.map((entry) => entry.questionId));
-  const ordered = [...questions].sort((a, b) => {
-    const aKey = getQuestionSortKey(a);
-    const bKey = getQuestionSortKey(b);
-    if (aKey !== bKey) return aKey - bKey;
-    return a.id.localeCompare(b.id);
-  });
-
-  const nextQuestion = ordered.find(
-    (question) =>
-      !scheduledIds.has(question.id) && isValidQuestion(question)
-  );
-
-  if (!nextQuestion) {
+  const questions = allQuestions.filter((question) => isValidQuestion(question));
+  if (questions.length === 0) {
+    console.warn(`[selection] No valid quiz questions available`);
     return null;
   }
 
-  if (!todayEntry) {
-    await addScheduleEntry({
-      dateKey,
-      questionId: nextQuestion.id,
-      assignedAt: new Date().toISOString(),
-    });
+  const questionById = new Map<string, Question>();
+  for (const question of questions) {
+    if (!questionById.has(question.id)) {
+      questionById.set(question.id, question);
+    }
   }
 
-  return nextQuestion;
+  const firestoreScheduledId = await getScheduledQuestionId(dateKey);
+  if (firestoreScheduledId) {
+    const scheduled = questionById.get(firestoreScheduledId);
+    if (scheduled) {
+      console.log(`[selection] schedule source: firestore (${scheduled.id})`);
+      return scheduled;
+    }
+    console.error(
+      `[quiz] scheduled question invalid/missing for ${dateKey}: ${firestoreScheduledId}`
+    );
+  }
+
+  const legacySchedule = await getJsonScheduleEntries();
+  const jsonScheduledId =
+    legacySchedule.find((entry) => entry.dateKey === dateKey)?.questionId ?? null;
+  if (jsonScheduledId) {
+    const scheduled = questionById.get(jsonScheduledId);
+    if (scheduled) {
+      console.log(`[selection] schedule source: json (${scheduled.id})`);
+      return scheduled;
+    }
+    console.error(
+      `[quiz] legacy scheduled question invalid/missing for ${dateKey}: ${jsonScheduledId}`
+    );
+  }
+
+  const fallback = pickDeterministicFallback(questions, dateKey);
+  if (!fallback) {
+    return null;
+  }
+
+  console.log(`[selection] schedule source: random (${fallback.id})`);
+  return fallback;
 }
 
 /**
