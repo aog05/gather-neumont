@@ -8,11 +8,17 @@ import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
 import { PlayerController } from "../entities/PlayerController";
 import { MapParser } from "@/utils/MapParser";
+import { AsepriteParser } from "@/utils/AsepriteParser";
 import { MULTIPLAYER_CONFIG } from "../config/multiplayer";
 import {
   LocalLoopbackTransport,
   MultiplayerSession,
 } from "../systems/multiplayer";
+
+const PLAYER_TEXTURE_KEY = "player";
+const PLAYER_ATLAS_PNG_PATH = "assets/sprites/player.png";
+const PLAYER_ATLAS_JSON_PATH = "assets/sprites/player.json";
+const PLAYER_ATLAS_JSON_CACHE_KEY = "player-aseprite-json";
 
 /**
  * MainScene - The primary game scene for the Neumont Virtual Campus
@@ -36,6 +42,12 @@ export class MainScene extends Phaser.Scene {
 
   preload(): void {
     MapParser.preloadTiledMapAssets(GROUND_FLOOR_TILED_MAP, this);
+    AsepriteParser.preloadAtlas(this, {
+      textureKey: PLAYER_TEXTURE_KEY,
+      pngPath: PLAYER_ATLAS_PNG_PATH,
+      jsonPath: PLAYER_ATLAS_JSON_PATH,
+    });
+    this.load.json(PLAYER_ATLAS_JSON_CACHE_KEY, PLAYER_ATLAS_JSON_PATH);
   }
 
   create(): void {
@@ -54,6 +66,13 @@ export class MainScene extends Phaser.Scene {
     console.log(
       `[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`,
     );
+
+    AsepriteParser.createAnimationsFromCache(this, {
+      textureKey: PLAYER_TEXTURE_KEY,
+      jsonKey: PLAYER_ATLAS_JSON_CACHE_KEY,
+      animationKeyPrefix: PLAYER_TEXTURE_KEY,
+      defaultRepeat: -1,
+    });
 
     this.playerController = new PlayerController(this);
     this.playerController.create(npcCenterX, npcCenterY, tiles, () =>

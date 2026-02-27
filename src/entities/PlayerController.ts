@@ -2,13 +2,15 @@ import Phaser from "phaser";
 import type { PlayerSnapshot } from "../systems/multiplayer";
 
 const PLAYER_SPEED = 200;
-const PLAYER_SIZE = 50;
+const PLAYER_TEXTURE_KEY = "player";
+const PLAYER_IDLE_ANIMATION_KEY = `${PLAYER_TEXTURE_KEY}:Idle`;
+const PLAYER_RUN_ANIMATION_KEY = `${PLAYER_TEXTURE_KEY}:Run`;
 
 type PlayerState = "EXPLORING" | "DIALOGUE" | "POPUP";
 
 export class PlayerController {
   private scene: Phaser.Scene;
-  private player!: Phaser.GameObjects.Rectangle;
+  private player!: Phaser.Physics.Arcade.Sprite;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private downKeys: Set<string> = new Set();
   private pressedKeys: Set<string> = new Set();
@@ -26,21 +28,21 @@ export class PlayerController {
     onDialogueClose: () => void,
   ): void {
     this.onDialogueCloseCallback = onDialogueClose;
-    this.player = this.scene.add.rectangle(
+    this.player = this.scene.physics.add.sprite(
       spawnX,
       spawnY,
-      PLAYER_SIZE,
-      PLAYER_SIZE,
-      0x0000ff,
+      PLAYER_TEXTURE_KEY,
     );
-
-    this.scene.physics.add.existing(this.player);
     this.scene.physics.add.collider(this.player, tiles);
+
+    if (this.scene.anims.exists(PLAYER_IDLE_ANIMATION_KEY)) {
+      this.player.play(PLAYER_IDLE_ANIMATION_KEY);
+    }
 
     this.cursors = this.scene.input.keyboard!.createCursorKeys();
   }
 
-  getGameObject(): Phaser.GameObjects.Rectangle {
+  getGameObject(): Phaser.Physics.Arcade.Sprite {
     return this.player;
   }
 
@@ -63,10 +65,7 @@ export class PlayerController {
     this.pressedKeys.clear();
     const keyboard = this.scene.input.keyboard!;
     keyboard.on("keydown", (event: KeyboardEvent) => {
-      if (!this.downKeys.has(event.key)) {
-        this.pressedKeys.add(event.key);
-        console.log(`[PlayerController] Key just pressed: ${event.key}`);
-      }
+      if (!this.downKeys.has(event.key)) this.pressedKeys.add(event.key);
       this.downKeys.add(event.key);
     });
 
@@ -104,6 +103,26 @@ export class PlayerController {
     }
 
     playerBody.setVelocity(xVelocity, yVelocity);
+
+    if (xVelocity < 0) {
+      this.player.setFlipX(true);
+    }
+
+    if (xVelocity > 0) {
+      this.player.setFlipX(false);
+    }
+
+    this.updateAnimation(xVelocity, yVelocity);
+  }
+
+  private updateAnimation(xVelocity: number, yVelocity: number): void {
+    const isMoving = xVelocity !== 0 || yVelocity !== 0;
+
+    if (isMoving && this.scene.anims.exists(PLAYER_RUN_ANIMATION_KEY)) {
+      this.player.play(PLAYER_RUN_ANIMATION_KEY, true);
+    } else if (this.scene.anims.exists(PLAYER_IDLE_ANIMATION_KEY)) {
+      this.player.play(PLAYER_IDLE_ANIMATION_KEY, true);
+    }
   }
 
   update(): void {
@@ -116,6 +135,7 @@ export class PlayerController {
         break;
       case "DIALOGUE":
         playerBody.setVelocity(0, 0);
+        this.updateAnimation(0, 0);
 
         if (this.pressedKeys.has("Escape")) {
           this.onDialogueCloseCallback?.();
@@ -123,6 +143,7 @@ export class PlayerController {
         break;
       case "POPUP":
         playerBody.setVelocity(0, 0);
+        this.updateAnimation(0, 0);
         break;
     }
   }
