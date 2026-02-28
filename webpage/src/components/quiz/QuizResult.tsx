@@ -12,8 +12,10 @@ interface QuizResultProps {
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
+  acceptedAnswers?: string[];
   attemptNumber: number;
   onViewLeaderboard?: () => void;
+  onReset?: () => void;
 }
 
 export function QuizResult({
@@ -23,8 +25,10 @@ export function QuizResult({
   explanation,
   correctIndex,
   correctIndices,
+  acceptedAnswers,
   attemptNumber,
   onViewLeaderboard,
+  onReset,
 }: QuizResultProps) {
   // Format the correct answer display
   const getCorrectAnswerDisplay = (): string => {
@@ -39,6 +43,9 @@ export function QuizResult({
           return `${letter}. ${question.choices?.[i] ?? ""}`;
         })
         .join(", ");
+    }
+    if (question.type === "written" && acceptedAnswers) {
+      return acceptedAnswers[0] ?? "";
     }
     return "";
   };
@@ -99,8 +106,8 @@ export function QuizResult({
         </div>
       )}
 
-      {onViewLeaderboard && (
-        <div className="quiz-result-actions">
+      <div className="quiz-result-actions">
+        {onViewLeaderboard && (
           <button
             type="button"
             className="quiz-submit-btn quiz-btn-secondary"
@@ -108,8 +115,17 @@ export function QuizResult({
           >
             View Leaderboard
           </button>
-        </div>
-      )}
+        )}
+        {onReset && (
+          <button
+            type="button"
+            className="quiz-submit-btn quiz-btn-primary"
+            onClick={onReset}
+          >
+            Take Quiz Again
+          </button>
+        )}
+      </div>
     </div>
   );
 }

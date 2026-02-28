@@ -111,6 +111,7 @@ Note: extra/unknown fields in the payload are ignored for backward compatibility
     - ```json
       {
         "alreadyCompleted": true,
+        "attemptsUsed": 2,
         "pointsEarned": 150,
         "completedAt": "ISO timestamp"
       }
@@ -146,29 +147,14 @@ Note: extra/unknown fields in the payload are ignored for backward compatibility
     - ```json
       {
         "correct": true,
-        "alreadyCompleted": false,
         "attemptNumber": 1,
         "pointsEarned": 250,
-        "totalPoints": 1025,
-        "streakDays": 4,
-        "completedAt": "ISO timestamp",
         "pointsBreakdown": {},
         "quizDate": "YYYY-MM-DD"
       }
       ```
   - Already completed (one completion per day):
-    - ```json
-      {
-        "alreadyCompleted": true,
-        "quizDate": "YYYY-MM-DD",
-        "canRetry": false,
-        "pointsEarned": 250,
-        "totalPoints": 1025,
-        "streakDays": 4,
-        "completedAt": "ISO timestamp",
-        "message": "..."
-      }
-      ```
+    - `{ "alreadyCompleted": true, "quizDate": "YYYY-MM-DD", "canRetry": false, "message": "..." }`
   - Day rollover (question changed while playing):
     - ```json
       {
@@ -185,9 +171,7 @@ Note: extra/unknown fields in the payload are ignored for backward compatibility
 One completion per day rule:
 
 - Guests: completion is tracked in server guest session state keyed by `guestToken` + date.
-- Logged-in non-admin users: completion is tracked in Firestore:
-  - `Player/{playerId}/QuizCompletions/{YYYY-MM-DD}`
-  - `Player/{playerId}` fields: `totalPoints`, `streakDays`, `lastCompletedDateKey`
+- Logged-in non-admin users: completion is tracked in `data/progress.json` as `lastCompletion.date`.
 - When already completed, both `/start` and `/submit` return `alreadyCompleted: true`.
 
 ## Leaderboard
@@ -202,10 +186,11 @@ One completion per day rule:
     {
       "entries": [
         {
-          "playerId": "string",
-          "displayName": "string",
-          "totalPoints": 1200,
-          "streakDays": 3
+          "rank": 1,
+          "username": "string",
+          "longestStreak": 7,
+          "currentStreak": 3,
+          "totalPoints": 1200
         }
       ]
     }

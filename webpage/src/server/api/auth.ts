@@ -19,8 +19,6 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 interface SessionRecord {
   userId: string;
-  username: string;
-  isAdmin: boolean;
   createdAt: Date;
 }
 
@@ -43,19 +41,10 @@ function getSessionToken(req: Request): string | null {
   return cookies.session ?? null;
 }
 
-function createSession(user: {
-  id: string;
-  username: string;
-  isAdmin?: boolean;
-}): string {
+function createSession(userId: string): string {
   const token = crypto.randomUUID();
   const now = new Date();
-  sessions.set(token, {
-    userId: user.id,
-    username: user.username,
-    isAdmin: Boolean(user.isAdmin),
-    createdAt: now,
-  });
+  sessions.set(token, { userId, createdAt: now });
   return token;
 }
 
@@ -100,7 +89,7 @@ async function handleLogin(req: Request): Promise<Response> {
       avatar: { provider: "dicebear", style: "pixelArt", seed: "admin" },
     });
   }
-  const token = createSession(user);
+  const token = createSession(user.id);
   return jsonWithCookie(
     { user: { id: user.id, username: user.username, isAdmin: !!user.isAdmin }, created },
     buildSessionCookie(token, SESSION_MAX_AGE_SECONDS)
@@ -177,25 +166,6 @@ export function getUserIdFromRequest(req: Request): string | null {
   const session = sessions.get(token);
   if (!session) return null;
   return session.userId;
-}
-
-export type SessionUser = {
-  userId: string;
-  username: string;
-  isAdmin: boolean;
-};
-
-export function getSessionUserFromRequest(req: Request): SessionUser | null {
-  const cookies = parseCookies(req.headers.get("cookie"));
-  const token = cookies.session;
-  if (!token) return null;
-  const session = sessions.get(token);
-  if (!session) return null;
-  return {
-    userId: session.userId,
-    username: session.username,
-    isAdmin: session.isAdmin,
-  };
 }
 
 export async function handleAuthApi(req: Request): Promise<Response> {

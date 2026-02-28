@@ -1,15 +1,18 @@
+import type { ReactNode } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { QuizModal } from "../../components/quiz/QuizModal";
-import NeumontPanelShell from "../../components/NeumontPanelShell";
+import { DEMO_LEADERBOARD } from "../../demo/demoLeaderboard";
+import "../../styles/quiz-ui.css";
+import "../../pages/QuizDevPage.css";
 
-type Tab = "quiz" | "leaderboard" | "admin";
-type AdminSubTab = "admin" | "questions" | "schedule";
+type Tab = "quiz" | "leaderboard" | "data" | "admin";
 
 type LeaderboardEntry = {
-  playerId: string;
-  displayName: string;
-  streakDays: number;
+  rank: number;
+  username: string;
+  longestStreak: number;
+  currentStreak: number;
   totalPoints: number;
 };
 
@@ -19,13 +22,26 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   const isAdmin = auth.mode === "admin";
   const username = auth.me?.username ?? "Guest";
 
+  // Debug: Log when isOpen prop changes
+  useEffect(() => {
+    console.log(`[QuizPanel] 🎮 isOpen prop changed to: ${isOpen}`);
+    if (isOpen) {
+      console.log(`[QuizPanel] 📂 Panel opening - initializing component`);
+      console.log(`[QuizPanel] 👤 User: ${username} (${isAdmin ? 'Admin' : 'Player'})`);
+    } else {
+      console.log(`[QuizPanel] 📁 Panel closing - component will unmount`);
+    }
+  }, [isOpen, username, isAdmin]);
+
   const [tab, setTab] = useState<Tab>("quiz");
-  const [adminSubTab, setAdminSubTab] = useState<AdminSubTab>("admin");
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const quizModalCloseRef = useRef<null | (() => void)>(null);
 
+  const [useDemoLeaderboard, setUseDemoLeaderboard] = useState(true);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [leaderboardUsingDemo, setLeaderboardUsingDemo] = useState(false);
   const leaderboardScrollRef = useRef(false);
   const [leaderboardAnimNonce, setLeaderboardAnimNonce] = useState(0);
   const leaderboardLoadedRef = useRef(false);
@@ -37,51 +53,89 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   const rankAnimKeyRef = useRef<string | null>(null);
 
   const handleClose = useCallback(() => {
+    console.log(`[QuizPanel] 🚪 Close requested`);
     if (quizModalCloseRef.current) {
+      console.log(`[QuizPanel] 🔄 Delegating close to QuizModal`);
       quizModalCloseRef.current();
       return;
     }
+    console.log(`[QuizPanel] ✅ Closing panel directly`);
     onClose();
   }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
+    console.log(`[QuizPanel] 🔄 Resetting tab to 'quiz' on panel open`);
     setTab("quiz");
-    setAdminSubTab("admin");
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
+    console.log(`[QuizPanel] ⌨️ Setting up keyboard and click-outside listeners`);
+
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        console.log(`[QuizPanel] ⎋ Escape key pressed - closing panel`);
+        handleClose();
+      }
+    }
+
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node | null;
+      if (!target) return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      if (panel.contains(target)) return;
+      console.log(`[QuizPanel] 🖱️ Click outside panel detected - closing`);
+      handleClose();
     }
 
     window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
+      console.log(`[QuizPanel] 🧹 Cleaning up keyboard and click-outside listeners`);
       window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown, true);
     };
   }, [handleClose, isOpen]);
 
   const loadLeaderboard = useCallback(async () => {
+    if (useDemoLeaderboard) {
+      setLeaderboardUsingDemo(true);
+      setLeaderboard(DEMO_LEADERBOARD.entries);
+      leaderboardLoadedRef.current = true;
+      return;
+    }
     setLeaderboardLoading(true);
     setLeaderboardError(null);
     try {
       const res = await fetch("/api/leaderboard?limit=50");
       const data = (await res.json()) as { entries?: LeaderboardEntry[] };
       if (!res.ok) {
-        throw new Error("Failed to load leaderboard");
+        setLeaderboardError("Failed to load leaderboard");
+        setLeaderboardUsingDemo(true);
+        setLeaderboard(DEMO_LEADERBOARD.entries);
+        return;
       }
+      if (!data.entries || data.entries.length === 0) {
+        setLeaderboardUsingDemo(true);
+        setLeaderboard(DEMO_LEADERBOARD.entries);
+        leaderboardLoadedRef.current = true;
+        return;
+      }
+      setLeaderboardUsingDemo(false);
       setLeaderboard(data.entries);
       leaderboardLoadedRef.current = true;
     } catch {
       setLeaderboardError("Failed to load leaderboard");
-      setLeaderboard([]);
+      setLeaderboardUsingDemo(true);
+      setLeaderboard(DEMO_LEADERBOARD.entries);
       leaderboardLoadedRef.current = true;
     } finally {
       setLeaderboardLoading(false);
     }
-  }, []);
+  }, [useDemoLeaderboard]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -90,36 +144,24 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       leaderboardScrollRef.current = false;
       void loadLeaderboard();
     }
-  }, [isOpen, leaderboardLoading, loadLeaderboard, tab]);
+  }, [isOpen, leaderboardLoading, loadLeaderboard, tab, useDemoLeaderboard]);
 
   const showAdminTab = isAdmin;
   const tabs = useMemo(() => {
     const base: Array<{ key: Tab; label: string }> = [
       { key: "quiz", label: "Quiz" },
       { key: "leaderboard", label: "Leaderboard" },
+      { key: "data", label: "Data" },
     ];
     if (showAdminTab) base.push({ key: "admin", label: "Admin" });
     return base;
   }, [showAdminTab]);
 
-  const adminSubTabs = useMemo(
-    () => [
-      { key: "admin" as const, label: "Admin" },
-      { key: "questions" as const, label: "Questions" },
-      { key: "schedule" as const, label: "Schedule" },
-    ],
-    []
-  );
-
-  const entries = leaderboard.map((entry, index) => ({
-    ...entry,
-    rank: index + 1,
-  }));
+  const displayedLeaderboard = useDemoLeaderboard ? DEMO_LEADERBOARD : { entries: leaderboard };
+  const entries = displayedLeaderboard.entries ?? [];
   const meUsername = auth.me?.username;
   const myEntry = meUsername
-    ? entries.find(
-        (entry) => entry.displayName.toLowerCase() === meUsername.toLowerCase()
-      )
+    ? entries.find((entry) => entry.username.toLowerCase() === meUsername.toLowerCase())
     : undefined;
 
   const handleViewLeaderboard = useCallback(() => {
@@ -147,25 +189,22 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
 
     if (groupEntries.length === 0) {
       return (
-        <div className="quest-leaderboard-podium-content">
-          <span className="quest-leaderboard-podium-empty">{emptyLabel}</span>
+        <div className="podium-content">
+          <span className="podium-empty">{emptyLabel}</span>
         </div>
       );
     }
 
     return (
-      <div className="quest-leaderboard-podium-content">
-        {isTied && <span className="quest-leaderboard-podium-tie-label">Tied for #{rankNum}</span>}
-        <div className="quest-leaderboard-podium-names">
+      <div className="podium-content">
+        {isTied && <span className="podium-tie-label">Tied for #{rankNum}</span>}
+        <div className="podium-names">
           {visible.map((entry, idx) => (
-            <span
-              className="quest-leaderboard-podium-name"
-              key={`${rankNum}-${entry.playerId}-${idx}`}
-            >
-              {entry.displayName}
+            <span className="podium-name" key={`${rankNum}-${entry.username}-${idx}`}>
+              {entry.username}
             </span>
           ))}
-          {remaining > 0 && <span className="quest-leaderboard-podium-more">+{remaining} more</span>}
+          {remaining > 0 && <span className="podium-more">+{remaining} more</span>}
         </div>
       </div>
     );
@@ -181,7 +220,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
     if (leaderboardAnimNonce === 0) {
       return;
     }
-    const targetUsername = myEntry.displayName.toLowerCase();
+    const targetUsername = myEntry.username.toLowerCase();
     const el = document.querySelector(`[data-username="${targetUsername}"]`) as HTMLElement | null;
     if (el) {
       leaderboardScrollRef.current = true;
@@ -202,7 +241,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       return;
     }
 
-    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.playerId}:${myEntry.rank}`;
+    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.username}:${myEntry.rank}`;
     if (rankAnimKeyRef.current === animKey) {
       return;
     }
@@ -269,212 +308,343 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
 
   if (!isOpen) return null;
 
-  const shellTabs = tabs.map((item) => ({ id: item.key, label: item.label }));
-  const sessionLabel = auth.me?.username
-    ? `Logged in as ${username}`
-    : "Guest Mode - progress not saved";
-
   return (
-    <NeumontPanelShell
-      title="Daily Quiz"
-      onClose={handleClose}
-      onOverlayClick={handleClose}
-      tabs={shellTabs}
-      activeTabId={tab}
-      onTabSelect={(tabId) => setTab(tabId as Tab)}
-      maxWidth={900}
-      panelStyle={{
-        width: "min(900px, calc(100vw - 24px))",
-        height: "min(860px, calc(100vh - 24px))",
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 950,
+        background: "rgba(0, 0, 0, 0.55)",
+        backdropFilter: "blur(6px)",
+        display: "grid",
+        placeItems: "center",
+        padding: 12,
       }}
-      contentStyle={{
-        padding: 0,
-        overflow: "hidden",
-        minHeight: 0,
-      }}
-      headerRight={<span className="quest-leaderboard-session-label">{sessionLabel}</span>}
     >
-      <div className="quest-quiz-panel-body">
-        <div className={`quest-quiz-panel-main${tab === "quiz" || tab === "admin" ? " is-active" : ""}`}>
-          {tab === "admin" ? (
-            <div className="quest-menu-tabs" role="tablist">
-              {adminSubTabs.map((subTab) => (
-                <button
-                  key={subTab.key}
-                  type="button"
-                  className={`quest-menu-tab${adminSubTab === subTab.key ? " active" : ""}`}
-                  onClick={() => setAdminSubTab(subTab.key)}
-                  role="tab"
-                  aria-selected={adminSubTab === subTab.key}
-                >
-                  {subTab.label}
-                </button>
+      <div
+        ref={panelRef}
+        className="quiz-ui"
+        style={{
+          width: "min(900px, calc(100vw - 24px))",
+          height: "min(860px, calc(100vh - 24px))",
+          background: "var(--panel)",
+          border: "1px solid var(--border)",
+          borderRadius: 18,
+          boxShadow: "var(--shadow-2)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 16px",
+            borderBottom: "1px solid var(--border)",
+            background: "var(--panel)",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.01em" }}>
+                Daily Quiz
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                {auth.me?.username ? `Logged in as ${username}` : "Guest Mode — progress not saved"}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {tabs.map((t) => (
+                <TabButton key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
+                  {t.label}
+                </TabButton>
               ))}
             </div>
-          ) : null}
+          </div>
 
-          <div className="quest-quiz-panel-modal-slot">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text)",
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <div
+            style={{
+              display: tab === "quiz" || tab === "admin" ? "block" : "none",
+              height: "100%",
+            }}
+          >
             <QuizModal
               isOpen
               onClose={onClose}
               isAdmin={isAdmin}
-              initialTab={tab === "admin" ? adminSubTab : "quiz"}
-              activeTabOverride={tab === "admin" ? adminSubTab : undefined}
-              onRequestQuizTab={() => setTab("quiz")}
+              initialTab={tab === "admin" ? "admin" : "quiz"}
               onViewLeaderboard={handleViewLeaderboard}
               variant="embedded"
               closeHandleRef={quizModalCloseRef}
             />
           </div>
-        </div>
 
-        {tab === "leaderboard" ? (
-          <section className="quest-leaderboard">
-            <div className="quest-leaderboard-layout">
-              <div className="quest-leaderboard-side">
-                <div className="quest-leaderboard-title-row">
-                  <h3 className="quest-leaderboard-title">Leaderboard</h3>
-                </div>
-
-                <div className="quest-leaderboard-controls">
-                  <button
-                    type="button"
-                    className="quest-menu-action-btn quest-leaderboard-refresh-btn"
-                    onClick={loadLeaderboard}
-                    disabled={leaderboardLoading}
-                  >
-                    {leaderboardLoading ? "Refreshing..." : "Refresh"}
-                  </button>
-                </div>
-
-                {myEntry ? (
-                  rankAnimActive && !rankAnimDone ? (
-                    <div className="quest-leaderboard-card quest-leaderboard-card--finding">
-                      <span className="quest-leaderboard-finding-text">Finding your rank...</span>
-                      <div className="quest-leaderboard-finding-bar">
-                        <div
-                          className="quest-leaderboard-finding-bar-fill"
-                          style={{
-                            width: `${
-                              myEntry.rank
-                                ? Math.min(100, Math.round((rankAnimValue / myEntry.rank) * 100))
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <span className="quest-leaderboard-finding-count">#{rankAnimValue}</span>
-                    </div>
-                  ) : (
-                    <div className="quest-leaderboard-card">
-                      <span className="quest-leaderboard-card-title">Your Position</span>
-                      <div className="quest-leaderboard-stats">
-                        <div className="quest-leaderboard-stat">
-                          <span className="quest-leaderboard-stat-label">Rank</span>
-                          <span className="quest-leaderboard-stat-value">#{myEntry.rank}</span>
-                        </div>
-                        <div className="quest-leaderboard-stat-separator"></div>
-                        <div className="quest-leaderboard-stat">
-                          <span className="quest-leaderboard-stat-label">Streak</span>
-                          <span className="quest-leaderboard-stat-value">{myEntry.streakDays}</span>
-                        </div>
-                        <div className="quest-leaderboard-stat-separator"></div>
-                        <div className="quest-leaderboard-stat">
-                          <span className="quest-leaderboard-stat-label">Points</span>
-                          <span className="quest-leaderboard-stat-value">{myEntry.totalPoints}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                ) : auth.me?.username ? (
-                  <div className="quest-leaderboard-card quest-leaderboard-card--empty">
-                    <span className="quest-leaderboard-empty-text">
-                      Complete a quiz to appear on the leaderboard.
-                    </span>
-                  </div>
-                ) : null}
-
-                <div className="quest-leaderboard-podium-shell">
-                  <span className="quest-leaderboard-podium-title">Top Performers</span>
-                  <div className="quest-leaderboard-podium">
-                    <div className="quest-leaderboard-podium-col quest-leaderboard-podium-col--second">
-                      <span className="quest-leaderboard-rank-badge" data-rank="2">
-                        #2
-                      </span>
-                      {renderPodiumGroup(2, podiumGroups.second, "No one yet")}
-                    </div>
-                    <div className="quest-leaderboard-podium-col quest-leaderboard-podium-col--first">
-                      <span className="quest-leaderboard-rank-badge" data-rank="1">
-                        #1
-                      </span>
-                      {renderPodiumGroup(1, podiumGroups.first, "No one yet")}
-                    </div>
-                    <div className="quest-leaderboard-podium-col quest-leaderboard-podium-col--third">
-                      <span className="quest-leaderboard-rank-badge" data-rank="3">
-                        #3
-                      </span>
-                      {renderPodiumGroup(3, podiumGroups.third, "No one yet")}
+          {tab === "leaderboard" ? (
+            <section className="quiz-dev-leaderboard" style={{ height: "100%", overflow: "hidden" }}>
+              <div className="lb-layout">
+                <div className="lb-left">
+                  <div className="lb-left-header">
+                    <div className="lb-header-content">
+                      <h3>Leaderboard</h3>
+                      {(useDemoLeaderboard || leaderboardUsingDemo) && (
+                        <span className="quiz-dev-demo-label">Demo</span>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {leaderboardError && (
-                  <p className="quest-leaderboard-error" role="status">
-                    {leaderboardError}
-                  </p>
-                )}
-              </div>
+                  <div className="lb-controls">
+                    <label className="lb-toggle">
+                      <input
+                        type="checkbox"
+                        checked={useDemoLeaderboard}
+                        onChange={(event) => {
+                          setUseDemoLeaderboard(event.target.checked);
+                          leaderboardLoadedRef.current = false;
+                          leaderboardScrollRef.current = false;
+                          if (event.target.checked) {
+                            setLeaderboardUsingDemo(true);
+                            setLeaderboard(DEMO_LEADERBOARD.entries);
+                          } else {
+                            setLeaderboardUsingDemo(false);
+                            setLeaderboard([]);
+                          }
+                        }}
+                      />
+                      <span>Use demo data</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="lb-refresh-btn"
+                      onClick={loadLeaderboard}
+                      disabled={leaderboardLoading}
+                    >
+                      {leaderboardLoading ? "Refreshing..." : "Refresh"}
+                    </button>
+                  </div>
 
-              <div className="quest-leaderboard-table-shell">
-                <div className="quest-leaderboard-table-header" role="row">
-                  <span>Rank</span>
-                  <span>User</span>
-                  <span>Streak</span>
-                  <span>Points</span>
-                </div>
-                <div className="quest-leaderboard-table-scroll">
-                  {entries.length === 0 ? (
-                    <div className="quest-leaderboard-table-empty">No entries yet.</div>
-                  ) : (
-                    <div className="quest-leaderboard-table-body" role="table">
-                      {entries.map((entry, index) => {
-                        const isMe =
-                          auth.me?.username?.toLowerCase() ===
-                          entry.displayName.toLowerCase();
-                        const showDivider = index > 0 && (index === 3 || index === 10 || index % 10 === 0);
-                        const rowKey = `${entry.rank}-${entry.playerId}`;
-                        return (
-                          <Fragment key={rowKey}>
-                            {showDivider && <div className="quest-leaderboard-table-divider"></div>}
-                            <div
-                              className={`quest-leaderboard-row ${isMe ? "quest-leaderboard-row--me" : ""}`}
-                              data-username={entry.displayName.toLowerCase()}
-                              role="row"
-                            >
-                              <span className="quest-leaderboard-rank-cell">
-                                <span className="quest-leaderboard-row-rank" data-rank={entry.rank}>
-                                  {entry.rank}
-                                </span>
-                              </span>
-                              <span className="quest-leaderboard-user">
-                                {entry.displayName}
-                                {isMe && <span className="quest-leaderboard-you-badge">YOU</span>}
-                              </span>
-                              <span className="quest-leaderboard-streak">{entry.streakDays}</span>
-                              <span className="quest-leaderboard-points">{entry.totalPoints}</span>
-                            </div>
-                          </Fragment>
-                        );
-                      })}
+                  {myEntry ? (
+                    rankAnimActive && !rankAnimDone ? (
+                      <div className="lb-your-card lb-finding">
+                        <span className="lb-finding-text">Finding your rank…</span>
+                        <div className="lb-finding-bar">
+                          <div
+                            className="lb-finding-bar-fill"
+                            style={{
+                              width: `${
+                                myEntry.rank
+                                  ? Math.min(
+                                      100,
+                                      Math.round((rankAnimValue / myEntry.rank) * 100)
+                                    )
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                        <span className="lb-finding-count">#{rankAnimValue}</span>
+                      </div>
+                    ) : (
+                      <div className="lb-your-card">
+                        <span className="lb-your-title">Your Position</span>
+                        <div className="lb-your-stats">
+                          <div className="lb-stat">
+                            <span className="lb-stat-label">Rank</span>
+                            <span className="lb-stat-value">#{myEntry.rank}</span>
+                          </div>
+                          <div className="lb-stat-separator"></div>
+                          <div className="lb-stat">
+                            <span className="lb-stat-label">Streak</span>
+                            <span className="lb-stat-value">{myEntry.longestStreak}</span>
+                          </div>
+                          <div className="lb-stat-separator"></div>
+                          <div className="lb-stat">
+                            <span className="lb-stat-label">Points</span>
+                            <span className="lb-stat-value">{myEntry.totalPoints}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  ) : auth.me?.username && !useDemoLeaderboard && !leaderboardUsingDemo ? (
+                    <div className="lb-your-card lb-empty">
+                      <span className="lb-empty-text">
+                        Complete a quiz to appear on the leaderboard.
+                      </span>
                     </div>
+                  ) : null}
+
+                  <div className="lb-top-summary">
+                    <span className="lb-top-summary-label">Top Performers</span>
+                    <div className="lb-podium">
+                      <div className="lb-podium-col lb-podium-second">
+                        <span className="podium-rank-badge" data-rank="2">
+                          #2
+                        </span>
+                        {renderPodiumGroup(2, podiumGroups.second, "No one yet")}
+                      </div>
+                      <div className="lb-podium-col lb-podium-first">
+                        <span className="podium-rank-badge" data-rank="1">
+                          #1
+                        </span>
+                        {renderPodiumGroup(1, podiumGroups.first, "No one yet")}
+                      </div>
+                      <div className="lb-podium-col lb-podium-third">
+                        <span className="podium-rank-badge" data-rank="3">
+                          #3
+                        </span>
+                        {renderPodiumGroup(3, podiumGroups.third, "No one yet")}
+                      </div>
+                    </div>
+                  </div>
+
+                  {leaderboardError && (
+                    <p className="lb-error" role="status">
+                      {leaderboardError}
+                    </p>
                   )}
                 </div>
-              </div>
-            </div>
-          </section>
-        ) : null}
 
+                <div className="lb-right">
+                  <div className="lb-table-header" role="row">
+                    <span>Rank</span>
+                    <span>User</span>
+                    <span>Streak</span>
+                    <span>Points</span>
+                  </div>
+                  <div className="lb-table-scroll">
+                    {entries.length === 0 ? (
+                      <div className="lb-table-empty">No entries yet.</div>
+                    ) : (
+                      <div className="lb-table-body" role="table">
+                        {entries.map((entry, index) => {
+                          const isMe =
+                            auth.me?.username?.toLowerCase() === entry.username.toLowerCase();
+                          const showDivider =
+                            index > 0 && (index === 3 || index === 10 || index % 10 === 0);
+                          const rowKey = `${entry.rank}-${entry.username}`;
+                          return (
+                            <Fragment key={rowKey}>
+                              {showDivider && (
+                                <div
+                                  className="lb-table-divider"
+                                ></div>
+                              )}
+                              <div
+                                className={`lb-table-row ${isMe ? "lb-table-row--me" : ""}`}
+                                data-username={entry.username.toLowerCase()}
+                                role="row"
+                              >
+                                <span className="lb-table-rank">
+                                  <span className="lb-rank-badge" data-rank={entry.rank}>
+                                    {entry.rank}
+                                  </span>
+                                </span>
+                                <span className="lb-table-user">
+                                  {entry.username}
+                                  {isMe && <span className="lb-you-badge">YOU</span>}
+                                </span>
+                                <span className="lb-table-streak">{entry.longestStreak}</span>
+                                <span className="lb-table-points">{entry.totalPoints}</span>
+                              </div>
+                            </Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {tab === "data" ? (
+            <div style={{ height: "100%", overflow: "auto", padding: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16 }}>Data</h3>
+              <p style={{ margin: "8px 0 0 0", color: "var(--text-muted)", fontSize: 12 }}>
+                Static demo leaderboard dataset used by the standalone quiz page.
+              </p>
+
+              <div style={{ marginTop: 12, display: "grid", gap: 8, fontSize: 12 }}>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Total participants:</span>{" "}
+                  <span className="nums">{DEMO_LEADERBOARD.totalParticipants}</span>
+                </div>
+                <div>
+                  <span style={{ color: "var(--text-muted)" }}>Last updated:</span>{" "}
+                  <span className="nums">{DEMO_LEADERBOARD.lastUpdated}</span>
+                </div>
+              </div>
+
+              <pre
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "1px solid var(--border)",
+                  background: "var(--surface)",
+                  color: "var(--text)",
+                  fontSize: 11,
+                  lineHeight: 1.4,
+                  overflow: "auto",
+                }}
+              >
+                {JSON.stringify(DEMO_LEADERBOARD, null, 2)}
+              </pre>
+            </div>
+          ) : null}
+        </div>
       </div>
-    </NeumontPanelShell>
+    </div>
+  );
+}
+
+function TabButton(props: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      style={{
+        padding: "6px 10px",
+        borderRadius: 999,
+        border: props.active ? "1px solid rgba(245, 166, 35, 0.55)" : "1px solid var(--border)",
+        background: props.active ? "rgba(245, 166, 35, 0.14)" : "transparent",
+        color: props.active ? "var(--text)" : "var(--text-muted)",
+        cursor: "pointer",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "0.01em",
+      }}
+    >
+      {props.children}
+    </button>
   );
 }

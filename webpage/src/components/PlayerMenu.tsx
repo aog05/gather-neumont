@@ -220,7 +220,7 @@ export default function PlayerMenu({
               onClick={handleEditAccount}
               className="player-menu-action-btn primary"
             >
-              Account settings
+              Edit Account
             </button>
 
             {(auth.mode === 'user' || auth.mode === 'admin' || auth.mode === 'guest') && (

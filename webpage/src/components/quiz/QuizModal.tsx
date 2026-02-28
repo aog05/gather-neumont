@@ -5,17 +5,16 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuiz } from "../../hooks/useQuiz";
 import type { Question } from "../../types/quiz.types";
-import NeumontPanelShell from "../NeumontPanelShell";
 import { QuizCards } from "./QuizCards";
+import { WrittenResponse } from "./WrittenResponse";
 import { QuizResult } from "./QuizResult";
+import "./QuizModal.css";
 
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   isAdmin?: boolean;
   initialTab?: Tab;
-  activeTabOverride?: Tab;
-  onRequestQuizTab?: () => void;
   onViewLeaderboard?: () => void;
   variant?: "modal" | "embedded";
   closeHandleRef?: { current: null | (() => void) };
@@ -39,14 +38,10 @@ type AdminTestResult = {
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
+  acceptedAnswers?: string[];
 };
 
-type QuestionType = "mcq" | "select-all";
-type AdminQuestionSource = "legacy" | "v2";
-type AdminQuestion = Extract<Question, { type: QuestionType }> & {
-  questionId?: string;
-  source?: AdminQuestionSource;
-};
+type QuestionType = "mcq" | "select-all" | "written";
 
 type EditorState = {
   mode: "create" | "edit";
@@ -60,28 +55,12 @@ type EditorState = {
   choices: string[];
   correctIndex: number;
   correctIndices: number[];
+  acceptedAnswersText: string;
 };
 
 type ScheduleEntry = {
   date: string;
   questionId: string;
-};
-
-type EditorPayload = {
-  type: QuestionType;
-  prompt: string;
-  explanation: string;
-  difficulty: 1 | 2 | 3;
-  basePoints: number;
-  tags: string[];
-  choices: string[];
-  correctIndex?: number;
-  correctIndices?: number[];
-};
-
-type EditorNormalization = {
-  payload: EditorPayload;
-  hasDuplicateChoices: boolean;
 };
 
 const TAG_OPTIONS = [
@@ -128,123 +107,26 @@ const BASE_POINTS: Record<number, number> = {
 const EMPTY_MCQ_CHOICES = ["", "", "", ""];
 const EMPTY_SELECT_CHOICES = ["", "", "", "", ""];
 const RANGE_OPTIONS = ["week", "month", "year"] as const;
-const LEGACY_QUESTION_ID_PATTERN = /_q\d+$/i;
-const NO_V2_ASSIGNABLE_MESSAGE =
-  "No questions available yet. Create a new question in Questions tab first.";
 type RangeOption = typeof RANGE_OPTIONS[number];
-const isQuizDebugEnabled = (() => {
-  try {
-    if (
-      typeof window !== "undefined" &&
-      window.sessionStorage?.getItem("QUIZ_DEBUG") === "1"
-    ) {
-      return true;
-    }
-  } catch {
-    // Ignore storage access errors and fall back to env check.
-  }
-
-  return (import.meta as any).env?.BUN_PUBLIC_QUIZ_DEBUG === "1";
-})();
-
-function withDebugCode(message: string, code: string): string {
-  return isQuizDebugEnabled ? `${message} (${code})` : message;
-}
-
-function isLegacyQuestionId(questionId: string): boolean {
-  return LEGACY_QUESTION_ID_PATTERN.test(questionId);
-}
-
-function getQuestionSource(question: Pick<AdminQuestion, "id" | "source">): AdminQuestionSource {
-  if (question.source === "legacy" || question.source === "v2") {
-    return question.source;
-  }
-  return isLegacyQuestionId(question.id) ? "legacy" : "v2";
-}
-
-function isLegacyQuestion(question: Pick<AdminQuestion, "id" | "source">): boolean {
-  return getQuestionSource(question) === "legacy";
-}
-
-async function getResponseError(res: Response): Promise<string | null> {
-  try {
-    const data = (await res.json()) as { error?: string };
-    return typeof data.error === "string" ? data.error : null;
-  } catch {
-    return null;
-  }
-}
-
-function formatQuestionActionError(error: string | null, fallback: string): string {
-  switch (error) {
-    case "legacy_read_only":
-      return withDebugCode("These questions are read-only.", "legacy_read_only");
-    case "not_found":
-      return withDebugCode("Question not found.", "not_found");
-    case "unauthorized":
-      return withDebugCode("Admin sign-in required.", "unauthorized");
-    case "forbidden":
-      return withDebugCode("Admin access required.", "forbidden");
-    default:
-      return error ?? fallback;
-  }
-}
-
-function formatScheduleError(error: string | null, fallback: string): string {
-  switch (error) {
-    case "already_scheduled":
-      return withDebugCode("Already scheduled for this date.", "already_scheduled");
-    case "invalid_question_id":
-      return withDebugCode(
-        "Selected question is not available for scheduling.",
-        "invalid_question_id"
-      );
-    case "invalid_question":
-      return withDebugCode("Select a valid question.", "invalid_question");
-    case "unauthorized":
-      return withDebugCode("Admin sign-in required.", "unauthorized");
-    case "forbidden":
-      return withDebugCode("Admin access required.", "forbidden");
-    default:
-      return error ?? fallback;
-  }
-}
-
-const MOUNTAIN_TIMEZONE = "America/Denver";
-
-function toMountainDateKey(date: Date): string {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: MOUNTAIN_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(date);
-  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
-  const month = parts.find((part) => part.type === "month")?.value ?? "01";
-  const day = parts.find((part) => part.type === "day")?.value ?? "01";
-  return `${year}-${month}-${day}`;
-}
 
 export function QuizModal({
   isOpen,
   onClose,
   isAdmin = false,
   initialTab,
-  activeTabOverride,
-  onRequestQuizTab,
   onViewLeaderboard,
   variant = "modal",
   closeHandleRef,
 }: QuizModalProps) {
+  console.log(`[QuizModal] 🎮 Component render - isOpen: ${isOpen}, variant: ${variant}, isAdmin: ${isAdmin}`);
+
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
-  const effectiveActiveTab = activeTabOverride ?? activeTab;
-  const [mode, setMode] = useState<"daily" | "test" | "practice">("daily");
-  const [adminQuestions, setAdminQuestions] = useState<AdminQuestion[]>([]);
+  const [mode, setMode] = useState<"daily" | "test">("daily");
+  const [adminQuestions, setAdminQuestions] = useState<Question[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [selectedQuestionId, setSelectedQuestionId] = useState("");
-  const [testQuestion, setTestQuestion] = useState<AdminQuestion | null>(null);
+  const [testQuestion, setTestQuestion] = useState<Question | null>(null);
   const [testState, setTestState] = useState<
     "idle" | "active" | "submitting" | "correct" | "incorrect"
   >("idle");
@@ -255,7 +137,6 @@ export function QuizModal({
   const [sequenceMessage, setSequenceMessage] = useState<string | null>(null);
   const testStartRef = useRef<number | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
-  const [editorInitialSnapshot, setEditorInitialSnapshot] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
@@ -270,21 +151,24 @@ export function QuizModal({
   >({});
   const quiz = useQuiz();
 
+  console.log(`[QuizModal] 📊 Quiz hook state:`, {
+    state: quiz.state,
+    hasQuestion: !!quiz.question,
+    attemptNumber: quiz.attemptNumber,
+    error: quiz.error
+  });
+
   useEffect(() => {
+    console.log(`[QuizModal] 🔄 Tab initialization effect - isOpen: ${isOpen}, isAdmin: ${isAdmin}, initialTab: ${initialTab}`);
     if (isOpen && isAdmin && initialTab) {
+      console.log(`[QuizModal] 📑 Setting active tab to: ${initialTab}`);
       setActiveTab(initialTab);
     }
     if (isOpen && !isAdmin) {
+      console.log(`[QuizModal] 📑 Non-admin user - forcing tab to 'quiz'`);
       setActiveTab("quiz");
     }
   }, [isOpen, isAdmin, initialTab]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    if (!activeTabOverride) return;
-    if (activeTab === activeTabOverride) return;
-    setActiveTab(activeTabOverride);
-  }, [activeTab, activeTabOverride, isOpen]);
 
 
   useEffect(() => {
@@ -293,33 +177,27 @@ export function QuizModal({
     }
   }, [isAdmin, activeTab]);
 
-  const refreshAdminQuestions = useCallback(async (): Promise<AdminQuestion[]> => {
+  const refreshAdminQuestions = useCallback(async () => {
     setAdminLoading(true);
     setAdminError(null);
     try {
       const res = await fetch("/api/admin/questions");
-      const data = (await res.json()) as { questions?: AdminQuestion[] };
+      const data = (await res.json()) as { questions?: Question[] };
       if (!res.ok) {
         throw new Error("Failed to load questions");
       }
-      const questions = data.questions ?? [];
-      setAdminQuestions(questions);
-      if (
-        !selectedQuestionId ||
-        !questions.some((question) => question.id === selectedQuestionId)
-      ) {
-        setSelectedQuestionId(questions[0]?.id ?? "");
+      setAdminQuestions(data.questions ?? []);
+      if (!selectedQuestionId && data.questions?.length) {
+        setSelectedQuestionId(data.questions[0].id);
       }
-      return questions;
     } catch {
       setAdminError("Failed to load admin questions");
-      return [];
     } finally {
       setAdminLoading(false);
     }
   }, [selectedQuestionId]);
 
-  const refreshSchedule = useCallback(async (): Promise<ScheduleEntry[]> => {
+  const refreshSchedule = useCallback(async () => {
     setScheduleLoading(true);
     setScheduleError(null);
     try {
@@ -328,23 +206,13 @@ export function QuizModal({
       if (!res.ok) {
         throw new Error("Failed to load schedule");
       }
-      const schedule = data.schedule ?? [];
-      setScheduleEntries(schedule);
-      return schedule;
+      setScheduleEntries(data.schedule ?? []);
     } catch {
       setScheduleError("Failed to load schedule");
-      return [];
     } finally {
       setScheduleLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    if (!isOpen || !isAdmin) return;
-    if (effectiveActiveTab !== "schedule") return;
-    void refreshAdminQuestions();
-    void refreshSchedule();
-  }, [effectiveActiveTab, isAdmin, isOpen, refreshAdminQuestions, refreshSchedule]);
 
   useEffect(() => {
     if (!isOpen || !isAdmin) return;
@@ -354,7 +222,7 @@ export function QuizModal({
     };
     load();
     return () => {};
-  }, [isOpen, isAdmin, refreshAdminQuestions, refreshSchedule]);
+  }, [isOpen, isAdmin]);
 
   const handleClose = useCallback(() => {
     // If quiz is in progress (active or incorrect) and not completed, confirm
@@ -376,14 +244,22 @@ export function QuizModal({
     };
   }, [closeHandleRef, handleClose]);
 
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Only close if clicking the backdrop itself, not the panel
+      if (e.target === e.currentTarget) {
+        // Do nothing - clicking backdrop should not close
+      }
+    },
+    []
+  );
+
   const handleSubmit = useCallback(
     async (answer: unknown) => {
       if (mode === "daily") {
-        await quiz.submitAnswer(answer);
-        return;
-      }
-      if (mode === "practice") {
-        await quiz.submitPracticeAnswer(answer);
+        console.log("[QuizModal] 📤 Submitting answer to daily quiz:", answer);
+        const result = await quiz.submitAnswer(answer);
+        console.log("[QuizModal] 📦 Submit result:", result);
         return;
       }
       if (!testQuestion) return;
@@ -420,30 +296,13 @@ export function QuizModal({
     clone.sort((a, b) => {
       const matchA = /^q(\d+)$/.exec(a.id ?? "");
       const matchB = /^q(\d+)$/.exec(b.id ?? "");
-      const aNum = matchA?.[1]
-        ? Number.parseInt(matchA[1], 10)
-        : Number.MAX_SAFE_INTEGER;
-      const bNum = matchB?.[1]
-        ? Number.parseInt(matchB[1], 10)
-        : Number.MAX_SAFE_INTEGER;
+      const aNum = matchA ? Number.parseInt(matchA[1], 10) : Number.MAX_SAFE_INTEGER;
+      const bNum = matchB ? Number.parseInt(matchB[1], 10) : Number.MAX_SAFE_INTEGER;
       if (aNum !== bNum) return aNum - bNum;
       return String(a.id).localeCompare(String(b.id));
     });
     return clone;
   }, [adminQuestions]);
-
-  const editableQuestions = useMemo(
-    () => orderedQuestions.filter((question) => !isLegacyQuestion(question)),
-    [orderedQuestions]
-  );
-  const legacyQuestions = useMemo(
-    () => orderedQuestions.filter((question) => isLegacyQuestion(question)),
-    [orderedQuestions]
-  );
-  const assignableQuestions = useMemo(
-    () => editableQuestions,
-    [editableQuestions]
-  );
 
   const loadTestQuestion = useCallback(
     (id: string, newSequence?: string[] | null, nextIndex?: number) => {
@@ -470,129 +329,14 @@ export function QuizModal({
 
   const handleLoadSelected = () => {
     if (!selectedQuestionId) return;
-    const selectedQuestion = adminQuestions.find((question) => question.id === selectedQuestionId);
-    if (!selectedQuestion) {
-      setAdminError("Select a valid question.");
-      return;
-    }
-    setAdminError(null);
     setSequenceIds(null);
-    setSequenceIndex(0);
-    setSequenceMessage(null);
-    void startPracticeQuizFromAdmin(selectedQuestion.id);
+    loadTestQuestion(selectedQuestionId, null);
   };
 
-  const startPracticeQuizFromAdmin = useCallback(async (questionId?: string) => {
-    onRequestQuizTab?.();
-    setAdminError(null);
-    setMode("practice");
-    setTestQuestion(null);
-    setTestResult(null);
-    setTestError(null);
-    quiz.reset();
-    setActiveTab("quiz");
-    await quiz.startPracticeQuiz(questionId);
-  }, [onRequestQuizTab, quiz]);
-
-  const buildSequenceFromData = useCallback(
-    (questions: AdminQuestion[], schedule: ScheduleEntry[]) => {
-      const questionIds = new Set(questions.map((question) => question.id));
-      const questionsById = new Map(questions.map((question) => [question.id, question]));
-      const scheduleByDate = new Map(schedule.map((entry) => [entry.date, entry]));
-      const invalidQuestionIds = new Set<string>();
-      const orderedSequenceIds: string[] = [];
-
-      for (const date of getDateList(scheduleRange)) {
-        const entry = scheduleByDate.get(date);
-        if (!entry) continue;
-        const scheduledQuestion = questionsById.get(entry.questionId);
-        if (
-          (scheduledQuestion && isLegacyQuestion(scheduledQuestion)) ||
-          (!scheduledQuestion && isLegacyQuestionId(entry.questionId))
-        ) {
-          invalidQuestionIds.add(entry.questionId);
-          continue;
-        }
-        if (!questionIds.has(entry.questionId)) {
-          invalidQuestionIds.add(entry.questionId);
-          continue;
-        }
-        orderedSequenceIds.push(entry.questionId);
-      }
-
-      return {
-        orderedSequenceIds,
-        invalidQuestionIds: [...invalidQuestionIds],
-      };
-    },
-    [scheduleRange]
-  );
-
-  const loadSequenceQuestionByIndex = useCallback(
-    async (nextIndex: number) => {
-      if (!sequenceIds || sequenceIds.length === 0) return;
-      if (nextIndex < 0 || nextIndex >= sequenceIds.length) return;
-      const nextId = sequenceIds[nextIndex];
-      if (!nextId) return;
-      setSequenceIndex(nextIndex);
-      setSequenceMessage(null);
-      await startPracticeQuizFromAdmin(nextId);
-    },
-    [sequenceIds, startPracticeQuizFromAdmin]
-  );
-
-  const handleSequenceNext = useCallback(async () => {
-    if (!sequenceIds || sequenceIds.length === 0) return;
-    const nextIndex = sequenceIndex + 1;
-    if (nextIndex >= sequenceIds.length) {
-      setSequenceMessage("End of sequence.");
-      return;
-    }
-    await loadSequenceQuestionByIndex(nextIndex);
-  }, [loadSequenceQuestionByIndex, sequenceIds, sequenceIndex]);
-
-  const handleSequencePrev = useCallback(async () => {
-    if (!sequenceIds || sequenceIds.length === 0) return;
-    const prevIndex = sequenceIndex - 1;
-    if (prevIndex < 0) {
-      setSequenceMessage("Already at the first scheduled question.");
-      return;
-    }
-    await loadSequenceQuestionByIndex(prevIndex);
-  }, [loadSequenceQuestionByIndex, sequenceIds, sequenceIndex]);
-
-  const handleStartSequence = async () => {
-    setAdminError(null);
-    setSequenceMessage(null);
-    const [questions, schedule] = await Promise.all([
-      refreshAdminQuestions(),
-      refreshSchedule(),
-    ]);
-
-    const { orderedSequenceIds, invalidQuestionIds } = buildSequenceFromData(
-      questions,
-      schedule
-    );
-    if (invalidQuestionIds.length > 0) {
-      setAdminError(
-        `Sequence contains invalid scheduled IDs: ${invalidQuestionIds.join(", ")}`
-      );
-      return;
-    }
-    if (orderedSequenceIds.length === 0) {
-      setAdminError(
-        `No scheduled questions found in the selected ${scheduleRange} window.`
-      );
-      return;
-    }
-
-    setMode("practice");
-    setSequenceIds(orderedSequenceIds);
-    setSequenceIndex(0);
-    setSequenceMessage(
-      "Sequence is schedule-based; only scheduled questions appear."
-    );
-    await startPracticeQuizFromAdmin(orderedSequenceIds[0]);
+  const handleStartSequence = () => {
+    if (orderedQuestions.length === 0) return;
+    const ids = orderedQuestions.map((question) => question.id);
+    loadTestQuestion(ids[0], ids, 0);
   };
 
   const handleNextQuestion = () => {
@@ -618,15 +362,18 @@ export function QuizModal({
     }
 
     const nextId = ids[nextIndex];
-    if (!nextId) return;
     loadTestQuestion(nextId, sequenceIds ?? null, nextIndex);
   };
 
   const handleLoadDaily = () => {
+    setMode("daily");
+    setTestQuestion(null);
+    setTestResult(null);
+    setTestError(null);
     setSequenceIds(null);
-    setSequenceIndex(0);
     setSequenceMessage(null);
-    void startPracticeQuizFromAdmin();
+    quiz.reset();
+    setActiveTab("quiz");
   };
 
   const handleViewLeaderboard = () => {
@@ -651,21 +398,20 @@ export function QuizModal({
 
   const getDateList = (range: RangeOption) => {
     const days = getRangeDays(range);
-    const base = new Date();
+    const today = new Date();
     const list: string[] = [];
     for (let i = 0; i < days; i += 1) {
-      const date = new Date(base.getTime() + i * 24 * 60 * 60 * 1000);
-      list.push(toMountainDateKey(date));
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const key = date.toISOString().slice(0, 10);
+      list.push(key);
     }
     return list;
   };
 
   const getDayOfWeek = (dateKey: string) => {
-    const date = new Date(`${dateKey}T12:00:00Z`);
-    return date.toLocaleDateString(undefined, {
-      weekday: "short",
-      timeZone: MOUNTAIN_TIMEZONE,
-    });
+    const date = new Date(`${dateKey}T00:00:00`);
+    return date.toLocaleDateString(undefined, { weekday: "short" });
   };
 
   const scheduleMap = useMemo(() => {
@@ -674,25 +420,22 @@ export function QuizModal({
     return map;
   }, [scheduleEntries]);
 
-  const dateList = useMemo(() => getDateList(scheduleRange), [scheduleRange]);
-  const missingCount = dateList.filter((date) => {
-    const entry = scheduleMap.get(date);
-    if (!entry) return true;
-    return !adminQuestions.some((question) => question.id === entry.questionId);
-  }).length;
+  const scheduledQuestionIds = useMemo(() => {
+    const unique = new Set(scheduleEntries.map((entry) => entry.questionId));
+    return unique;
+  }, [scheduleEntries]);
 
-  const openAssign = async (date: string) => {
+  const remainingQuestions = useMemo(() => {
+    const total = adminQuestions.length;
+    return total - scheduledQuestionIds.size;
+  }, [adminQuestions.length, scheduledQuestionIds.size]);
+
+  const dateList = useMemo(() => getDateList(scheduleRange), [scheduleRange]);
+  const missingCount = dateList.filter((date) => !scheduleMap.has(date)).length;
+
+  const openAssign = (date: string) => {
     setAssignDate(date);
-    const questions = await refreshAdminQuestions();
-    const currentEntry = scheduleMap.get(date);
-    const currentAssignable = currentEntry
-      ? questions.find(
-          (question) =>
-            question.id === currentEntry.questionId && !isLegacyQuestion(question)
-        )
-      : null;
-    const firstAssignable = questions.find((question) => !isLegacyQuestion(question));
-    setAssignQuestionId(currentAssignable?.id ?? firstAssignable?.id ?? "");
+    setAssignQuestionId(adminQuestions[0]?.id ?? "");
     setScheduleErrorsByDate((prev) => ({ ...prev, [date]: "" }));
   };
 
@@ -702,14 +445,6 @@ export function QuizModal({
   };
 
   const handleAssignSave = async (date: string) => {
-    const availableQuestions = adminQuestions.filter((question) => !isLegacyQuestion(question));
-    if (availableQuestions.length === 0) {
-      setScheduleErrorsByDate((prev) => ({
-        ...prev,
-        [date]: NO_V2_ASSIGNABLE_MESSAGE,
-      }));
-      return;
-    }
     if (!assignQuestionId) {
       setScheduleErrorsByDate((prev) => ({
         ...prev,
@@ -717,34 +452,23 @@ export function QuizModal({
       }));
       return;
     }
-    const selectedQuestion = adminQuestions.find(
-      (question) => question.id === assignQuestionId
-    );
-    if (!selectedQuestion) {
-      setScheduleErrorsByDate((prev) => ({
-        ...prev,
-        [date]: "Select a valid question.",
-      }));
-      return;
-    }
-    if (isLegacyQuestion(selectedQuestion)) {
-      setScheduleErrorsByDate((prev) => ({
-        ...prev,
-        [date]: "Read-only question IDs cannot be scheduled.",
-      }));
-      return;
-    }
     try {
       const res = await fetch("/api/admin/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, questionId: selectedQuestion.id }),
+        body: JSON.stringify({ date, questionId: assignQuestionId }),
       });
-      if (!res.ok) {
-        const error = await getResponseError(res);
+      if (res.status === 409) {
         setScheduleErrorsByDate((prev) => ({
           ...prev,
-          [date]: formatScheduleError(error, "Failed to assign."),
+          [date]: "Already scheduled.",
+        }));
+        return;
+      }
+      if (!res.ok) {
+        setScheduleErrorsByDate((prev) => ({
+          ...prev,
+          [date]: "Failed to assign.",
         }));
         return;
       }
@@ -760,30 +484,24 @@ export function QuizModal({
 
   const openCreateEditor = () => {
     setEditorError(null);
-    setEditorInitialSnapshot(null);
     setEditorState({
       mode: "create",
       type: "mcq",
       prompt: "",
       explanation: "",
       difficulty: 1,
-      basePoints: BASE_POINTS[1] ?? 100,
+      basePoints: BASE_POINTS[1],
       tags: [],
       choices: [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: [0],
+      acceptedAnswersText: "",
     });
   };
 
-  const openEditEditor = (question: AdminQuestion) => {
-    if (isLegacyQuestion(question)) {
-      setAdminError(
-        formatQuestionActionError("legacy_read_only", "These questions are read-only.")
-      );
-      return;
-    }
+  const openEditEditor = (question: Question) => {
     setEditorError(null);
-    const nextState: EditorState = {
+    setEditorState({
       mode: "edit",
       id: question.id,
       type: question.type,
@@ -792,27 +510,23 @@ export function QuizModal({
       difficulty: question.difficulty,
       basePoints: question.basePoints,
       tags: question.tags ?? [],
-      choices:
-        question.type === "mcq"
-          ? [...(question.choices ?? []), ...EMPTY_MCQ_CHOICES].slice(0, 4)
-          : [...(question.choices ?? []), ...EMPTY_SELECT_CHOICES].slice(0, 5),
-      correctIndex: question.type === "mcq" ? (question.correctIndex ?? 0) : 0,
+      choices: question.type === "written" ? [...EMPTY_MCQ_CHOICES] : [...(question.choices ?? [])],
+      correctIndex: question.type === "mcq" ? question.correctIndex : 0,
       correctIndices:
         question.type === "select-all"
-          ? [...(question.correctIndices ?? [])]
+          ? [...question.correctIndices]
           : question.type === "mcq"
-            ? [question.correctIndex ?? 0]
+            ? [question.correctIndex]
             : [],
-    };
-    setEditorInitialSnapshot(
-      serializeEditorPayload(buildEditorPayloadFromState(nextState))
-    );
-    setEditorState(nextState);
+      acceptedAnswersText:
+        question.type === "written"
+          ? (question.acceptedAnswers ?? []).join("\n")
+          : "",
+    });
   };
 
   const closeEditor = () => {
     setEditorState(null);
-    setEditorInitialSnapshot(null);
     setEditorError(null);
     setEditorSaving(false);
     setTagDropdownOpen(false);
@@ -845,6 +559,7 @@ export function QuizModal({
           nextType === "select-all"
             ? nextCorrectIndices
             : editorState.correctIndices,
+        acceptedAnswersText: "",
       });
       return;
     }
@@ -855,6 +570,7 @@ export function QuizModal({
       choices: nextType === "select-all" ? [...EMPTY_SELECT_CHOICES] : [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: nextType === "select-all" ? [0] : [],
+      acceptedAnswersText: "",
     });
   };
 
@@ -863,7 +579,7 @@ export function QuizModal({
     setEditorState({
       ...editorState,
       difficulty,
-      basePoints: BASE_POINTS[difficulty] ?? editorState.basePoints,
+      basePoints: BASE_POINTS[difficulty],
     });
   };
 
@@ -898,191 +614,95 @@ export function QuizModal({
     setEditorState({ ...editorState, correctIndices: Array.from(set).sort() });
   };
 
-  const normalizeEditorState = (state: EditorState): EditorNormalization => {
-    const rawChoices = (
-      state.type === "mcq" ? state.choices.slice(0, 4) : state.choices.slice(0, 5)
-    ).map((choice) => choice.trim());
-    const normalizedChoices: string[] = [];
-    const indexByChoice = new Map<string, number>();
-    const choiceIndexMap = rawChoices.map((choice) => {
-      if (!choice) return -1;
-      const existingIndex = indexByChoice.get(choice);
-      if (existingIndex !== undefined) {
-        return existingIndex;
-      }
-      const nextIndex = normalizedChoices.length;
-      normalizedChoices.push(choice);
-      indexByChoice.set(choice, nextIndex);
-      return nextIndex;
-    });
-    const payload: EditorPayload = {
-      type: state.type,
-      prompt: state.prompt.trim(),
-      explanation: state.explanation.trim(),
-      difficulty: state.difficulty,
-      basePoints: state.basePoints,
-      tags: [...new Set(state.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0))],
-      choices: normalizedChoices,
-    };
-
-    if (state.type === "mcq") {
-      payload.correctIndex = choiceIndexMap[state.correctIndex] ?? -1;
-    } else {
-      payload.correctIndices = [
-        ...new Set(
-          state.correctIndices
-            .map((index) => choiceIndexMap[index] ?? -1)
-            .filter((index): index is number => index >= 0)
-        ),
-      ].sort((a, b) => a - b);
-    }
-
-    const nonEmptyChoices = rawChoices.filter((choice) => choice.length > 0);
-    return {
-      payload,
-      hasDuplicateChoices: new Set(nonEmptyChoices).size !== nonEmptyChoices.length,
-    };
+  const handleAcceptedAnswersChange = (value: string) => {
+    if (!editorState) return;
+    setEditorState({ ...editorState, acceptedAnswersText: value });
   };
-
-  const buildEditorPayloadFromState = (state: EditorState): EditorPayload => {
-    return normalizeEditorState(state).payload;
-  };
-
-  const serializeEditorPayload = (payload: EditorPayload) =>
-    JSON.stringify({
-      ...payload,
-      tags: [...payload.tags].sort(),
-      choices: payload.choices.map((choice) => choice.trim()),
-      ...(payload.type === "select-all"
-        ? { correctIndices: [...(payload.correctIndices ?? [])].sort((a, b) => a - b) }
-        : {}),
-    });
 
   const buildEditorPayload = () => {
     if (!editorState) return null;
-    return buildEditorPayloadFromState(editorState);
+    const payload: any = {
+      type: editorState.type,
+      prompt: editorState.prompt.trim(),
+      explanation: editorState.explanation.trim(),
+      difficulty: editorState.difficulty,
+      basePoints: editorState.basePoints,
+      tags: editorState.tags,
+    };
+
+    if (editorState.type === "mcq") {
+      payload.choices = editorState.choices.slice(0, 4);
+      payload.correctIndex = editorState.correctIndex;
+    }
+    if (editorState.type === "select-all") {
+      payload.choices = editorState.choices.slice(0, 5);
+      payload.correctIndices = editorState.correctIndices;
+    }
+    if (editorState.type === "written") {
+      payload.acceptedAnswers = editorState.acceptedAnswersText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+    }
+    return payload;
   };
 
   const validateEditor = () => {
     if (!editorState) return { valid: false, error: "Missing editor state" };
-    const normalized = normalizeEditorState(editorState);
-    const { payload, hasDuplicateChoices } = normalized;
-    if (!payload.prompt) {
+    if (!editorState.prompt.trim()) {
       return { valid: false, error: "Prompt is required." };
     }
-    if (!Number.isFinite(payload.basePoints)) {
-      return { valid: false, error: "Base points must be a valid number." };
+    if (editorState.tags.length < 2 || editorState.tags.length > 4) {
+      return { valid: false, error: "Select 2-4 tags." };
     }
-    if (payload.choices.length < 2) {
-      return { valid: false, error: "Provide at least 2 non-empty choices." };
+    if (editorState.basePoints !== BASE_POINTS[editorState.difficulty]) {
+      return { valid: false, error: "Base points mismatch for difficulty." };
     }
-    if (hasDuplicateChoices) {
-      return { valid: false, error: "Duplicate choices are not allowed." };
-    }
-    if (payload.type === "mcq") {
+    if (editorState.type === "mcq") {
+      if (editorState.choices.length !== 4 || editorState.choices.some((c) => !c.trim())) {
+        return { valid: false, error: "MCQ requires 4 non-empty choices." };
+      }
       if (
-        !Number.isInteger(payload.correctIndex) ||
-        (payload.correctIndex ?? -1) < 0 ||
-        (payload.correctIndex ?? -1) >= payload.choices.length
+        !Number.isInteger(editorState.correctIndex) ||
+        editorState.correctIndex < 0 ||
+        editorState.correctIndex > 3
       ) {
         return { valid: false, error: "Pick a correct answer." };
       }
     }
-    if (payload.type === "select-all") {
-      if (!Array.isArray(payload.correctIndices) || payload.correctIndices.length < 1) {
+    if (editorState.type === "select-all") {
+      if (editorState.choices.length !== 5 || editorState.choices.some((c) => !c.trim())) {
+        return { valid: false, error: "Select-all requires 5 non-empty choices." };
+      }
+      if (editorState.correctIndices.length < 1) {
         return { valid: false, error: "Select at least one correct answer." };
       }
-      if (new Set(payload.correctIndices).size !== payload.correctIndices.length) {
-        return { valid: false, error: "Duplicate correct answers are not allowed." };
-      }
-      if (
-        !payload.correctIndices.every(
-          (index) => Number.isInteger(index) && index >= 0 && index < payload.choices.length
-        )
-      ) {
-        return { valid: false, error: "Select valid correct answers." };
-      }
-      if (payload.correctIndices.length >= payload.choices.length) {
-        return {
-          valid: false,
-          error: "Select-all must include at least one incorrect option.",
-        };
+    }
+    if (editorState.type === "written") {
+      const answers = editorState.acceptedAnswersText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (answers.length < 1) {
+        return { valid: false, error: "Provide at least one accepted answer." };
       }
     }
     return { valid: true, error: "" };
   };
 
-  const editorPayload = buildEditorPayload();
-  const editorValidation = validateEditor();
-  const editorIsDirty =
-    !!editorState &&
-    editorState.mode === "edit" &&
-    !!editorPayload &&
-    !!editorInitialSnapshot &&
-    serializeEditorPayload(editorPayload) !== editorInitialSnapshot;
-  const editorCanSave =
-    !!editorState &&
-    editorValidation.valid &&
-    !editorSaving &&
-    (editorState.mode === "create" || editorIsDirty);
-  const editorDisabledMessage =
-    !editorState || editorSaving
-      ? null
-      : !editorValidation.valid
-        ? editorValidation.error
-        : editorState.mode === "edit" && !editorIsDirty
-          ? "No changes to save."
-          : null;
-
   const handleSave = async () => {
     if (!editorState) return;
-    if (
-      editorState.mode === "edit" &&
-      editorState.id &&
-      isLegacyQuestion(
-        adminQuestions.find((question) => question.id === editorState.id) ?? { id: editorState.id }
-      )
-    ) {
-      setEditorError(
-        formatQuestionActionError("legacy_read_only", "These questions are read-only.")
-      );
-      return;
-    }
-    if (isQuizDebugEnabled) {
-      console.log("[quiz][debug][editor] save-click", {
-        mode: editorState.mode,
-        dirty: editorIsDirty,
-        validation: editorValidation,
-      });
-    }
-    if (!editorValidation.valid) {
-      setEditorError(editorValidation.error);
-      return;
-    }
-    if (editorState.mode === "edit" && !editorIsDirty) {
-      setEditorError("No changes to save.");
+    const validation = validateEditor();
+    if (!validation.valid) {
+      setEditorError(validation.error);
       return;
     }
     setEditorSaving(true);
     setEditorError(null);
-    const payload = editorPayload;
-    if (!payload) {
-      setEditorSaving(false);
-      setEditorError("Missing editor payload.");
-      return;
-    }
+    const payload = buildEditorPayload();
+    if (!payload) return;
 
     try {
-      if (isQuizDebugEnabled) {
-        console.log("[quiz][debug][editor] save-request", {
-          endpoint:
-            editorState.mode === "create"
-              ? "/api/admin/questions"
-              : `/api/admin/questions/${editorState.id}`,
-          method: editorState.mode === "create" ? "POST" : "PUT",
-          payload,
-        });
-      }
       const res = await fetch(
         editorState.mode === "create"
           ? "/api/admin/questions"
@@ -1094,23 +714,11 @@ export function QuizModal({
         }
       );
       if (!res.ok) {
-        const error = await getResponseError(res);
-        if (isQuizDebugEnabled) {
-          console.log("[quiz][debug][editor] save-error", {
-            status: res.status,
-            serverError: error ?? "unknown_error",
-          });
-        }
-        setEditorError(formatQuestionActionError(error, "Failed to save question"));
+        const data = (await res.json()) as { error?: string };
+        setEditorError(data.error ?? "Failed to save question");
         return;
       }
-      if (isQuizDebugEnabled) {
-        console.log("[quiz][debug][editor] save-success", {
-          status: res.status,
-        });
-      }
       await refreshAdminQuestions();
-      await refreshSchedule();
       closeEditor();
     } catch {
       setEditorError("Failed to save question");
@@ -1120,14 +728,6 @@ export function QuizModal({
   };
 
   const handleDeleteQuestion = async (id: string) => {
-    const targetQuestion =
-      adminQuestions.find((question) => question.id === id) ?? { id };
-    if (isLegacyQuestion(targetQuestion)) {
-      setAdminError(
-        formatQuestionActionError("legacy_read_only", "These questions are read-only.")
-      );
-      return;
-    }
     const confirmed = window.confirm("Delete this question?");
     if (!confirmed) return;
     try {
@@ -1135,130 +735,18 @@ export function QuizModal({
         method: "DELETE",
       });
       if (!res.ok) {
-        const error = await getResponseError(res);
-        setAdminError(formatQuestionActionError(error, "Failed to delete question"));
+        setAdminError("Failed to delete question");
         return;
       }
-      if (editorState?.id === id) {
-        closeEditor();
-      }
-      if (assignQuestionId === id) {
-        closeAssign();
-      }
       await refreshAdminQuestions();
-      await refreshSchedule();
     } catch {
       setAdminError("Failed to delete question");
     }
   };
 
-  const renderQuestionSection = (
-    title: string,
-    questions: AdminQuestion[],
-    options: {
-      emptyMessage: string;
-      description?: string;
-      readOnly?: boolean;
-    }
-  ) => (
-    <div style={{ marginTop: 16 }}>
-      <div className="quiz-admin-header">
-        <h4>{title}</h4>
-      </div>
-      {options.description && <p className="quiz-admin-status">{options.description}</p>}
-      {questions.length === 0 ? (
-        <p className="quiz-admin-status">{options.emptyMessage}</p>
-      ) : (
-        <div className="quiz-admin-table">
-          <div className="quiz-admin-table-row quiz-admin-table-head">
-            <span>ID</span>
-            <span>Type</span>
-            <span>Diff</span>
-            <span>Prompt</span>
-            <span>Tags</span>
-          </div>
-          {questions.map((question) => (
-            <div
-              className={`quiz-admin-table-row ${
-                editorState?.id === question.id ? "is-active" : ""
-              }`}
-              key={question.id}
-            >
-              <span>{question.id}</span>
-              <span>{question.type}</span>
-              <span>{question.difficulty}</span>
-              <span title={question.prompt}>{getTruncatedPrompt(question.prompt)}</span>
-              <span className="quiz-admin-tags">{(question.tags ?? []).join(", ")}</span>
-              <div className="quiz-admin-row-actions">
-                {options.readOnly ? (
-                  <span>Read-only</span>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="quiz-admin-icon-btn"
-                      aria-label="Edit"
-                      onClick={() => openEditEditor(question)}
-                    >
-                      ✎
-                    </button>
-                    <button
-                      type="button"
-                      className="quiz-admin-icon-btn"
-                      aria-label="Delete"
-                      onClick={() => handleDeleteQuestion(question.id)}
-                    >
-                      🗑
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   if (!isOpen) return null;
 
   const renderQuizContent = () => {
-    const isSequencePractice =
-      mode === "practice" && Array.isArray(sequenceIds) && sequenceIds.length > 0;
-
-    const renderSequenceControls = (isBusy: boolean) => {
-      if (!isSequencePractice || !sequenceIds) return null;
-      return (
-        <div className="quiz-sequence-panel">
-          <p className="quiz-sequence-note">
-            Sequence is schedule-based; only scheduled questions appear.
-          </p>
-          <div className="quiz-sequence-controls">
-            <button
-              type="button"
-              className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
-              onClick={() => void handleSequencePrev()}
-              disabled={isBusy || sequenceIndex <= 0}
-            >
-              Prev
-            </button>
-            <span className="quiz-sequence-position nums">
-              {sequenceIndex + 1} / {sequenceIds.length}
-            </span>
-            <button
-              type="button"
-              className="quest-menu-action-btn quiz-admin-btn"
-              onClick={() => void handleSequenceNext()}
-              disabled={isBusy || sequenceIndex >= sequenceIds.length - 1}
-            >
-              Next
-            </button>
-          </div>
-          {sequenceMessage && <p className="quiz-test-message">{sequenceMessage}</p>}
-        </div>
-      );
-    };
-
     if (mode === "test") {
       if (!testQuestion) {
         return (
@@ -1291,17 +779,22 @@ export function QuizModal({
                 wrongIndex={undefined}
                 wrongIndices={undefined}
                 showIncorrect={showIncorrect}
-                correctIndex={
-                  testQuestion.type === "mcq" ? testQuestion.correctIndex : undefined
-                }
-                correctIndices={
-                  testQuestion.type === "select-all"
-                    ? testQuestion.correctIndices
-                    : undefined
-                }
+                correctIndex={testQuestion.correctIndex}
+                correctIndices={testQuestion.correctIndices}
                 showCorrect
               />
             )}
+
+          {testQuestion.type === "written" && (
+            <WrittenResponse
+              key={testQuestion.id}
+              onSubmit={handleSubmit}
+              disabled={isSubmitting}
+              showIncorrect={showIncorrect}
+              showCorrect
+              acceptedAnswers={testQuestion.acceptedAnswers}
+            />
+          )}
 
           {testResult && (
             <div className="quiz-test-result">
@@ -1318,7 +811,7 @@ export function QuizModal({
                 Points: {testResult.pointsEarned}
               </p>
               <button
-                className="quest-menu-action-btn"
+                className="quiz-submit-btn"
                 onClick={handleNextQuestion}
               >
                 Next Question
@@ -1343,7 +836,7 @@ export function QuizModal({
       return (
         <div className="quiz-loading">
           <div className="quiz-loading-spinner" />
-          <p>{mode === "practice" ? "Loading practice quiz..." : "Loading today's quiz..."}</p>
+          <p>Loading today's quiz...</p>
         </div>
       );
     }
@@ -1354,18 +847,8 @@ export function QuizModal({
         <div className="quiz-loading">
           <p className="quiz-feedback error">{quiz.error}</p>
           <button
-            className="quest-menu-action-btn quest-menu-action-btn--primary"
-            onClick={() => {
-              if (mode === "practice") {
-                if (sequenceIds && sequenceIds.length > 0) {
-                  void loadSequenceQuestionByIndex(sequenceIndex);
-                  return;
-                }
-                void quiz.startPracticeQuiz();
-                return;
-              }
-              void quiz.startQuiz();
-            }}
+            className="quiz-submit-btn"
+            onClick={quiz.startQuiz}
             style={{ marginTop: 16, width: "auto" }}
           >
             Try Again
@@ -1384,19 +867,6 @@ export function QuizModal({
       );
     }
 
-    if (quiz.state === "unavailable") {
-      return (
-        <div className="quiz-loading">
-          <p className="quiz-feedback error">
-            {quiz.lastResult?.message ?? "No quiz scheduled today."}
-          </p>
-          <p className="quiz-admin-muted">
-            Ask an admin to assign today&apos;s quiz in the schedule tab.
-          </p>
-        </div>
-      );
-    }
-
     // Idle state - show start button
     if (quiz.state === "idle") {
       return (
@@ -1405,21 +875,11 @@ export function QuizModal({
             Ready to test your CS knowledge?
           </p>
           <button
-            className="quest-menu-action-btn quest-menu-action-btn--primary"
-            onClick={() => {
-              if (mode === "practice") {
-                if (sequenceIds && sequenceIds.length > 0) {
-                  void loadSequenceQuestionByIndex(sequenceIndex);
-                  return;
-                }
-                void quiz.startPracticeQuiz();
-                return;
-              }
-              void quiz.startQuiz();
-            }}
+            className="quiz-submit-btn"
+            onClick={quiz.startQuiz}
             style={{ width: "auto", padding: "14px 40px" }}
           >
-            {mode === "practice" ? "Start Practice Quiz" : "Start Today's Quiz"}
+            Start Today's Quiz
           </button>
         </div>
       );
@@ -1428,29 +888,32 @@ export function QuizModal({
     // Correct state - show result
     if (quiz.state === "correct" && quiz.lastResult && quiz.question) {
       return (
-        <>
-          <QuizResult
-            question={quiz.question}
-            pointsEarned={quiz.lastResult.pointsEarned ?? 0}
-            pointsBreakdown={
-              quiz.lastResult.pointsBreakdown ?? {
-                basePoints: 0,
-                attemptMultiplier: 1,
-                attemptNumber: 1,
-                baseAfterMultiplier: 0,
-                firstTryBonus: 0,
-                speedBonus: 0,
-                totalPoints: 0,
-              }
+        <QuizResult
+          question={quiz.question}
+          pointsEarned={quiz.lastResult.pointsEarned ?? 0}
+          pointsBreakdown={
+            quiz.lastResult.pointsBreakdown ?? {
+              basePoints: 0,
+              attemptMultiplier: 1,
+              attemptNumber: 1,
+              baseAfterMultiplier: 0,
+              firstTryBonus: 0,
+              speedBonus: 0,
+              totalPoints: 0,
             }
-            explanation={quiz.lastResult.explanation}
-            correctIndex={quiz.lastResult.correctIndex}
-            correctIndices={quiz.lastResult.correctIndices}
-            attemptNumber={quiz.attemptNumber}
-            onViewLeaderboard={onViewLeaderboard ? handleViewLeaderboard : undefined}
-          />
-          {renderSequenceControls(false)}
-        </>
+          }
+          explanation={quiz.lastResult.explanation}
+          correctIndex={quiz.lastResult.correctIndex}
+          correctIndices={quiz.lastResult.correctIndices}
+          acceptedAnswers={quiz.lastResult.acceptedAnswers}
+          attemptNumber={quiz.attemptNumber}
+          onViewLeaderboard={onViewLeaderboard ? handleViewLeaderboard : undefined}
+          onReset={() => {
+            console.log("[QuizModal] 🔄 Resetting quiz...");
+            quiz.reset();
+            quiz.startQuiz();
+          }}
+        />
       );
     }
 
@@ -1487,11 +950,20 @@ export function QuizModal({
               />
             )}
 
+          {/* Written */}
+          {quiz.question.type === "written" && (
+            <WrittenResponse
+              key={quiz.question.id}
+              onSubmit={handleSubmit}
+              disabled={isSubmitting}
+              showIncorrect={showIncorrect}
+            />
+          )}
+
           {/* Feedback message */}
           {showIncorrect && (
             <p className="quiz-feedback incorrect">Incorrect. Try again.</p>
           )}
-          {renderSequenceControls(isSubmitting)}
         </>
       );
     }
@@ -1499,56 +971,95 @@ export function QuizModal({
     return null;
   };
 
-  const shellTabs = useMemo(
-    () => [
-      { id: "quiz", label: "Quiz" },
-      ...(isAdmin
-        ? [
-            { id: "admin", label: "Admin" },
-            { id: "questions", label: "Questions" },
-            { id: "schedule", label: "Schedule" },
-          ]
-        : []),
-    ],
-    [isAdmin]
-  );
+  const panel = (
+    <div
+      className="quiz-modal-panel quiz-ui"
+      style={
+        variant === "embedded"
+          ? {
+              width: "100%",
+              height: "100%",
+              border: "none",
+              borderRadius: 0,
+              boxShadow: "none",
+              animation: "none",
+            }
+          : undefined
+      }
+    >
+        <header className="quiz-modal-header">
+          <div className="quiz-modal-tabs">
+            <button
+              className={`quiz-modal-tab ${activeTab === "quiz" ? "active" : ""}`}
+              onClick={() => setActiveTab("quiz")}
+            >
+              Quiz
+            </button>
+            {isAdmin && (
+              <>
+                <button
+                  className={`quiz-modal-tab ${activeTab === "admin" ? "active" : ""}`}
+                  onClick={() => setActiveTab("admin")}
+                >
+                  Admin
+                </button>
+                <button
+                  className={`quiz-modal-tab ${
+                    activeTab === "questions" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab("questions")}
+                >
+                  Questions
+                </button>
+                <button
+                  className={`quiz-modal-tab ${
+                    activeTab === "schedule" ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab("schedule")}
+                >
+                  Schedule
+                </button>
+              </>
+            )}
+          </div>
+          <div className="quiz-modal-header-actions">
+            {activeTab === "quiz" && mode === "daily" && (
+              <span className="quiz-modal-timer nums">
+                {(() => {
+                  const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
+                  const minutes = Math.floor(totalSeconds / 60);
+                  const seconds = totalSeconds % 60;
+                  return `${minutes.toString().padStart(2, "0")}:${seconds
+                    .toString()
+                    .padStart(2, "0")}`;
+                })()}
+              </span>
+            )}
+            <button className="quiz-modal-close" onClick={handleClose}>
+              ✕
+            </button>
+          </div>
+        </header>
 
-  const shellTitle =
-    effectiveActiveTab === "admin"
-      ? "Quiz Admin"
-      : effectiveActiveTab === "questions"
-        ? "Question Bank"
-        : effectiveActiveTab === "schedule"
-          ? "Quiz Schedule"
-          : mode === "test"
-            ? "Quiz Test Mode"
-            : mode === "practice"
-              ? "Practice Quiz"
-            : "Daily Quiz";
-
-  const panelContent = (
-    <>
-          {effectiveActiveTab === "quiz" && renderQuizContent()}
-          {effectiveActiveTab === "admin" && isAdmin && (
+        <div className="quiz-modal-body">
+          {activeTab === "quiz" && renderQuizContent()}
+          {activeTab === "admin" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-row">
                 <button
-                  className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
+                  className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
                   onClick={handleLoadDaily}
                 >
                   Load Daily Quiz
                 </button>
                 <button
-                  className="quest-menu-action-btn quiz-admin-btn"
-                  onClick={() => void handleStartSequence()}
-                  disabled={adminLoading}
+                  className="quiz-submit-btn quiz-admin-btn"
+                  onClick={handleStartSequence}
+                  disabled={adminLoading || orderedQuestions.length === 0}
                 >
                   Start Sequence
                 </button>
               </div>
-              <p className="quiz-admin-status">
-                Sequence is schedule-based; only scheduled questions appear.
-              </p>
               <div className="quiz-admin-row">
                 <div className="quiz-admin-field">
                   <label htmlFor="admin-question-select">Question</label>
@@ -1558,7 +1069,6 @@ export function QuizModal({
                     value={selectedQuestionId}
                     onChange={(event) => setSelectedQuestionId(event.target.value)}
                     placeholder="q001"
-                    className="quest-menu-auth-input"
                   />
                   <datalist id="admin-question-list">
                     {orderedQuestions.map((question) => (
@@ -1567,7 +1077,7 @@ export function QuizModal({
                   </datalist>
                 </div>
                 <button
-                  className="quest-menu-action-btn quiz-admin-btn"
+                  className="quiz-submit-btn quiz-admin-btn"
                   onClick={handleLoadSelected}
                   disabled={!selectedQuestionId || adminLoading}
                 >
@@ -1580,12 +1090,12 @@ export function QuizModal({
               )}
             </div>
           )}
-          {effectiveActiveTab === "questions" && isAdmin && (
+          {activeTab === "questions" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-header">
                 <h3>Questions</h3>
                 <button
-                  className="quest-menu-action-btn quiz-admin-btn"
+                  className="quiz-submit-btn quiz-admin-btn"
                   onClick={openCreateEditor}
                 >
                   Create Question
@@ -1593,24 +1103,51 @@ export function QuizModal({
               </div>
               {adminLoading && <p className="quiz-admin-status">Loading...</p>}
               {adminError && <p className="quiz-feedback error">{adminError}</p>}
-              {renderQuestionSection(
-                isQuizDebugEnabled ? "Editable Questions (v2)" : "Questions",
-                editableQuestions,
-                {
-                  emptyMessage: "No editable questions found.",
-                }
-              )}
-              {renderQuestionSection(
-                isQuizDebugEnabled ? "Legacy Questions (read-only)" : "Read-only Questions",
-                legacyQuestions,
-                {
-                  readOnly: true,
-                  description: isQuizDebugEnabled
-                    ? "Legacy puzzle-derived questions are read-only until migration."
-                    : "Questions in this section are read-only.",
-                  emptyMessage: "No read-only questions found.",
-                }
-              )}
+              <div className="quiz-admin-table">
+                <div className="quiz-admin-table-row quiz-admin-table-head">
+                  <span>ID</span>
+                  <span>Type</span>
+                  <span>Diff</span>
+                  <span>Prompt</span>
+                  <span>Tags</span>
+                </div>
+                {orderedQuestions.map((question) => (
+                  <div
+                    className={`quiz-admin-table-row ${
+                      editorState?.id === question.id ? "is-active" : ""
+                    }`}
+                    key={question.id}
+                  >
+                    <span>{question.id}</span>
+                    <span>{question.type}</span>
+                    <span>{question.difficulty}</span>
+                    <span title={question.prompt}>
+                      {getTruncatedPrompt(question.prompt)}
+                    </span>
+                    <span className="quiz-admin-tags">
+                      {(question.tags ?? []).join(", ")}
+                    </span>
+                    <div className="quiz-admin-row-actions">
+                      <button
+                        type="button"
+                        className="quiz-admin-icon-btn"
+                        aria-label="Edit"
+                        onClick={() => openEditEditor(question)}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        className="quiz-admin-icon-btn"
+                        aria-label="Delete"
+                        onClick={() => handleDeleteQuestion(question.id)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               {editorState && (
                 <div className="quiz-admin-modal">
                   <div className="quiz-admin-modal-panel">
@@ -1630,13 +1167,12 @@ export function QuizModal({
                       {editorState.mode === "edit" && (
                         <label className="quiz-admin-field">
                           <span>ID</span>
-                          <input value={editorState.id ?? ""} disabled className="quest-menu-auth-input" />
+                          <input value={editorState.id ?? ""} disabled />
                         </label>
                       )}
                       <label className="quiz-admin-field">
                         <span>Type</span>
                         <select
-                          className="quest-menu-auth-select"
                           value={editorState.type}
                           onChange={(event) =>
                             handleTypeChange(event.target.value as QuestionType)
@@ -1644,12 +1180,12 @@ export function QuizModal({
                         >
                           <option value="mcq">mcq</option>
                           <option value="select-all">select-all</option>
+                          <option value="written">written</option>
                         </select>
                       </label>
                       <label className="quiz-admin-field">
                         <span>Prompt</span>
                         <textarea
-                          className="quest-menu-auth-input"
                           value={editorState.prompt}
                           onChange={(event) =>
                             setEditorState({
@@ -1662,7 +1198,6 @@ export function QuizModal({
                       <label className="quiz-admin-field">
                         <span>Explanation</span>
                         <textarea
-                          className="quest-menu-auth-input"
                           value={editorState.explanation}
                           onChange={(event) =>
                             setEditorState({
@@ -1676,7 +1211,6 @@ export function QuizModal({
                         <label className="quiz-admin-field">
                           <span>Difficulty</span>
                           <select
-                            className="quest-menu-auth-select"
                             value={editorState.difficulty}
                             onChange={(event) =>
                               handleDifficultyChange(
@@ -1691,14 +1225,14 @@ export function QuizModal({
                         </label>
                         <label className="quiz-admin-field">
                           <span>Base Points</span>
-                          <input value={editorState.basePoints} disabled className="quest-menu-auth-input" />
+                          <input value={editorState.basePoints} disabled />
                         </label>
                       </div>
                       <div className="quiz-admin-field">
                         <span>Tags</span>
                         <button
                           type="button"
-                          className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-tag-toggle"
+                          className="quiz-admin-tag-toggle"
                           onClick={() => setTagDropdownOpen((prev) => !prev)}
                         >
                           {editorState.tags.length
@@ -1720,7 +1254,7 @@ export function QuizModal({
                           </div>
                         )}
                         <span className="quiz-admin-helper">
-                          Tags are optional.
+                          Pick 2–4 tags.
                         </span>
                       </div>
                       {(editorState.type === "mcq" ||
@@ -1748,32 +1282,40 @@ export function QuizModal({
                                     updateChoice(index, event.target.value)
                                   }
                                   placeholder={`Choice ${index + 1}`}
-                                  className="quest-menu-auth-input"
                                 />
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
+                      {editorState.type === "written" && (
+                        <div className="quiz-admin-field">
+                          <span>Accepted Answers (one per line)</span>
+                          <textarea
+                            value={editorState.acceptedAnswersText}
+                            onChange={(event) =>
+                              handleAcceptedAnswersChange(event.target.value)
+                            }
+                            placeholder="answer one\nanswer two"
+                          />
+                        </div>
+                      )}
                       {editorError && (
                         <p className="quiz-feedback error">{editorError}</p>
-                      )}
-                      {!editorError && editorDisabledMessage && (
-                        <p className="quiz-feedback error">{editorDisabledMessage}</p>
                       )}
                       <div className="quiz-admin-row quiz-admin-actions">
                         <button
                           type="button"
-                          className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
+                          className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
                           onClick={closeEditor}
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          className="quest-menu-action-btn quiz-admin-btn"
+                          className="quiz-submit-btn quiz-admin-btn"
                           onClick={handleSave}
-                          disabled={!editorCanSave}
+                          disabled={editorSaving || !validateEditor().valid}
                         >
                           {editorSaving ? "Saving..." : "Save"}
                         </button>
@@ -1784,12 +1326,11 @@ export function QuizModal({
               )}
             </div>
           )}
-          {effectiveActiveTab === "schedule" && isAdmin && (
+          {activeTab === "schedule" && isAdmin && (
             <div className="quiz-admin-panel">
               <div className="quiz-admin-header">
                 <h3>Schedule</h3>
                 <select
-                  className="quest-menu-auth-select"
                   value={scheduleRange}
                   onChange={(event) =>
                     setScheduleRange(event.target.value as RangeOption)
@@ -1802,12 +1343,17 @@ export function QuizModal({
               </div>
               <div className="quiz-admin-banner">
                 ⚠ {missingCount} of the next {dateList.length} days have no
-                usable question scheduled.
+                question scheduled.
               </div>
+              {remainingQuestions < 10 && (
+                <div className="quiz-admin-banner warning">
+                  ⚠ Only {remainingQuestions} unscheduled questions left.
+                </div>
+              )}
               {scheduleLoading && <p className="quiz-admin-status">Loading...</p>}
               {scheduleError && <p className="quiz-feedback error">{scheduleError}</p>}
               <div className="quiz-admin-table">
-                <div className="quiz-admin-table-row quiz-admin-table-head quiz-admin-schedule-head">
+                <div className="quiz-admin-table-row quiz-admin-table-head">
                   <span>Date</span>
                   <span>Day</span>
                   <span>Question</span>
@@ -1819,69 +1365,42 @@ export function QuizModal({
                   const question = entry
                     ? adminQuestions.find((q) => q.id === entry.questionId)
                     : null;
-                  const isUnscheduled = !entry;
-                  const isBrokenSchedule = !!entry && !question;
-                  const actionLabel = isUnscheduled
-                    ? "Assign"
-                    : isBrokenSchedule
-                      ? "Repair"
-                      : "Change";
                   return (
                     <div
-                      className={`quiz-admin-table-row quiz-admin-schedule-row ${
+                      className={`quiz-admin-table-row ${
                         assignDate === date ? "is-active" : ""
-                      } ${isUnscheduled || isBrokenSchedule ? "is-missing" : ""}`}
+                      }`}
                       key={date}
                     >
                       <span>{date}</span>
                       <span>{getDayOfWeek(date)}</span>
                       <span>{entry?.questionId ?? "-"}</span>
-                      <span className={question ? undefined : "quiz-admin-missing-text"}>
-                        {question
-                          ? getPromptPreview(question.prompt)
-                          : isBrokenSchedule
-                            ? "Scheduled question missing from question bank"
-                            : "No question selected"}
-                      </span>
                       <span
-                        className={`quiz-admin-status-cell ${
-                          isUnscheduled || isBrokenSchedule ? "is-missing" : "is-scheduled"
-                        }`}
+                        className={question ? undefined : "quiz-admin-muted"}
                       >
-                        {!isUnscheduled && !isBrokenSchedule && (
-                          <span className="quiz-admin-status-label">Scheduled</span>
+                        {question
+                          ? `${entry?.questionId} — ${getPromptPreview(question.prompt)}`
+                          : "No question selected"}
+                      </span>
+                      <span className="quiz-admin-status-cell">
+                        {entry ? "Scheduled" : "Empty"}
+                        {!entry && (
+                          <button
+                            type="button"
+                            className="quiz-admin-icon-btn"
+                            onClick={() => openAssign(date)}
+                          >
+                            Assign
+                          </button>
                         )}
-                        {isUnscheduled && (
-                          <span className="quiz-admin-status-label quiz-admin-status-label--missing">
-                            No question selected
-                          </span>
-                        )}
-                        {isBrokenSchedule && (
-                          <span className="quiz-admin-status-label quiz-admin-status-label--missing">
-                            Scheduled question missing
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className={`quest-menu-action-btn quiz-admin-btn quiz-admin-assign-btn ${
-                            isUnscheduled || isBrokenSchedule ? "is-missing" : ""
-                          }`}
-                          onClick={() => void openAssign(date)}
-                        >
-                          {actionLabel}
-                        </button>
                       </span>
                       {assignDate === date && (
                         <div className="quiz-admin-assign">
                           <select
-                            className="quest-menu-auth-select"
                             value={assignQuestionId}
                             onChange={(event) => setAssignQuestionId(event.target.value)}
                           >
-                            {assignableQuestions.length === 0 && (
-                              <option value="">{NO_V2_ASSIGNABLE_MESSAGE}</option>
-                            )}
-                            {assignableQuestions.map((question) => (
+                            {orderedQuestions.map((question) => (
                               <option key={question.id} value={question.id}>
                                 {question.id} — {getPromptPreview(question.prompt)}
                               </option>
@@ -1890,14 +1409,14 @@ export function QuizModal({
                           <div className="quiz-admin-row">
                             <button
                               type="button"
-                              className="quest-menu-action-btn quiz-admin-btn"
+                              className="quiz-submit-btn quiz-admin-btn"
                               onClick={() => handleAssignSave(date)}
                             >
                               Save
                             </button>
                             <button
                               type="button"
-                              className="quest-menu-action-btn quest-menu-action-btn--ghost quiz-admin-btn"
+                              className="quiz-submit-btn quiz-admin-btn quiz-btn-secondary"
                               onClick={closeAssign}
                             >
                               Cancel
@@ -1916,58 +1435,17 @@ export function QuizModal({
               </div>
             </div>
           )}
-    </>
+        </div>
+      </div>
   );
 
   if (variant === "embedded") {
-    return (
-      <div className="quest-menu-content quiz-modal-body" style={{ height: "100%" }}>
-        {panelContent}
-      </div>
-    );
+    return panel;
   }
 
   return (
-    <NeumontPanelShell
-      title={shellTitle}
-      onClose={handleClose}
-      tabs={shellTabs}
-      activeTabId={effectiveActiveTab}
-      onTabSelect={(tabId) => setActiveTab(tabId as Tab)}
-      maxWidth={760}
-      panelClassName="quiz-modal-panel"
-      contentClassName="quiz-modal-body"
-      panelStyle={{
-        width: "min(760px, 92vw)",
-        height: "min(88vh, 820px)",
-      }}
-      headerRight={
-        effectiveActiveTab === "quiz" && (mode === "daily" || mode === "practice") ? (
-          <span className="quiz-modal-timer nums">
-            {(() => {
-              const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
-              const minutes = Math.floor(totalSeconds / 60);
-              const seconds = totalSeconds % 60;
-              return `${minutes.toString().padStart(2, "0")}:${seconds
-                .toString()
-                .padStart(2, "0")}`;
-            })()}
-          </span>
-        ) : undefined
-      }
-      footerHint={
-        effectiveActiveTab === "quiz"
-          ? mode === "practice"
-            ? "Practice mode does not save progress."
-            : "Complete today's quiz to build your streak."
-          : effectiveActiveTab === "admin"
-            ? "Run tests and load quiz questions."
-            : effectiveActiveTab === "questions"
-              ? "Create and manage quiz questions."
-              : "Review daily schedule coverage."
-      }
-    >
-      {panelContent}
-    </NeumontPanelShell>
+    <div className="quiz-modal-backdrop" onClick={handleBackdropClick}>
+      {panel}
+    </div>
   );
 }

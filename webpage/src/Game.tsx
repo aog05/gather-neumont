@@ -220,11 +220,7 @@ function GamePage() {
       {/* Daily Quiz Popup */}
       <QuizPanel
         isOpen={isDailyQuizOpen}
-        onClose={() => {
-          const bridge = GameEventBridge.getInstance();
-          bridge.emit("popup:hide");
-          setIsDailyQuizOpen(false);
-        }}
+        onClose={() => setIsDailyQuizOpen(false)}
       />
     </div>
   );
