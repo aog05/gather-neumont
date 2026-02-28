@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useOutlet } from "react-router-dom";
 import GamePage from "../Game.tsx";
 import { useAuth } from "../features/auth/AuthContext";
-import ProfileHUD from "./profile/ProfileHUD";
 import QuizPanel from "./quiz/QuizPanel";
 import { appEvents } from "../events/appEvents";
 import { isOverlayRoute } from "../utils/overlayRoutes";
@@ -71,8 +70,6 @@ export default function OverlayLayout() {
   return (
     <div style={{ width: "100%", height: "100%" }}>
       <GamePage />
-
-      {!isOverlayVisible ? <ProfileHUD /> : null}
 
       {!isOverlayVisible ? (
         <QuizPanel isOpen={isDailyQuizOpen} onClose={() => setIsDailyQuizOpen(false)} />
