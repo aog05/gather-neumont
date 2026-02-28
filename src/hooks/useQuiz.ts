@@ -1,15 +1,9 @@
-/**
- * useQuiz hook - manages guest quiz flow state and API calls.
- */
-
 import { useState, useCallback, useRef, useEffect } from "react";
 
-// Generate a random guest token for this session
 function generateGuestToken(): string {
   return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
-// Get or create guest token from sessionStorage
 function getGuestToken(): string {
   const stored = sessionStorage.getItem("guestToken");
   if (stored) return stored;
@@ -64,6 +58,8 @@ export interface SubmitResult {
   canRetry?: boolean;
   message?: string;
   error?: string;
+  code?: string;
+  practiceAttemptId?: string;
 }
 
 export type QuizState =
@@ -74,6 +70,7 @@ export type QuizState =
   | "incorrect"
   | "correct"
   | "completed"
+  | "unavailable"
   | "error";
 
 export interface UseQuizReturn {
@@ -84,7 +81,7 @@ export interface UseQuizReturn {
   lastResult: SubmitResult | null;
   error: string | null;
   startQuiz: () => Promise<void>;
-  startPracticeQuiz: () => Promise<void>;
+  startPracticeQuiz: (questionId?: string) => Promise<void>;
   submitAnswer: (answer: unknown) => Promise<SubmitResult | null>;
   submitPracticeAnswer: (answer: unknown) => Promise<SubmitResult | null>;
   reset: () => void;
@@ -98,9 +95,9 @@ export function useQuiz(): UseQuizReturn {
   const [attemptNumber, setAttemptNumber] = useState(0);
   const [lastResult, setLastResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Timer ref for tracking elapsed time
   const startTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const practiceAttemptIdRef = useRef<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
 
   useEffect(() => {
@@ -123,94 +120,150 @@ export function useQuiz(): UseQuizReturn {
 
   const guestToken = getGuestToken();
 
-  const startQuizAt = useCallback(async (endpoint: string) => {
-    setState("loading");
-    setError(null);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestToken }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to start quiz");
-      }
-
-      if (data.alreadyCompleted) {
-        setQuestion(null);
-        setQuizDate(data.quizDate);
-        setAttemptNumber(0);
-        setLastResult(data);
-        setState("completed");
-        return;
-      }
-
-      setQuestion(data.question);
-      setQuizDate(data.quizDate);
-      setAttemptNumber(0);
-      setLastResult(null);
-      startTimeRef.current = Date.now();
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
-      intervalRef.current = window.setInterval(() => {
-        if (startTimeRef.current) {
-          setElapsedMs(Date.now() - startTimeRef.current);
-        }
-      }, 250);
-      setState("active");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setState("error");
+  const parseErrorMessage = (data: any, fallback: string): string => {
+    if (typeof data?.message === "string" && data.message.trim().length > 0) {
+      return data.message;
     }
-  }, [guestToken]);
+    if (typeof data?.error === "string" && data.error.trim().length > 0) {
+      return data.error;
+    }
+    return fallback;
+  };
 
-  const startQuiz = useCallback(async () => {
-    await startQuizAt("/api/quiz/start");
-  }, [startQuizAt]);
-
-  const startPracticeQuiz = useCallback(async () => {
-    await startQuizAt("/api/quiz/practice/start");
-  }, [startQuizAt]);
-
-  const submitAnswerAt = useCallback(
-    async (endpoint: string, answer: unknown): Promise<SubmitResult | null> => {
-      if (!question) return null;
-
-      setState("submitting");
-
-      // Calculate elapsed time
-      const elapsed = startTimeRef.current
-        ? Date.now() - startTimeRef.current
-        : 0;
-      setElapsedMs(elapsed);
+  const startQuizAt = useCallback(
+    async (endpoint: string, payload: Record<string, unknown>) => {
+      setState("loading");
+      setError(null);
 
       try {
         const response = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            guestToken,
-            questionId: question.id,
-            answer,
-            elapsedMs: elapsed,
-          }),
+          body: JSON.stringify(payload),
+        });
+
+        const data = (await response.json()) as SubmitResult;
+        if (!response.ok) {
+          if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
+            practiceAttemptIdRef.current = null;
+            setQuestion(null);
+            setQuizDate(data.quizDate ?? null);
+            setAttemptNumber(0);
+            setLastResult(data);
+            setState("unavailable");
+            return;
+          }
+          throw new Error(parseErrorMessage(data, "Failed to start quiz"));
+        }
+
+        if (data.alreadyCompleted) {
+          practiceAttemptIdRef.current = null;
+          setQuestion(null);
+          setQuizDate(data.quizDate);
+          setAttemptNumber(0);
+          setLastResult(data);
+          setState("completed");
+          return;
+        }
+
+        const startQuestion = (data as any).question as Question | undefined;
+        if (!startQuestion) {
+          throw new Error("No question returned from start endpoint");
+        }
+
+        setQuestion(startQuestion);
+        setQuizDate(data.quizDate);
+        setAttemptNumber(0);
+        setLastResult(null);
+        practiceAttemptIdRef.current =
+          typeof data.practiceAttemptId === "string" ? data.practiceAttemptId : null;
+        startTimeRef.current = Date.now();
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+        }
+        intervalRef.current = window.setInterval(() => {
+          if (startTimeRef.current) {
+            setElapsedMs(Date.now() - startTimeRef.current);
+          }
+        }, 250);
+        setState("active");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setState("error");
+      }
+    },
+    []
+  );
+
+  const startQuiz = useCallback(async () => {
+    await startQuizAt("/api/quiz/start", { guestToken });
+  }, [guestToken, startQuizAt]);
+
+  const startPracticeQuiz = useCallback(
+    async (questionId?: string) => {
+      await startQuizAt("/api/quiz/practice/start", {
+        guestToken,
+        ...(questionId ? { questionId } : {}),
+      });
+    },
+    [guestToken, startQuizAt]
+  );
+
+  const submitAnswerAt = useCallback(
+    async (
+      endpoint: string,
+      answer: unknown,
+      options?: { practice?: boolean }
+    ): Promise<SubmitResult | null> => {
+      if (!question) return null;
+
+      setState("submitting");
+      const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      setElapsedMs(elapsed);
+
+      try {
+        const body: Record<string, unknown> = {
+          guestToken,
+          answer,
+          elapsedMs: elapsed,
+        };
+        if (options?.practice) {
+          body.practiceAttemptId = practiceAttemptIdRef.current;
+        } else {
+          body.questionId = question.id;
+        }
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
         });
 
         const data: SubmitResult = await response.json();
+        if (!response.ok) {
+          if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
+            practiceAttemptIdRef.current = null;
+            setQuestion(null);
+            setQuizDate(data.quizDate ?? null);
+            setLastResult(data);
+            setState("unavailable");
+            return data;
+          }
+          throw new Error(parseErrorMessage(data, "Failed to submit answer"));
+        }
 
         setLastResult(data);
         if (typeof data.attemptNumber === "number") {
           setAttemptNumber(data.attemptNumber);
         }
+        if (typeof data.practiceAttemptId === "string") {
+          practiceAttemptIdRef.current = data.practiceAttemptId;
+        }
 
         if (data.alreadyCompleted) {
+          practiceAttemptIdRef.current = null;
           setQuestion(null);
           setState("completed");
           if (intervalRef.current) {
@@ -218,7 +271,6 @@ export function useQuiz(): UseQuizReturn {
             intervalRef.current = null;
           }
         } else if (data.rollover && data.newQuestion) {
-          // Day rolled over, update to new question
           setQuestion(data.newQuestion);
           setQuizDate(data.quizDate);
           startTimeRef.current = Date.now();
@@ -241,7 +293,7 @@ export function useQuiz(): UseQuizReturn {
         return null;
       }
     },
-    [question, guestToken]
+    [guestToken, question]
   );
 
   const submitAnswer = useCallback(
@@ -252,7 +304,7 @@ export function useQuiz(): UseQuizReturn {
 
   const submitPracticeAnswer = useCallback(
     async (answer: unknown): Promise<SubmitResult | null> =>
-      submitAnswerAt("/api/quiz/practice/submit", answer),
+      submitAnswerAt("/api/quiz/practice/submit", answer, { practice: true }),
     [submitAnswerAt]
   );
 
@@ -264,6 +316,7 @@ export function useQuiz(): UseQuizReturn {
     setLastResult(null);
     setError(null);
     startTimeRef.current = null;
+    practiceAttemptIdRef.current = null;
     if (intervalRef.current) {
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;

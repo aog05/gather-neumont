@@ -918,6 +918,39 @@
   font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
+.quiz-sequence-panel {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 2px solid #3a3a3a;
+  background: rgba(42, 42, 42, 0.45);
+  display: grid;
+  gap: 10px;
+}
+
+.quiz-sequence-note {
+  margin: 0;
+  color: #bdbdbd;
+  font-size: 12px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.quiz-sequence-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quiz-sequence-position {
+  min-width: 76px;
+  text-align: center;
+  color: #FFDD00;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+}
+
 .quiz-admin-panel {
   display: flex;
   flex-direction: column;
@@ -999,6 +1032,12 @@
   font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
+.quiz-admin-schedule-head,
+.quiz-admin-schedule-row {
+  grid-template-columns: 108px 72px minmax(140px, 1fr) minmax(220px, 1.7fr) minmax(220px, 1.2fr);
+  align-items: center;
+}
+
 .quiz-admin-table-head {
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -1016,9 +1055,19 @@
   background: linear-gradient(135deg, rgba(255, 221, 0, 0.16) 0%, rgba(255, 221, 0, 0.1) 100%);
 }
 
+.quiz-admin-schedule-row.is-missing {
+  border-color: #8b2e2e;
+  background: rgba(120, 22, 22, 0.18);
+}
+
 .quiz-admin-tags,
 .quiz-admin-muted {
   color: #bdbdbd;
+}
+
+.quiz-admin-missing-text {
+  color: #ffd3d3;
+  font-weight: 700;
 }
 
 .quiz-admin-row-actions {
@@ -1060,6 +1109,38 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.quiz-admin-status-label {
+  font-weight: 700;
+}
+
+.quiz-admin-status-label--missing {
+  color: #ffd3d3;
+}
+
+.quiz-admin-status-cell.is-missing {
+  color: #ffd3d3;
+}
+
+.quiz-admin-assign-btn {
+  width: auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.quiz-admin-assign-btn.is-missing {
+  background: rgba(120, 22, 22, 0.28);
+  border-color: #8b2e2e;
+  color: #ffd3d3;
+}
+
+.quiz-admin-assign-btn.is-missing:hover:not(:disabled) {
+  background: rgba(120, 22, 22, 0.4);
+  border-color: #ff8d8d;
+  color: #ffe7e7;
 }
 
 .quiz-admin-banner {

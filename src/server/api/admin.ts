@@ -7,7 +7,6 @@ import {
   updateAdminQuestion,
 } from "../services/admin-questions-firestore.service";
 import {
-  getScheduledQuestionId,
   listScheduleEntries,
   setScheduleEntry,
 } from "../services/schedule-firestore.service";
@@ -16,6 +15,8 @@ import { checkAnswer } from "../services/answer-checker.service";
 import { calculatePoints } from "../services/scoring.service";
 import type { Question } from "../../types/quiz.types";
 import { getMountainDateKey } from "../utils/timezone";
+
+const isQuizDebugEnabled = process.env.QUIZ_DEBUG === "1";
 
 async function requireAdmin(req: Request): Promise<Response | null> {
   const userId = getUserIdFromRequest(req);
@@ -95,11 +96,6 @@ async function handleSchedule(req: Request): Promise<Response> {
       return Response.json({ error: "invalid_question" }, { status: 400 });
     }
 
-    const existingQuestionId = await getScheduledQuestionId(date);
-    if (existingQuestionId) {
-      return Response.json({ error: "already_scheduled" }, { status: 409 });
-    }
-
     const result = await setScheduleEntry(date, questionId);
     if (result.error) {
       if (result.error === "invalid_date") {
@@ -128,7 +124,6 @@ async function handleSchedule(req: Request): Promise<Response> {
     return Response.json({
       success: true,
       questionId: result.entry?.questionId,
-      correctedFromQuestionId: result.correctedFromQuestionId,
     });
   }
 
@@ -148,6 +143,14 @@ async function handleQuestions(req: Request): Promise<Response> {
     } catch {
       logValidationFailure("POST /api/admin/questions", "invalid json");
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    if (isQuizDebugEnabled) {
+      console.log("[admin][debug] create question payload", {
+        type: body.type,
+        prompt: body.prompt,
+        choices: Array.isArray(body.choices) ? body.choices.length : 0,
+      });
     }
 
     const result = await createAdminQuestion(body);
@@ -174,10 +177,22 @@ async function handleQuestionById(
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    if (isQuizDebugEnabled) {
+      console.log("[admin][debug] update question payload", {
+        id,
+        type: body.type,
+        prompt: body.prompt,
+        choices: Array.isArray(body.choices) ? body.choices.length : 0,
+      });
+    }
+
     const result = await updateAdminQuestion(id, body);
     if (result.error) {
       if (result.error === "not_found") {
         return Response.json({ error: "not_found" }, { status: 404 });
+      }
+      if (result.error === "legacy_read_only") {
+        return Response.json({ error: "legacy_read_only" }, { status: 409 });
       }
       logValidationFailure(`PUT /api/admin/questions/${id}`, result.error, id);
       return Response.json({ error: result.error }, { status: 400 });
@@ -190,6 +205,9 @@ async function handleQuestionById(
     if (!result.success) {
       if (result.error === "not_found") {
         return Response.json({ error: "not_found" }, { status: 404 });
+      }
+      if (result.error === "legacy_read_only") {
+        return Response.json({ error: "legacy_read_only" }, { status: 409 });
       }
       return Response.json({ error: result.error ?? "failed to delete" }, { status: 500 });
     }

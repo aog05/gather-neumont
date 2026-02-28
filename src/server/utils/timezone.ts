@@ -1,18 +1,43 @@
-/**
- * Date/time helpers for server-local time.
- * NOTE: Function names are kept for compatibility with existing imports.
- */
-export function getMountainDateKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+const MOUNTAIN_TIMEZONE = "America/Denver";
+
+function getMountainParts(date: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hours: number;
+  minutes: number;
+} {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: MOUNTAIN_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const value = (type: string): number =>
+    Number.parseInt(parts.find((part) => part.type === type)?.value ?? "0", 10);
+
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+    hours: value("hour"),
+    minutes: value("minute"),
+  };
 }
 
-/**
- * Get the current local date/time as an object.
- */
+export function getMountainDateKey(): string {
+  const now = getMountainParts(new Date());
+  return `${String(now.year).padStart(4, "0")}-${String(now.month).padStart(
+    2,
+    "0"
+  )}-${String(now.day).padStart(2, "0")}`;
+}
+
 export function getMountainDateTime(): {
   dateKey: string;
   year: number;
@@ -21,13 +46,13 @@ export function getMountainDateTime(): {
   hours: number;
   minutes: number;
 } {
-  const now = new Date();
-  const dateKey = getMountainDateKey();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-
-  return { dateKey, year, month, day, hours, minutes };
+  const now = getMountainParts(new Date());
+  return {
+    dateKey: `${String(now.year).padStart(4, "0")}-${String(now.month).padStart(
+      2,
+      "0"
+    )}-${String(now.day).padStart(2, "0")}`,
+    ...now,
+  };
 }
+

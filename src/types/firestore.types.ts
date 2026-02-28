@@ -49,6 +49,22 @@ export interface QuizQuestion {
   tags?: string[];
 }
 
+export interface QuizQuestionDocV2 extends FirestoreDocument {
+  schemaVersion: 2;
+  type: "mcq" | "select-all";
+  prompt: string;
+  choices: string[];
+  correctIndex?: number;
+  correctIndices?: number[];
+  basePoints: number;
+  explanation?: string;
+  difficulty?: 1 | 2 | 3;
+  tags?: string[];
+  topic?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * Base Puzzle interface
  */
@@ -103,7 +119,6 @@ export interface QuizPuzzle extends PuzzleBase {
 export interface FirestoreQuizScheduleEntry extends FirestoreDocument {
   dateKey: string;
   questionId: string;
-  puzzleId: string;
   createdAt: string;
   updatedAt: string;
 }

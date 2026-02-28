@@ -320,6 +320,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
               isAdmin={isAdmin}
               initialTab={tab === "admin" ? adminSubTab : "quiz"}
               activeTabOverride={tab === "admin" ? adminSubTab : undefined}
+              onRequestQuizTab={() => setTab("quiz")}
               onViewLeaderboard={handleViewLeaderboard}
               variant="embedded"
               closeHandleRef={quizModalCloseRef}
