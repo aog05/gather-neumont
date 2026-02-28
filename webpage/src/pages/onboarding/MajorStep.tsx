@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { putProfile } from "../../api/profileApi";
+import NeumontPanelShell from "../../components/NeumontPanelShell";
 import { MAJORS } from "../../config/majors";
 import { useAuth } from "../../features/auth/AuthContext";
 import { useProfile } from "../../features/profile/ProfileContext";
-import "../../styles/auth-onboarding.css";
 
 export default function MajorStep() {
   const auth = useAuth();
@@ -14,34 +14,33 @@ export default function MajorStep() {
   const canFinish = profile.hasProfileBasics() && profile.hasAvatar() && profile.hasMajor();
 
   return (
-    <div className="onboarding-overlay">
-      <div className="onboarding-container">
-        <h1 className="onboarding-heading">Select Your Major</h1>
-        <p className="onboarding-description">
-          Choose your intended major. You can change this later in your profile settings.
-        </p>
+    <NeumontPanelShell title="Select Your Major" maxWidth={560}>
+      <p className="quest-menu-auth-subtitle">
+        Choose your intended major. You can change this later in your profile settings.
+      </p>
 
-        <div className="major-grid">
-          {MAJORS.map((m) => {
-            const isSelected = m.id === selected;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => profile.setProfileDraft({ intendedMajorId: m.id })}
-                className={`major-card ${isSelected ? "selected" : ""}`}
-              >
-                <img
-                  src={m.logoPath}
-                  alt={`${m.label} icon`}
-                  className="major-icon"
-                />
-                <div className="major-label">{m.label}</div>
-              </button>
-            );
-          })}
-        </div>
+      <div className="quest-menu-major-grid">
+        {MAJORS.map((m) => {
+          const isSelected = m.id === selected;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => profile.setProfileDraft({ intendedMajorId: m.id })}
+              className={`quest-menu-major-card ${isSelected ? "selected" : ""}`}
+            >
+              <img
+                src={m.logoPath}
+                alt={`${m.label} icon`}
+                className="quest-menu-major-icon"
+              />
+              <div className="quest-menu-major-label">{m.label}</div>
+            </button>
+          );
+        })}
+      </div>
 
+      <div className="quest-menu-action-group" style={{ marginTop: 20 }}>
         <button
           type="button"
           onClick={async () => {
@@ -79,12 +78,11 @@ export default function MajorStep() {
             navigate("/");
           }}
           disabled={!canFinish}
-          className="btn btn-primary"
-          style={{ marginTop: 20, width: "100%" }}
+          className="quest-menu-action-btn quest-menu-action-btn--primary"
         >
           Complete Setup
         </button>
       </div>
-    </div>
+    </NeumontPanelShell>
   );
 }

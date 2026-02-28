@@ -5,9 +5,9 @@ import Phaser from "phaser";
  * Ground Floor map for Neumont Virtual Campus
  */
 export class GroundFloor {
-  private readonly mapData: string;
+  private readonly mapData: MapParser.TiledMapData;
 
-  public constructor(mapData: string) {
+  public constructor(mapData: MapParser.TiledMapData) {
     this.mapData = mapData;
   }
 
@@ -20,20 +20,21 @@ export class GroundFloor {
     scene: Phaser.Scene,
     tileGroup: Phaser.Physics.Arcade.StaticGroup,
   ): void {
-    const map = MapParser.parseMapFile(this.mapData);
+    const map = MapParser.parseTiledMap(this.mapData);
 
     map.tiles.forEach((tile) => {
-      const wall = scene.add.rectangle(
-        tile.x,
-        tile.y,
-        MapParser.TILE_SIZE,
-        MapParser.TILE_SIZE,
-        tile.obstacle ? 0xff0000 : 0x0000ff,
-      );
-      scene.physics.add.existing(wall, true);
+      const tileObject =
+        tile.frame === undefined
+          ? scene.add
+              .sprite(tile.x, tile.y, tile.textureKey)
+              .setDisplaySize(MapParser.TILE_SIZE, MapParser.TILE_SIZE)
+          : scene.add
+              .sprite(tile.x, tile.y, tile.textureKey, tile.frame)
+              .setDisplaySize(MapParser.TILE_SIZE, MapParser.TILE_SIZE);
+      scene.physics.add.existing(tileObject, true);
 
       if (tile.obstacle) {
-        tileGroup.add(wall);
+        tileGroup.add(tileObject);
       }
     });
   }

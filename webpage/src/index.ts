@@ -8,6 +8,7 @@ import { handleProfileApi } from "./server/api/profile";
 
 const projectRoot = join(import.meta.dir, "..");
 const distDir = normalize(join(projectRoot, "dist"));
+const ASSET_DEBUG = process.env.ASSET_DEBUG === "1";
 
 const assetBaseDirs = [
   normalize(join(projectRoot, "public", "assets")),
@@ -79,6 +80,11 @@ async function apiHandler(req: Request): Promise<Response> {
   return Response.json({ error: "Not found", path: url.pathname }, { status: 404 });
 }
 
+function hasFileExtension(pathname: string): boolean {
+  const leaf = pathname.split("/").filter(Boolean).pop() ?? "";
+  return /\.[a-zA-Z0-9]+$/.test(leaf);
+}
+
 async function distHandler(req: Request): Promise<Response | null> {
   const url = new URL(req.url);
   const pathname = url.pathname;
@@ -97,29 +103,64 @@ async function distHandler(req: Request): Promise<Response | null> {
   const fsPath = resolveSafePath(distDir, parts);
   if (!fsPath) return new Response("Bad Request", { status: 400 });
 
-  return tryServeFile(fsPath);
+  const direct = await tryServeFile(fsPath);
+  if (direct) return direct;
+
+  // For nested SPA routes (e.g., /onboarding), index.html uses relative asset URLs.
+  // If /onboarding/index-*.js is requested, serve dist/index-*.js by basename.
+  if (parts.length > 1) {
+    const basename = parts[parts.length - 1];
+    const rootAssetPath = resolveSafePath(distDir, [basename]);
+    if (rootAssetPath) {
+      const rootAsset = await tryServeFile(rootAssetPath);
+      if (rootAsset) return rootAsset;
+    }
+  }
+
+  // Do not return SPA HTML for missing files with extensions.
+  if (hasFileExtension(pathname)) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  return null;
 }
 
 function spaIndex(): Response {
   const indexPath = join(distDir, "index.html");
+  const headers = new Headers({ "Content-Type": "text/html" });
+  if (process.env.NODE_ENV !== "production") {
+    headers.set("Cache-Control", "no-store");
+  }
   return new Response(file(indexPath), {
-    headers: { "Content-Type": "text/html" },
+    headers,
   });
 }
 
+const selectedPort = Number(process.env.PORT ?? 3000);
+
 const server = serve({
-  port: 3000,
+  port: selectedPort,
   async fetch(req) {
     const url = new URL(req.url);
 
-    if (url.pathname.startsWith("/api/")) return apiHandler(req);
-    if (url.pathname.startsWith("/assets/")) return assetsHandler(req);
+    if (url.pathname.startsWith("/api/")) {
+      if (ASSET_DEBUG) console.log(`[assets] api ${url.pathname}`);
+      return apiHandler(req);
+    }
+    if (url.pathname.startsWith("/assets/")) {
+      if (ASSET_DEBUG) console.log(`[assets] public ${url.pathname}`);
+      return assetsHandler(req);
+    }
 
     const distRes = await distHandler(req);
-    if (distRes) return distRes;
+    if (distRes) {
+      if (ASSET_DEBUG) console.log(`[assets] dist ${url.pathname}`);
+      return distRes;
+    }
 
+    if (ASSET_DEBUG) console.log(`[assets] spa ${url.pathname}`);
     return spaIndex();
   },
 });
 
-console.log(`🚀 Server running at ${server.url}`);
+console.log(`Server listening on http://localhost:${selectedPort}`);

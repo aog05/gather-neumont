@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import NeumontPanelShell from "../components/NeumontPanelShell";
 import { useAuth } from "../features/auth/AuthContext";
-import "../styles/auth-onboarding.css";
 
 async function fetchUsernameExists(username: string): Promise<boolean> {
   const trimmed = username.trim();
@@ -69,48 +69,47 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="auth-overlay">
-      <div className="auth-container">
-        <h1 className="auth-heading">Sign in</h1>
-        <p className="auth-description">
-          Enter your username.
-        </p>
+    <NeumontPanelShell title="Sign In" maxWidth={560}>
+      <p className="quest-menu-auth-subtitle">
+        Enter your Neumont username to continue.
+      </p>
 
-        <form onSubmit={onSubmit} className="auth-form">
-          <div className="form-field">
-            <label htmlFor="username" className="form-label">Username</label>
-            <input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="your_name"
-              autoComplete="username"
-              className="form-input"
-            />
-          </div>
+      <form onSubmit={onSubmit} className="quest-menu-auth-form">
+        <div className="quest-menu-auth-field">
+          <label htmlFor="username" className="quest-menu-auth-label">Username</label>
+          <input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="your_name"
+            autoComplete="username"
+            className="quest-menu-auth-input"
+          />
+        </div>
 
-          {error && (
-            <div className="form-error">{error}</div>
-          )}
+        {error && (
+          <div className="quest-menu-auth-error">{error}</div>
+        )}
 
+        <div className="quest-menu-action-group">
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`btn btn-primary ${isSubmitting ? "is-loading" : ""}`}
+            className="quest-menu-action-btn quest-menu-action-btn--primary"
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
-        </form>
-
-        <div className="auth-footer">
-          <p className="auth-link">
-            Don't have an account?{" "}
-            <Link to="/create-account" className="auth-link-button">
-              Create account
-            </Link>
-          </p>
         </div>
+      </form>
+
+      <div className="quest-menu-auth-footer">
+        <p className="quest-menu-auth-link-text">
+          Don't have an account?{" "}
+          <Link to="/create-account" className="quest-menu-auth-link">
+            Create account
+          </Link>
+        </p>
       </div>
-    </div>
+    </NeumontPanelShell>
   );
 }

@@ -81,7 +81,7 @@ export class NPC extends Phaser.GameObjects.Container {
    * Call this every frame from NPCManager
    * @param player - The player game object
    */
-  public update(player: Phaser.GameObjects.GameObject): void {
+  public override update(player: Phaser.GameObjects.GameObject): void {
     if (!player || !player.body) {
       return;
     }
@@ -216,13 +216,7 @@ export class NPC extends Phaser.GameObjects.Container {
     // Check if this is placeholder mode or if sprite doesn't exist
     if (key === "_placeholder" || !this.scene.textures.exists(key)) {
       // Create colored rectangle placeholder
-      const rect = this.scene.add.rectangle(
-        0,
-        0,
-        40,
-        60,
-        tint ?? 0xffffff,
-      );
+      const rect = this.scene.add.rectangle(0, 0, 40, 60, tint ?? 0xffffff);
       return rect;
     } else {
       // Create actual sprite
@@ -270,26 +264,37 @@ export class NPC extends Phaser.GameObjects.Container {
    */
   private async loadNameFromDialogue(): Promise<void> {
     try {
-      console.log(`[NPC ${this.config.id}] Loading name from dialogue tree: ${this.config.dialogue.treeId}`);
+      console.log(
+        `[NPC ${this.config.id}] Loading name from dialogue tree: ${this.config.dialogue.treeId}`,
+      );
 
       // Load the dialogue tree from Firebase
-      const tree = await firestoreDialogueService.loadDialogueTree(this.config.dialogue.treeId);
+      const tree = await firestoreDialogueService.loadDialogueTree(
+        this.config.dialogue.treeId,
+      );
 
       // Get the first node (root node) to extract speaker name
       const rootNode = tree.nodes[this.config.dialogue.defaultNode];
 
       if (rootNode && rootNode.speaker) {
         this.actualName = rootNode.speaker;
-        console.log(`[NPC ${this.config.id}] Loaded name from Firebase: "${this.actualName}"`);
+        console.log(
+          `[NPC ${this.config.id}] Loaded name from Firebase: "${this.actualName}"`,
+        );
 
         // Update the name label text
         this.nameLabel.setText(this.actualName);
       } else {
-        console.warn(`[NPC ${this.config.id}] No speaker name found in dialogue tree, using config name: "${this.config.name}"`);
+        console.warn(
+          `[NPC ${this.config.id}] No speaker name found in dialogue tree, using config name: "${this.config.name}"`,
+        );
         this.actualName = this.config.name;
       }
     } catch (error) {
-      console.error(`[NPC ${this.config.id}] Failed to load name from dialogue:`, error);
+      console.error(
+        `[NPC ${this.config.id}] Failed to load name from dialogue:`,
+        error,
+      );
       // Fallback to config name
       this.actualName = this.config.name;
     }

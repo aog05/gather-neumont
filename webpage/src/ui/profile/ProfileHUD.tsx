@@ -40,7 +40,6 @@ export default function ProfileHUD() {
 
   const handleEditAccount = () => {
     setOpen(false);
-    console.log("Navigate to /account");
     navigate("/account");
   };
 
