@@ -1,0 +1,49 @@
+[selection] Getting question for date: 2026-02-24
+[firebase-quiz] Fetching all Quiz puzzles from Firebase
+[firebase-quiz] Found 3 Quiz puzzles
+[firebase-quiz] Transformed question: {
+  puzzleId: "0JNCYfgz3A6CcuJt4HCC",
+  questionId: "0JNCYfgz3A6CcuJt4HCC_q0",
+  rawType: "one-select",
+  type: "mcq",
+  prompt: "Database Design Quiz - Question 1",
+  basePoints: 15,
+}
+[firebase-quiz] Transformed question: {
+  puzzleId: "oSgH66AWFMYWC1wpNPgC",
+  questionId: "oSgH66AWFMYWC1wpNPgC_q0",
+  rawType: "multiple-choice",
+  type: "select-all",
+  prompt: "Web Security Challenge - Question 1",
+  basePoints: 20,
+}
+[firebase-quiz] Transformed question: {
+  puzzleId: "qRw9ZVMS7FLpC8Vb2W1p",
+  questionId: "qRw9ZVMS7FLpC8Vb2W1p_q0",
+  rawType: "one-select",
+  type: "mcq",
+  prompt: "CS Fundamentals Quiz - Question 1",
+  basePoints: 10,
+}
+[firebase-quiz] Transformed 3 questions from 3 puzzles
+[selection] Loaded 3 questions from Firebase
+{
+  "quizDate": "2026-02-24",
+  "question": {
+    "id": "qRw9ZVMS7FLpC8Vb2W1p_q0",
+    "type": "mcq",
+    "prompt": "CS Fundamentals Quiz - Question 1",
+    "choices": [
+      "O(n log n) average case",
+      "O(log n) always",
+      "O(n) best case",
+      "O(n²) always"
+    ],
+    "difficulty": 2,
+    "tags": [
+      "computer science"
+    ],
+    "basePoints": 10
+  },
+  "alreadyStarted": true
+}

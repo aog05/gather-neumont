@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import type { MouseEvent } from "react";
 import type { DialogueNode } from "../types/dialogue.types";
 import { GameEventBridge } from "../systems/GameEventBridge";
 import "./DialogueUI.css";
@@ -27,7 +28,10 @@ export default function DialogueUI() {
   useEffect(() => {
     const bridge = bridgeRef.current;
 
-    const handleDialogueStart = (data: { npcId: string; node: DialogueNode }) => {
+    const handleDialogueStart = (data: {
+      npcId: string;
+      node: DialogueNode;
+    }) => {
       console.log("DialogueUI: Dialogue started", data);
       setCurrentNode(data.node);
       setIsVisible(true);
@@ -139,14 +143,32 @@ export default function DialogueUI() {
     }
   };
 
+  const handleDialogueBoxClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!isTyping) {
+      e.stopPropagation();
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+
+    e.stopPropagation();
+    handleSkip();
+  };
+
   // Don't render if not visible
   if (!isVisible || !currentNode) {
     return null;
   }
 
   return (
-    <div className="dialogue-overlay" onClick={isTyping ? handleSkip : undefined}>
-      <div className="dialogue-box" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="dialogue-overlay"
+      onClick={isTyping ? handleSkip : undefined}
+    >
+      <div className="dialogue-box" onClick={handleDialogueBoxClick}>
         {/* Header with speaker name */}
         <div className="dialogue-header">
           <div className="dialogue-speaker">{currentNode.speaker}</div>

@@ -1,15 +1,9 @@
-/**
- * useQuiz hook - manages guest quiz flow state and API calls.
- */
-
 import { useState, useCallback, useRef, useEffect } from "react";
 
-// Generate a random guest token for this session
 function generateGuestToken(): string {
   return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
-// Get or create guest token from sessionStorage
 function getGuestToken(): string {
   const stored = sessionStorage.getItem("guestToken");
   if (stored) return stored;
@@ -18,7 +12,7 @@ function getGuestToken(): string {
   return token;
 }
 
-export type QuestionType = "mcq" | "select-all" | "written";
+export type QuestionType = "mcq" | "select-all";
 
 export interface Question {
   id: string;
@@ -49,11 +43,13 @@ export interface SubmitResult {
     selectedIndices?: number[];
   };
   pointsEarned?: number;
+  totalPoints?: number | null;
+  streakDays?: number | null;
+  completedAt?: string | null;
   pointsBreakdown?: PointsBreakdown;
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
-  acceptedAnswers?: string[];
   quizDate: string;
   rollover?: boolean;
   newQuestion?: Question;
@@ -62,6 +58,8 @@ export interface SubmitResult {
   canRetry?: boolean;
   message?: string;
   error?: string;
+  code?: string;
+  practiceAttemptId?: string;
 }
 
 export type QuizState =
@@ -72,6 +70,7 @@ export type QuizState =
   | "incorrect"
   | "correct"
   | "completed"
+  | "unavailable"
   | "error";
 
 export interface UseQuizReturn {
@@ -82,7 +81,9 @@ export interface UseQuizReturn {
   lastResult: SubmitResult | null;
   error: string | null;
   startQuiz: () => Promise<void>;
+  startPracticeQuiz: (questionId?: string) => Promise<void>;
   submitAnswer: (answer: unknown) => Promise<SubmitResult | null>;
+  submitPracticeAnswer: (answer: unknown) => Promise<SubmitResult | null>;
   reset: () => void;
   elapsedMs: number;
 }
@@ -94,25 +95,13 @@ export function useQuiz(): UseQuizReturn {
   const [attemptNumber, setAttemptNumber] = useState(0);
   const [lastResult, setLastResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Timer ref for tracking elapsed time
   const startTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const practiceAttemptIdRef = useRef<string | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
 
-  console.log(`[useQuiz] 🎯 Hook state:`, {
-    state,
-    hasQuestion: !!question,
-    quizDate,
-    attemptNumber,
-    hasLastResult: !!lastResult,
-    error,
-    elapsedMs
-  });
-
   useEffect(() => {
-    console.log(`[useQuiz] 🏁 Hook initialized - setting up cleanup`);
     return () => {
-      console.log(`[useQuiz] 🧹 Hook cleanup - clearing timer interval`);
       if (intervalRef.current) {
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -131,115 +120,150 @@ export function useQuiz(): UseQuizReturn {
 
   const guestToken = getGuestToken();
 
-  const startQuiz = useCallback(async () => {
-    console.log(`[useQuiz] 🚀 Starting quiz...`);
-    setState("loading");
-    setError(null);
-
-    try {
-      console.log(`[useQuiz] 📡 Fetching quiz from /api/quiz/start`);
-      const response = await fetch("/api/quiz/start", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guestToken }),
-      });
-
-      const data = await response.json();
-      console.log(`[useQuiz] 📦 Received response:`, data);
-
-      if (!response.ok) {
-        console.error(`[useQuiz] ❌ API error:`, data.error);
-        throw new Error(data.error || "Failed to start quiz");
-      }
-
-      if (data.alreadyCompleted) {
-        console.log(`[useQuiz] ✅ Quiz already completed for today`);
-        setQuestion(null);
-        setQuizDate(data.quizDate);
-        setAttemptNumber(0);
-        setLastResult(data);
-        setState("completed");
-        return;
-      }
-
-      console.log(`[useQuiz] 📝 Quiz started - Question loaded:`, {
-        type: data.question.type,
-        difficulty: data.question.difficulty,
-        basePoints: data.question.basePoints,
-        quizDate: data.quizDate
-      });
-
-      setQuestion(data.question);
-      setQuizDate(data.quizDate);
-      setAttemptNumber(0);
-      setLastResult(null);
-      startTimeRef.current = Date.now();
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
-      intervalRef.current = window.setInterval(() => {
-        if (startTimeRef.current) {
-          setElapsedMs(Date.now() - startTimeRef.current);
-        }
-      }, 250);
-      console.log(`[useQuiz] ⏱️ Timer started - tracking elapsed time`);
-      setState("active");
-      console.log(`[useQuiz] ✅ Quiz state set to 'active'`);
-    } catch (err) {
-      console.error(`[useQuiz] ❌ Error starting quiz:`, err);
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setState("error");
+  const parseErrorMessage = (data: any, fallback: string): string => {
+    if (typeof data?.message === "string" && data.message.trim().length > 0) {
+      return data.message;
     }
-  }, [guestToken]);
+    if (typeof data?.error === "string" && data.error.trim().length > 0) {
+      return data.error;
+    }
+    return fallback;
+  };
 
-  const submitAnswer = useCallback(
-    async (answer: unknown): Promise<SubmitResult | null> => {
-      if (!question) {
-        console.warn(`[useQuiz] ⚠️ Cannot submit - no question loaded`);
-        return null;
-      }
-
-      console.log(`[useQuiz] 📤 Submitting answer:`, {
-        questionId: question.id,
-        questionType: question.type,
-        answer,
-        attemptNumber: attemptNumber + 1
-      });
-      setState("submitting");
-
-      // Calculate elapsed time
-      const elapsed = startTimeRef.current
-        ? Date.now() - startTimeRef.current
-        : 0;
-      setElapsedMs(elapsed);
-      console.log(`[useQuiz] ⏱️ Elapsed time: ${(elapsed / 1000).toFixed(2)}s`);
+  const startQuizAt = useCallback(
+    async (endpoint: string, payload: Record<string, unknown>) => {
+      setState("loading");
+      setError(null);
 
       try {
-        console.log(`[useQuiz] 📡 Posting to /api/quiz/submit`);
-        const response = await fetch("/api/quiz/submit", {
+        const response = await fetch(endpoint, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            guestToken,
-            questionId: question.id,
-            answer,
-            elapsedMs: elapsed,
-          }),
+          body: JSON.stringify(payload),
         });
 
-        const data: SubmitResult = await response.json();
-        console.log(`[useQuiz] 📦 Submit response:`, data);
-
-        setLastResult(data);
-        if (typeof data.attemptNumber === "number") {
-          console.log(`[useQuiz] 🔢 Attempt number: ${data.attemptNumber}`);
-          setAttemptNumber(data.attemptNumber);
+        const data = (await response.json()) as SubmitResult;
+        if (!response.ok) {
+          if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
+            practiceAttemptIdRef.current = null;
+            setQuestion(null);
+            setQuizDate(data.quizDate ?? null);
+            setAttemptNumber(0);
+            setLastResult(data);
+            setState("unavailable");
+            return;
+          }
+          throw new Error(parseErrorMessage(data, "Failed to start quiz"));
         }
 
         if (data.alreadyCompleted) {
-          console.log(`[useQuiz] ✅ Quiz completed!`);
+          practiceAttemptIdRef.current = null;
+          setQuestion(null);
+          setQuizDate(data.quizDate);
+          setAttemptNumber(0);
+          setLastResult(data);
+          setState("completed");
+          return;
+        }
+
+        const startQuestion = (data as any).question as Question | undefined;
+        if (!startQuestion) {
+          throw new Error("No question returned from start endpoint");
+        }
+
+        setQuestion(startQuestion);
+        setQuizDate(data.quizDate);
+        setAttemptNumber(0);
+        setLastResult(null);
+        practiceAttemptIdRef.current =
+          typeof data.practiceAttemptId === "string" ? data.practiceAttemptId : null;
+        startTimeRef.current = Date.now();
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
+        }
+        intervalRef.current = window.setInterval(() => {
+          if (startTimeRef.current) {
+            setElapsedMs(Date.now() - startTimeRef.current);
+          }
+        }, 250);
+        setState("active");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setState("error");
+      }
+    },
+    []
+  );
+
+  const startQuiz = useCallback(async () => {
+    await startQuizAt("/api/quiz/start", { guestToken });
+  }, [guestToken, startQuizAt]);
+
+  const startPracticeQuiz = useCallback(
+    async (questionId?: string) => {
+      await startQuizAt("/api/quiz/practice/start", {
+        guestToken,
+        ...(questionId ? { questionId } : {}),
+      });
+    },
+    [guestToken, startQuizAt]
+  );
+
+  const submitAnswerAt = useCallback(
+    async (
+      endpoint: string,
+      answer: unknown,
+      options?: { practice?: boolean }
+    ): Promise<SubmitResult | null> => {
+      if (!question) return null;
+
+      setState("submitting");
+      const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      setElapsedMs(elapsed);
+
+      try {
+        const body: Record<string, unknown> = {
+          guestToken,
+          answer,
+          elapsedMs: elapsed,
+        };
+        if (options?.practice) {
+          body.practiceAttemptId = practiceAttemptIdRef.current;
+        } else {
+          body.questionId = question.id;
+        }
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        const data: SubmitResult = await response.json();
+        if (!response.ok) {
+          if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
+            practiceAttemptIdRef.current = null;
+            setQuestion(null);
+            setQuizDate(data.quizDate ?? null);
+            setLastResult(data);
+            setState("unavailable");
+            return data;
+          }
+          throw new Error(parseErrorMessage(data, "Failed to submit answer"));
+        }
+
+        setLastResult(data);
+        if (typeof data.attemptNumber === "number") {
+          setAttemptNumber(data.attemptNumber);
+        }
+        if (typeof data.practiceAttemptId === "string") {
+          practiceAttemptIdRef.current = data.practiceAttemptId;
+        }
+
+        if (data.alreadyCompleted) {
+          practiceAttemptIdRef.current = null;
           setQuestion(null);
           setState("completed");
           if (intervalRef.current) {
@@ -247,34 +271,41 @@ export function useQuiz(): UseQuizReturn {
             intervalRef.current = null;
           }
         } else if (data.rollover && data.newQuestion) {
-          console.log(`[useQuiz] 🔄 Day rollover detected - loading new question`);
-          // Day rolled over, update to new question
           setQuestion(data.newQuestion);
           setQuizDate(data.quizDate);
           startTimeRef.current = Date.now();
           setElapsedMs(0);
           setState("active");
         } else if (data.correct) {
-          console.log(`[useQuiz] ✅ Answer CORRECT! Points: ${data.pointsEarned}`);
           setState("correct");
           if (intervalRef.current) {
             window.clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
         } else {
-          console.log(`[useQuiz] ❌ Answer INCORRECT - try again`);
           setState("incorrect");
         }
 
         return data;
       } catch (err) {
-        console.error(`[useQuiz] ❌ Error submitting answer:`, err);
         setError(err instanceof Error ? err.message : "Unknown error");
         setState("error");
         return null;
       }
     },
-    [question, guestToken]
+    [guestToken, question]
+  );
+
+  const submitAnswer = useCallback(
+    async (answer: unknown): Promise<SubmitResult | null> =>
+      submitAnswerAt("/api/quiz/submit", answer),
+    [submitAnswerAt]
+  );
+
+  const submitPracticeAnswer = useCallback(
+    async (answer: unknown): Promise<SubmitResult | null> =>
+      submitAnswerAt("/api/quiz/practice/submit", answer, { practice: true }),
+    [submitAnswerAt]
   );
 
   const reset = useCallback(() => {
@@ -285,6 +316,7 @@ export function useQuiz(): UseQuizReturn {
     setLastResult(null);
     setError(null);
     startTimeRef.current = null;
+    practiceAttemptIdRef.current = null;
     if (intervalRef.current) {
       window.clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -300,7 +332,9 @@ export function useQuiz(): UseQuizReturn {
     lastResult,
     error,
     startQuiz,
+    startPracticeQuiz,
     submitAnswer,
+    submitPracticeAnswer,
     reset,
     elapsedMs,
   };

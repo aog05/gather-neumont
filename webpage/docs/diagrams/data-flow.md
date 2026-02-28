@@ -15,7 +15,9 @@
       +-- scoring: pointsBreakdown
       |
       +-- persist (logged-in, non-admin):
-      |     data/progress.json
+      |     Firestore:
+      |       Player/{playerId}
+      |       Player/{playerId}/QuizCompletions/{dateKey}
       |
       v
   Response
@@ -26,7 +28,7 @@
 ```
 
 Legend:
-- Only logged-in non-admin users persist progress to `data/progress.json`.
+- Only logged-in non-admin users persist completion to Firestore.
 - Guests are tracked via `guestToken` + in-memory session state.
 
 ```text
@@ -34,13 +36,13 @@ Legend:
       |
       v
   Server ranks:
-    data/progress.json + data/users.json
+    Firestore Player collection
       |
       v
-  { entries: [ { rank, username, longestStreak, currentStreak, totalPoints } ] }
+  { entries: [ { playerId, displayName, totalPoints, streakDays } ] }
 ```
 
 Legend:
-- Leaderboard is derived from progress records and user records.
-- Client may optionally show a demo dataset in the UI for demos.
+- Leaderboard is derived from Firestore player records.
+- Demo leaderboard assets may exist in source but are not used by runtime API flow.
 

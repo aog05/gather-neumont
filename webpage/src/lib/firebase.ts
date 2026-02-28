@@ -63,6 +63,8 @@ export const COLLECTIONS = {
   DIALOGUE: 'Dialogue',
   QUEST: 'Quest',
   SKILL_TREE_ITEMS: 'SkillTreeItems',
+  QUIZ_QUESTIONS: 'QUIZ_QUESTIONS',
+  QUIZ_SCHEDULE: 'QUIZ_SCHEDULE',
 } as const;
 
 /**
