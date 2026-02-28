@@ -1,10 +1,10 @@
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import NeumontPanelShell from "../components/NeumontPanelShell";
 import { useAuth } from "../features/auth/AuthContext";
 import { useProfile } from "../features/profile/ProfileContext";
 import { profileStorage } from "../features/profile/profileStorage";
-import "../styles/auth-onboarding.css";
 
 async function fetchUsernameExists(username: string): Promise<boolean> {
   const trimmed = username.trim();
@@ -72,48 +72,47 @@ export default function CreateAccountPage() {
   }
 
   return (
-    <div className="auth-overlay">
-      <div className="auth-container">
-        <h1 className="auth-heading">Create account</h1>
-        <p className="auth-description">
-          Choose a username.
-        </p>
+    <NeumontPanelShell title="Create Account" maxWidth={560}>
+      <p className="quest-menu-auth-subtitle">
+        Create your Neumont account with a username.
+      </p>
 
-        <form onSubmit={onSubmit} className="auth-form">
-          <div className="form-field">
-            <label htmlFor="username" className="form-label">Username</label>
-            <input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="your_name"
-              autoComplete="username"
-              className="form-input"
-            />
-          </div>
+      <form onSubmit={onSubmit} className="quest-menu-auth-form">
+        <div className="quest-menu-auth-field">
+          <label htmlFor="username" className="quest-menu-auth-label">Username</label>
+          <input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="your_name"
+            autoComplete="username"
+            className="quest-menu-auth-input"
+          />
+        </div>
 
-          {error && (
-            <div className="form-error">{error}</div>
-          )}
+        {error && (
+          <div className="quest-menu-auth-error">{error}</div>
+        )}
 
+        <div className="quest-menu-action-group">
           <button
             type="submit"
             disabled={!canSubmit}
-            className={`btn btn-primary ${isSubmitting ? "is-loading" : ""}`}
+            className="quest-menu-action-btn quest-menu-action-btn--primary"
           >
             {isSubmitting ? "Creating..." : "Create account"}
           </button>
-        </form>
-
-        <div className="auth-footer">
-          <p className="auth-link">
-            Already have an account?{" "}
-            <Link to="/sign-in" className="auth-link-button">
-              Sign in
-            </Link>
-          </p>
         </div>
+      </form>
+
+      <div className="quest-menu-auth-footer">
+        <p className="quest-menu-auth-link-text">
+          Already have an account?{" "}
+          <Link to="/sign-in" className="quest-menu-auth-link">
+            Sign in
+          </Link>
+        </p>
       </div>
-    </div>
+    </NeumontPanelShell>
   );
 }

@@ -1,76 +1,192 @@
-/**
- * Quiz API endpoints.
- * GET  /api/quiz/today  - Check if there's a quiz available today
- * POST /api/quiz/start  - Start today's quiz and get the question
- * POST /api/quiz/submit - Submit an answer for today's quiz
- *
- * UPDATED: Now integrates with Firebase for quiz completion persistence
- */
-
 import { getMountainDateKey } from "../utils/timezone";
-import {
-  getQuestionForDate,
-  stripCorrectAnswers,
-} from "../services/selection.service";
+import { getQuestionForDate, stripCorrectAnswers } from "../services/selection.service";
 import {
   markQuizStarted,
   hasStartedQuiz,
   getGuestAttempt,
   updateGuestAttempt,
 } from "../data/guest-sessions";
-import {
-  getProgressByUserId,
-  getOrCreateProgress,
-  saveProgress,
-} from "../data/progress.store";
 import { checkAnswer } from "../services/answer-checker.service";
 import { calculatePoints } from "../services/scoring.service";
 import type { Question } from "../../types/quiz.types";
-import { getUserIdFromRequest } from "./auth";
-import { getUserById } from "../data/users.store";
+import { getSessionUserFromRequest } from "./auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db, COLLECTIONS } from "../../lib/firebase";
 import {
-  saveQuizCompletionToPuzzleDay,
-  saveQuizCompletionToPlayer,
-} from "../services/firebase-quiz-completion.service";
-import { FirestoreQueries } from "../../lib/firestore-helpers";
+  getPlayerQuizCompletionForDate,
+  recordPlayerQuizCompletion,
+} from "../services/player-leaderboard.service";
+import { getQuizQuestionByQuestionId } from "../services/firebase-quiz.service";
 
+const PRACTICE_ATTEMPT_TTL_MS = 30 * 60 * 1000;
 const userAttemptCounts = new Map<string, number>();
+const isQuizDebugEnabled = process.env.QUIZ_DEBUG === "1";
+
+type PracticeAttemptOwnerType = "user" | "guest";
+
+type PracticeAttemptRecord = {
+  practiceAttemptId: string;
+  questionId: string;
+  ownerType: PracticeAttemptOwnerType;
+  ownerId: string;
+  createdAtMs: number;
+  expiresAtMs: number;
+  attemptCount: number;
+};
+
+const practiceAttempts = new Map<string, PracticeAttemptRecord>();
+
+function jsonError(
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>
+): Response {
+  return Response.json(
+    {
+      code,
+      message,
+      ...(extra ?? {}),
+    },
+    { status }
+  );
+}
+
+function cleanupExpiredPracticeAttempts(nowMs: number): void {
+  for (const [attemptId, attempt] of practiceAttempts.entries()) {
+    if (attempt.expiresAtMs <= nowMs) {
+      practiceAttempts.delete(attemptId);
+    }
+  }
+}
+
+function createPracticeAttempt(
+  questionId: string,
+  ownerType: PracticeAttemptOwnerType,
+  ownerId: string
+): PracticeAttemptRecord {
+  const nowMs = Date.now();
+  const practiceAttemptId = crypto.randomUUID();
+  const attempt: PracticeAttemptRecord = {
+    practiceAttemptId,
+    questionId,
+    ownerType,
+    ownerId,
+    createdAtMs: nowMs,
+    expiresAtMs: nowMs + PRACTICE_ATTEMPT_TTL_MS,
+    attemptCount: 0,
+  };
+  practiceAttempts.set(practiceAttemptId, attempt);
+  return attempt;
+}
 
 function getAttemptKey(userId: string, dateKey: string): string {
   return `${userId}|${dateKey}`;
 }
 
-function getPreviousDateKey(dateKey: string): string {
-  const date = new Date(`${dateKey}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) return dateKey;
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
+function getCorrectAnswerInfo(question: Question): Record<string, unknown> {
+  switch (question.type) {
+    case "mcq":
+      return { correctIndex: question.correctIndex };
+    case "select-all":
+      return { correctIndices: question.correctIndices };
+    default:
+      return {};
+  }
+}
+
+function parseNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function isMissingField(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string" && value.trim().length === 0) return true;
+  return false;
+}
+
+async function getPlayerSubmitSummary(playerId: string): Promise<{
+  totalPoints: number;
+  streakDays: number;
+}> {
+  const playerSnap = await getDoc(doc(db, COLLECTIONS.PLAYER, playerId));
+  if (!playerSnap.exists()) {
+    return { totalPoints: 0, streakDays: 0 };
+  }
+
+  const data = playerSnap.data() as Record<string, unknown>;
+  const totalPoints = isMissingField(data.totalPoints)
+    ? parseNumber(data.Wallet, 0)
+    : parseNumber(data.totalPoints, 0);
+  const streakDays = parseNumber(data.streakDays, 0);
+  return { totalPoints, streakDays };
+}
+
+function resolveOwner(req: Request, guestToken?: string): {
+  ownerType: PracticeAttemptOwnerType;
+  ownerId: string;
+  userId: string | null;
+  isAdmin: boolean;
+  username: string | null;
+  guestToken: string | null;
+} | null {
+  const sessionUser = getSessionUserFromRequest(req);
+  if (sessionUser?.userId) {
+    return {
+      ownerType: "user",
+      ownerId: sessionUser.userId,
+      userId: sessionUser.userId,
+      isAdmin: sessionUser.isAdmin,
+      username: sessionUser.username,
+      guestToken: null,
+    };
+  }
+
+  const normalizedGuestToken = guestToken?.trim();
+  if (!normalizedGuestToken) {
+    return null;
+  }
+
+  return {
+    ownerType: "guest",
+    ownerId: normalizedGuestToken,
+    userId: null,
+    isAdmin: false,
+    username: null,
+    guestToken: normalizedGuestToken,
+  };
 }
 
 /**
  * GET /api/quiz/today
- * Returns whether there's a quiz available today.
+ * Returns whether there is a scheduled quiz available today.
  */
 export async function handleGetToday(req: Request): Promise<Response> {
   const dateKey = getMountainDateKey();
   const question = await getQuestionForDate(dateKey);
-  const sessionUserId = getUserIdFromRequest(req);
-  const user = sessionUserId ? await getUserById(sessionUserId) : undefined;
-  const isAdmin = !!user?.isAdmin;
-  const progress =
+  const sessionUser = getSessionUserFromRequest(req);
+  const sessionUserId = sessionUser?.userId ?? null;
+  const isAdmin = sessionUser?.isAdmin ?? false;
+  const completion =
     sessionUserId && !isAdmin
-      ? await getProgressByUserId(sessionUserId)
-      : undefined;
-  const lastCompletion =
-    progress?.lastCompletion && progress.lastCompletion.date === dateKey
-      ? progress.lastCompletion
+      ? await getPlayerQuizCompletionForDate(sessionUserId, dateKey)
       : null;
 
   if (!question) {
     return Response.json({
       hasQuiz: false,
       quizDate: dateKey,
-      message: "No questions available",
+      code: "NO_QUIZ_SCHEDULED_TODAY",
+      message: "No quiz scheduled today",
     });
   }
 
@@ -78,12 +194,11 @@ export async function handleGetToday(req: Request): Promise<Response> {
     hasQuiz: true,
     quizDate: dateKey,
     questionId: question.id,
-    ...(lastCompletion
+    ...(completion
       ? {
           alreadyCompleted: true,
-          attemptsUsed: lastCompletion.attemptsUsed,
-          pointsEarned: lastCompletion.pointsEarned,
-          completedAt: lastCompletion.completedAt,
+          pointsEarned: completion.pointsAwarded,
+          completedAt: completion.createdAt,
         }
       : {}),
   });
@@ -91,51 +206,35 @@ export async function handleGetToday(req: Request): Promise<Response> {
 
 /**
  * POST /api/quiz/start
- * Start today's quiz and return the question (without correct answers).
- * Body: { guestToken: string } or { userId: string }
  */
 export async function handleStartQuiz(req: Request): Promise<Response> {
-  // Parse request body
   let body: { guestToken?: string };
   try {
     body = await req.json();
   } catch {
-    return Response.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
+    return jsonError(400, "INVALID_JSON", "Invalid JSON body");
   }
 
-  const { guestToken } = body;
-  const sessionUserId = getUserIdFromRequest(req);
-  const resolvedUserId = sessionUserId ?? null;
-  const resolvedGuestToken = resolvedUserId ? null : guestToken?.trim();
-  const resolvedUser = resolvedUserId ? await getUserById(resolvedUserId) : null;
-  const isAdmin = !!resolvedUser?.isAdmin;
-
-  if (!resolvedUserId && !resolvedGuestToken) {
-    return Response.json(
-      { error: "guestToken is required for guest sessions" },
-      { status: 400 }
+  const owner = resolveOwner(req, body.guestToken);
+  if (!owner) {
+    return jsonError(
+      400,
+      "MISSING_GUEST_TOKEN",
+      "guestToken is required for guest sessions"
     );
   }
 
   const dateKey = getMountainDateKey();
   const question = await getQuestionForDate(dateKey);
-
   if (!question) {
-    return Response.json(
-      { error: "No quiz available today", quizDate: dateKey },
-      { status: 404 }
-    );
+    return jsonError(404, "NO_QUIZ_SCHEDULED_TODAY", "No quiz scheduled today", {
+      quizDate: dateKey,
+    });
   }
 
-  if (resolvedGuestToken) {
-    const attemptData = getGuestAttempt(resolvedGuestToken, dateKey);
+  if (owner.guestToken) {
+    const attemptData = getGuestAttempt(owner.guestToken, dateKey);
     if (attemptData?.solved) {
-      console.log(
-        `[quiz] alreadyCompleted start blocked dateKey=${dateKey} guestToken=${resolvedGuestToken}`
-      );
       return Response.json({
         alreadyCompleted: true,
         quizDate: dateKey,
@@ -144,179 +243,309 @@ export async function handleStartQuiz(req: Request): Promise<Response> {
     }
   }
 
-  if (resolvedUserId && !isAdmin) {
-    const progress = await getProgressByUserId(resolvedUserId);
-    if (progress?.lastCompletion?.date === dateKey) {
-      console.log(
-        `[quiz] alreadyCompleted start blocked dateKey=${dateKey} userId=${resolvedUserId}`
-      );
+  if (owner.userId && !owner.isAdmin) {
+    const completion = await getPlayerQuizCompletionForDate(owner.userId, dateKey);
+    if (completion) {
       return Response.json({
         alreadyCompleted: true,
         quizDate: dateKey,
+        pointsEarned: completion.pointsAwarded,
+        completedAt: completion.createdAt,
         message: "You already completed today's quiz.",
       });
     }
   }
 
-  // Track that this guest/user has started the quiz
-  if (resolvedGuestToken) {
-    markQuizStarted(resolvedGuestToken, dateKey, question.id);
+  if (owner.guestToken) {
+    markQuizStarted(owner.guestToken, dateKey, question.id);
   }
-  if (resolvedUserId) {
-    const attemptKey = getAttemptKey(resolvedUserId, dateKey);
+  if (owner.userId) {
+    const attemptKey = getAttemptKey(owner.userId, dateKey);
     if (!userAttemptCounts.has(attemptKey)) {
       userAttemptCounts.set(attemptKey, 0);
     }
   }
 
-  // Return question without correct answers
-  const safeQuestion = stripCorrectAnswers(question);
-
   return Response.json({
     quizDate: dateKey,
-    question: safeQuestion,
-    alreadyStarted: resolvedGuestToken
-      ? hasStartedQuiz(resolvedGuestToken, dateKey)
+    question: stripCorrectAnswers(question),
+    alreadyStarted: owner.guestToken
+      ? hasStartedQuiz(owner.guestToken, dateKey)
       : false,
   });
 }
 
 /**
- * Get correct answer info to include in successful response.
+ * POST /api/quiz/practice/start
+ * Request: { guestToken?: string, questionId?: string }
  */
-function getCorrectAnswerInfo(question: Question): Record<string, unknown> {
-  switch (question.type) {
-    case "mcq":
-      return { correctIndex: question.correctIndex };
-    case "select-all":
-      return { correctIndices: question.correctIndices };
-    case "written":
-      return { acceptedAnswers: question.acceptedAnswers };
-    default:
-      return {};
+export async function handleStartPracticeQuiz(req: Request): Promise<Response> {
+  let body: { guestToken?: string; questionId?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    // body optional
   }
+
+  const owner = resolveOwner(req, body.guestToken);
+  if (!owner) {
+    return jsonError(
+      400,
+      "MISSING_GUEST_TOKEN",
+      "guestToken is required for guest sessions"
+    );
+  }
+
+  const requestedQuestionId = body.questionId?.trim() ?? "";
+  if (requestedQuestionId && !owner.isAdmin) {
+    return jsonError(
+      403,
+      "PRACTICE_QUESTION_ID_FORBIDDEN",
+      "questionId override is admin-only"
+    );
+  }
+
+  const dateKey = getMountainDateKey();
+  const question = requestedQuestionId
+    ? await getQuizQuestionByQuestionId(requestedQuestionId)
+    : await getQuestionForDate(dateKey);
+
+  if (!question) {
+    if (requestedQuestionId) {
+      return jsonError(404, "QUESTION_NOT_FOUND", "Question not found", {
+        questionId: requestedQuestionId,
+        quizDate: dateKey,
+      });
+    }
+    return jsonError(404, "NO_QUIZ_SCHEDULED_TODAY", "No quiz scheduled today", {
+      quizDate: dateKey,
+    });
+  }
+
+  cleanupExpiredPracticeAttempts(Date.now());
+  const attempt = createPracticeAttempt(question.id, owner.ownerType, owner.ownerId);
+
+  return Response.json({
+    quizDate: dateKey,
+    question: stripCorrectAnswers(question),
+    alreadyStarted: false,
+    practiceAttemptId: attempt.practiceAttemptId,
+    source: requestedQuestionId ? "question-id" : "scheduled-today",
+  });
 }
 
 /**
- * POST /api/quiz/submit
- * Submit an answer for today's quiz.
- * Body: { guestToken: string, questionId: string, answer: unknown, elapsedMs: number }
+ * POST /api/quiz/practice/submit
+ * Request: { guestToken?: string, practiceAttemptId: string, answer: unknown, elapsedMs: number }
  */
-export async function handleSubmitQuiz(req: Request): Promise<Response> {
-  // Parse request body
+export async function handleSubmitPracticeQuiz(req: Request): Promise<Response> {
   let body: {
     guestToken?: string;
-    questionId: string;
-    answer: unknown;
-    elapsedMs: number;
+    practiceAttemptId?: string;
+    answer?: unknown;
+    elapsedMs?: number;
   };
   try {
     body = await req.json();
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonError(400, "INVALID_JSON", "Invalid JSON body");
   }
 
-  const { guestToken, questionId, answer, elapsedMs } = body;
-  const sessionUserId = getUserIdFromRequest(req);
-  const resolvedUserId = sessionUserId ?? null;
-  const resolvedGuestToken = resolvedUserId ? null : guestToken?.trim();
-  const resolvedUser = resolvedUserId ? await getUserById(resolvedUserId) : null;
-  const isAdmin = !!resolvedUser?.isAdmin;
-
-  // Validate required fields
-  if (!resolvedUserId && !resolvedGuestToken) {
-    return Response.json(
-      { error: "guestToken is required for guest sessions" },
-      { status: 400 }
-    );
-  }
-  if (!questionId) {
-    return Response.json({ error: "questionId is required" }, { status: 400 });
-  }
-  if (answer === undefined) {
-    return Response.json({ error: "answer is required" }, { status: 400 });
-  }
-  if (typeof elapsedMs !== "number") {
-    return Response.json(
-      { error: "elapsedMs must be a number" },
-      { status: 400 }
+  const owner = resolveOwner(req, body.guestToken);
+  if (!owner) {
+    return jsonError(
+      400,
+      "MISSING_GUEST_TOKEN",
+      "guestToken is required for guest sessions"
     );
   }
 
-  // Determine quiz date at SUBMIT time (Mountain Time)
-  const dateKey = getMountainDateKey();
-  const todayQuestion = await getQuestionForDate(dateKey);
+  const practiceAttemptId = body.practiceAttemptId?.trim();
+  if (!practiceAttemptId) {
+    return jsonError(
+      400,
+      "MISSING_PRACTICE_ATTEMPT_ID",
+      "practiceAttemptId is required"
+    );
+  }
+  if (body.answer === undefined) {
+    return jsonError(400, "MISSING_ANSWER", "answer is required");
+  }
+  if (typeof body.elapsedMs !== "number") {
+    return jsonError(400, "INVALID_ELAPSED_MS", "elapsedMs must be a number");
+  }
 
-  if (!todayQuestion) {
-    return Response.json(
-      { error: "No quiz available today", quizDate: dateKey },
-      { status: 404 }
+  const nowMs = Date.now();
+  cleanupExpiredPracticeAttempts(nowMs);
+
+  const attempt = practiceAttempts.get(practiceAttemptId);
+  if (!attempt) {
+    return jsonError(
+      404,
+      "PRACTICE_ATTEMPT_NOT_FOUND",
+      "Practice attempt not found"
+    );
+  }
+  if (attempt.expiresAtMs <= nowMs) {
+    practiceAttempts.delete(practiceAttemptId);
+    return jsonError(409, "PRACTICE_ATTEMPT_EXPIRED", "Practice attempt expired");
+  }
+  if (attempt.ownerType !== owner.ownerType || attempt.ownerId !== owner.ownerId) {
+    return jsonError(
+      403,
+      "PRACTICE_ATTEMPT_OWNER_MISMATCH",
+      "Practice attempt does not belong to this session"
     );
   }
 
-  // Check for day rollover - if submitted questionId doesn't match today's
-  if (questionId !== todayQuestion.id) {
-    const safeQuestion = stripCorrectAnswers(todayQuestion);
-    return Response.json({
-      error: "Question has rolled over",
-      rollover: true,
-      quizDate: dateKey,
-      newQuestion: safeQuestion,
+  const question = await getQuizQuestionByQuestionId(attempt.questionId);
+  if (!question) {
+    return jsonError(404, "QUESTION_NOT_FOUND", "Question not found", {
+      questionId: attempt.questionId,
     });
   }
 
-  // Get current attempt state for this guest
-  let attemptData = resolvedGuestToken
-    ? getGuestAttempt(resolvedGuestToken, dateKey)
+  attempt.attemptCount += 1;
+  const attemptNumber = attempt.attemptCount;
+  const checkResult = checkAnswer(question, body.answer);
+
+  if (!checkResult.correct) {
+    const feedback: Record<string, unknown> = {};
+    if (question.type === "mcq" && checkResult.selectedIndex !== undefined) {
+      feedback.wrongIndex = checkResult.selectedIndex;
+    }
+    if (question.type === "select-all" && checkResult.selectedIndices) {
+      feedback.selectedIndices = checkResult.selectedIndices;
+    }
+    return Response.json({
+      correct: false,
+      attemptNumber,
+      feedback,
+      quizDate: getMountainDateKey(),
+      practiceAttemptId,
+    });
+  }
+
+  const pointsBreakdown = calculatePoints(
+    question.basePoints,
+    attemptNumber,
+    body.elapsedMs
+  );
+  return Response.json({
+    correct: true,
+    attemptNumber,
+    alreadyCompleted: false,
+    pointsEarned: pointsBreakdown.totalPoints,
+    pointsBreakdown,
+    explanation: question.explanation,
+    ...getCorrectAnswerInfo(question),
+    quizDate: getMountainDateKey(),
+    practiceAttemptId,
+  });
+}
+
+/**
+ * POST /api/quiz/submit
+ */
+export async function handleSubmitQuiz(req: Request): Promise<Response> {
+  let body: {
+    guestToken?: string;
+    questionId?: string;
+    answer?: unknown;
+    elapsedMs?: number;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return jsonError(400, "INVALID_JSON", "Invalid JSON body");
+  }
+
+  const owner = resolveOwner(req, body.guestToken);
+  if (!owner) {
+    return jsonError(
+      400,
+      "MISSING_GUEST_TOKEN",
+      "guestToken is required for guest sessions"
+    );
+  }
+  const questionId = body.questionId?.trim();
+  if (!questionId) {
+    return jsonError(400, "MISSING_QUESTION_ID", "questionId is required");
+  }
+  if (body.answer === undefined) {
+    return jsonError(400, "MISSING_ANSWER", "answer is required");
+  }
+  if (typeof body.elapsedMs !== "number") {
+    return jsonError(400, "INVALID_ELAPSED_MS", "elapsedMs must be a number");
+  }
+
+  const dateKey = getMountainDateKey();
+  const todayQuestion = await getQuestionForDate(dateKey);
+  if (!todayQuestion) {
+    return jsonError(404, "NO_QUIZ_SCHEDULED_TODAY", "No quiz scheduled today", {
+      quizDate: dateKey,
+    });
+  }
+
+  if (questionId !== todayQuestion.id) {
+    return jsonError(409, "QUESTION_ROLLED_OVER", "Question has rolled over", {
+      rollover: true,
+      quizDate: dateKey,
+      newQuestion: stripCorrectAnswers(todayQuestion),
+    });
+  }
+
+  const attemptData = owner.guestToken
+    ? getGuestAttempt(owner.guestToken, dateKey)
     : null;
 
-  // Check if already solved
   if (attemptData?.solved) {
-    console.log(
-      `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} guestToken=${resolvedGuestToken}`
-    );
     return Response.json({
       alreadyCompleted: true,
       quizDate: dateKey,
+      totalPoints: null,
+      streakDays: null,
+      completedAt: null,
       canRetry: false,
       message: "You already completed today's quiz.",
     });
   }
 
-  if (resolvedUserId && !isAdmin) {
-    const progress = await getProgressByUserId(resolvedUserId);
-    if (progress?.lastCompletion?.date === dateKey) {
-      console.log(
-        `[quiz] alreadyCompleted submit blocked dateKey=${dateKey} userId=${resolvedUserId}`
-      );
+  if (owner.userId && !owner.isAdmin) {
+    const completion = await getPlayerQuizCompletionForDate(owner.userId, dateKey);
+    if (completion) {
+      const summary = await getPlayerSubmitSummary(owner.userId);
       return Response.json({
         alreadyCompleted: true,
         quizDate: dateKey,
+        pointsEarned: completion.pointsAwarded,
+        totalPoints: summary.totalPoints,
+        streakDays: summary.streakDays,
+        completedAt: completion.createdAt,
         canRetry: false,
         message: "You already completed today's quiz.",
       });
     }
   }
 
-  // Increment attempt count
-  const attemptNumber = resolvedUserId
-    ? (userAttemptCounts.get(getAttemptKey(resolvedUserId, dateKey)) ?? 0) + 1
+  const attemptNumber = owner.userId
+    ? (userAttemptCounts.get(getAttemptKey(owner.userId, dateKey)) ?? 0) + 1
     : (attemptData?.attemptCount ?? 0) + 1;
 
-  // Check the answer
-  const checkResult = checkAnswer(todayQuestion, answer);
-  console.log(`[quiz] 🔍 Answer check:`, {
-    questionId: todayQuestion.id,
-    questionType: todayQuestion.type,
-    answer,
-    checkResult,
-    attemptNumber
-  });
+  const checkResult = checkAnswer(todayQuestion, body.answer);
+  if (isQuizDebugEnabled) {
+    console.log("[quiz][debug] submit", {
+      questionId: todayQuestion.id,
+      questionType: todayQuestion.type,
+      answer: body.answer,
+      checkResult,
+      attemptNumber,
+    });
+  }
 
   if (!checkResult.correct) {
-    // Update attempt count in session
-    if (resolvedGuestToken) {
-      updateGuestAttempt(resolvedGuestToken, dateKey, {
+    if (owner.guestToken) {
+      updateGuestAttempt(owner.guestToken, dateKey, {
         questionId: todayQuestion.id,
         attemptCount: attemptNumber,
         solved: false,
@@ -324,11 +553,10 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
         elapsedMs: null,
       });
     }
-  if (resolvedUserId) {
-    userAttemptCounts.set(getAttemptKey(resolvedUserId, dateKey), attemptNumber);
-  }
+    if (owner.userId) {
+      userAttemptCounts.set(getAttemptKey(owner.userId, dateKey), attemptNumber);
+    }
 
-    // Build feedback based on question type
     const feedback: Record<string, unknown> = {};
     if (todayQuestion.type === "mcq" && checkResult.selectedIndex !== undefined) {
       feedback.wrongIndex = checkResult.selectedIndex;
@@ -336,7 +564,6 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
     if (todayQuestion.type === "select-all" && checkResult.selectedIndices) {
       feedback.selectedIndices = checkResult.selectedIndices;
     }
-    // For written, we don't give extra details on wrong answer
 
     return Response.json({
       correct: false,
@@ -346,130 +573,85 @@ export async function handleSubmitQuiz(req: Request): Promise<Response> {
     });
   }
 
-  // Correct answer!
   const pointsBreakdown = calculatePoints(
     todayQuestion.basePoints,
     attemptNumber,
-    elapsedMs
+    body.elapsedMs
   );
 
-  // Update session with solved state
-  if (resolvedGuestToken) {
-    updateGuestAttempt(resolvedGuestToken, dateKey, {
+  if (owner.guestToken) {
+    updateGuestAttempt(owner.guestToken, dateKey, {
       questionId: todayQuestion.id,
       attemptCount: attemptNumber,
       solved: true,
       solvedOnAttempt: attemptNumber,
-      elapsedMs,
+      elapsedMs: body.elapsedMs,
     });
   }
-  if (resolvedUserId && !isAdmin) {
-    const progress = await getOrCreateProgress(resolvedUserId);
-    const previousDateKey = getPreviousDateKey(dateKey);
-    const currentStreak =
-      progress.lastCorrectDate === previousDateKey
-        ? progress.currentStreak + 1
-        : 1;
-    const longestStreak = Math.max(progress.longestStreak, currentStreak);
-    const updated = {
-      ...progress,
-      currentStreak,
-      longestStreak,
-      totalPoints: progress.totalPoints + pointsBreakdown.totalPoints,
-      lastCorrectDate: dateKey,
-      lastCompletion: {
-        date: dateKey,
-        questionId: todayQuestion.id,
-        attemptsUsed: attemptNumber,
-        pointsEarned: pointsBreakdown.totalPoints,
-        completedAt: new Date().toISOString(),
-        elapsedMs,
-      },
-    };
-    await saveProgress(updated);
 
-    // Save completion to Firebase
-    try {
-      // Extract puzzle ID from question ID (format: {puzzleId}_q{index})
-      const puzzleId = todayQuestion.id.split("_")[0];
+  let completionResult: Awaited<ReturnType<typeof recordPlayerQuizCompletion>> | null = null;
+  if (owner.userId && !owner.isAdmin) {
+    completionResult = await recordPlayerQuizCompletion({
+      playerId: owner.userId,
+      dateKey,
+      displayName: owner.username ?? owner.userId,
+      pointsAwarded: pointsBreakdown.totalPoints,
+    });
 
-      // Get player's Firebase document ID by username
-      const user = await getUserById(resolvedUserId);
-      if (user?.username) {
-        const player = await FirestoreQueries.getPlayerByUsername(user.username);
-        if (player) {
-          console.log(`[quiz] Saving Firebase completion for player: ${player.Username} (${player.id})`);
-
-          // Save to PuzzleDay subcollection
-          await saveQuizCompletionToPuzzleDay(
-            puzzleId,
-            player.id,
-            pointsBreakdown.totalPoints,
-            elapsedMs
-          );
-
-          // Save to Player.PuzzleRecord and update Wallet
-          await saveQuizCompletionToPlayer(
-            player.id,
-            puzzleId,
-            pointsBreakdown.totalPoints
-          );
-
-          console.log(`[quiz] ✅ Firebase completion saved successfully - ${pointsBreakdown.totalPoints} points awarded`);
-        } else {
-          console.warn(`[quiz] Player not found in Firebase for username: ${user.username}`);
-        }
-      }
-    } catch (error) {
-      console.error(`[quiz] ❌ Error saving to Firebase:`, error);
-      // Don't fail the request if Firebase save fails
+    if (completionResult.alreadyCompleted) {
+      userAttemptCounts.delete(getAttemptKey(owner.userId, dateKey));
+      return Response.json({
+        alreadyCompleted: true,
+        quizDate: dateKey,
+        canRetry: false,
+        pointsEarned: completionResult.completion.pointsAwarded,
+        totalPoints: completionResult.totalPoints,
+        streakDays: completionResult.streakDays,
+        completedAt: completionResult.completion.createdAt,
+        message: "You already completed today's quiz.",
+      });
     }
   }
-  if (resolvedUserId) {
-    userAttemptCounts.delete(getAttemptKey(resolvedUserId, dateKey));
-  }
 
-  // Include correct answer info only on correct response
-  const correctAnswerInfo = getCorrectAnswerInfo(todayQuestion);
+  if (owner.userId) {
+    userAttemptCounts.delete(getAttemptKey(owner.userId, dateKey));
+  }
 
   return Response.json({
     correct: true,
     attemptNumber,
+    alreadyCompleted: false,
     pointsEarned: pointsBreakdown.totalPoints,
+    totalPoints: completionResult?.totalPoints ?? null,
+    streakDays: completionResult?.streakDays ?? null,
+    completedAt: completionResult?.completion.createdAt ?? null,
     pointsBreakdown,
     explanation: todayQuestion.explanation,
-    ...correctAnswerInfo,
+    ...getCorrectAnswerInfo(todayQuestion),
     quizDate: dateKey,
   });
 }
 
-/**
- * Main quiz API router.
- * Routes requests to appropriate handlers.
- */
 export async function handleQuizApi(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
 
-  // GET /api/quiz/today
   if (method === "GET" && path === "/api/quiz/today") {
     return handleGetToday(req);
   }
-
-  // POST /api/quiz/start
   if (method === "POST" && path === "/api/quiz/start") {
     return handleStartQuiz(req);
   }
-
-  // POST /api/quiz/submit
+  if (method === "POST" && path === "/api/quiz/practice/start") {
+    return handleStartPracticeQuiz(req);
+  }
   if (method === "POST" && path === "/api/quiz/submit") {
     return handleSubmitQuiz(req);
   }
+  if (method === "POST" && path === "/api/quiz/practice/submit") {
+    return handleSubmitPracticeQuiz(req);
+  }
 
-  // 404 for unknown quiz endpoints
-  return Response.json(
-    { error: "Not found", path },
-    { status: 404 }
-  );
+  return jsonError(404, "NOT_FOUND", "Not found", { path });
 }
