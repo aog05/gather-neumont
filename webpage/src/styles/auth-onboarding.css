@@ -1,63 +1,68 @@
-/* Auth & Onboarding UI Styles
- * Reuses design tokens from quiz-ui.css for consistency
- * Provides clean, production-ready overlays on top of the game
+/**
+ * Auth & Onboarding UI Styles - Neumont Brand Identity
+ * Clean, high-tech, professional aesthetic
+ * Primary Colors: Neumont Yellow (#FFDD00), Neumont Grey (#1F1F1F)
+ * Typography: DIN 2014
  */
 
 .auth-overlay,
 .onboarding-overlay {
-  /* Import quiz-ui tokens */
-  --font-sans: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
-  
+  /* Neumont Brand Colors */
+  --neumont-yellow: #FFDD00;
+  --neumont-grey: #1F1F1F;
+  --neumont-grey-light: #2a2a2a;
+  --neumont-grey-border: #3a3a3a;
+
   /* Background Layers */
-  --panel: #0e1116;
-  --surface: #171a21;
-  --surface-strong: #1e2229;
-  --surface-hover: #252932;
-  --surface-selected: #2a2f3a;
-  
-  /* Borders - Increased visibility */
-  --border: rgba(255, 255, 255, 0.15);
-  --border-strong: rgba(255, 255, 255, 0.25);
-  
+  --panel: #1F1F1F;
+  --surface: #2a2a2a;
+  --surface-strong: #1e1e1e;
+  --surface-hover: rgba(58, 58, 58, 0.5);
+  --surface-selected: rgba(255, 221, 0, 0.15);
+
+  /* Borders */
+  --border: #3a3a3a;
+  --border-strong: #3a3a3a;
+
   /* Text Colors */
-  --text: #f5f5f7;
-  --text-muted: #a8a8ad;
-  --faint: #8e8e93;
-  
-  /* Accent */
-  --accent: #f5a623;
-  --accent-ink: #1d1104;
-  
+  --text: #f0f0f0;
+  --text-muted: #888;
+  --faint: #666;
+
+  /* Accent - Neumont Yellow */
+  --accent: #FFDD00;
+  --accent-ink: #1F1F1F;
+
   /* Semantic Colors */
   --success: #52c97c;
   --danger: #d65e5e;
-  
+
   /* Interactive States */
-  --focus: rgba(245, 166, 35, 0.4);
-  --outline-hover: rgba(245, 166, 35, 0.25);
-  
-  /* Radius */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  
+  --focus: rgba(255, 221, 0, 0.4);
+  --outline-hover: rgba(255, 221, 0, 0.3);
+
+  /* Radius - Sharp corners for industrial look */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+
   /* Spacing */
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  
+
   /* Shadows */
-  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.2), 0 16px 48px rgba(0, 0, 0, 0.18);
+  --shadow-1: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 8px 32px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 221, 0, 0.1);
 
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   padding: var(--space-6);
-  font-family: var(--font-sans);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
   color: var(--text);
 }
 
@@ -67,7 +72,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(4px);
   z-index: -1;
 }
@@ -76,34 +81,93 @@
 .auth-container,
 .onboarding-container {
   width: 100%;
-  max-width: 520px;
-  padding: var(--space-6);
-  background: var(--panel);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  max-width: 600px;
+  padding: 28px;
+  background: linear-gradient(135deg, #1F1F1F 0%, #2a2a2a 100%);
+  border: 3px solid var(--border);
+  border-radius: 0;
   box-shadow: var(--shadow-2);
+  position: relative;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Typography */
+/* Tech corner accents - Neumont Yellow */
+.auth-container::before,
+.auth-container::after,
+.onboarding-container::before,
+.onboarding-container::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--accent);
+}
+
+.auth-container::before,
+.onboarding-container::before {
+  top: -3px;
+  left: -3px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.auth-container::after,
+.onboarding-container::after {
+  bottom: -3px;
+  right: -3px;
+  border-left: none;
+  border-top: none;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scale(0.95) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Typography - Bold & Direct */
 .auth-heading,
 .onboarding-heading {
   margin: 0;
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  letter-spacing: 1px;
+  color: var(--accent);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(255, 221, 0, 0.3);
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border);
+  position: relative;
+}
+
+.auth-heading::after,
+.onboarding-heading::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: var(--accent);
 }
 
 .auth-description,
 .onboarding-description {
-  margin-top: var(--space-2);
+  margin-top: var(--space-4);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--text-muted);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
-/* Form Elements */
+/* Form Elements - Technical & Energetic */
 .auth-form,
 .onboarding-form {
   margin-top: var(--space-5);
@@ -117,71 +181,81 @@
 }
 
 .form-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .form-input {
   width: 100%;
-  padding: 12px 14px;
-  font-family: inherit;
+  padding: 14px 16px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
   font-size: 15px;
   line-height: 1.4;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid var(--border);
+  border-radius: 0;
   outline: none;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  border-left: 3px solid var(--accent);
 }
 
 .form-input::placeholder {
   color: var(--faint);
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .form-input:hover {
-  border-color: var(--outline-hover);
-  background: var(--surface-hover);
+  border-color: var(--accent);
+  background: rgba(58, 58, 58, 0.4);
 }
 
 .form-input:focus {
   border-color: var(--accent);
-  background: var(--surface-strong);
-  box-shadow: 0 0 0 3px var(--focus);
+  background: rgba(58, 58, 58, 0.5);
+  box-shadow: 0 0 12px rgba(255, 221, 0, 0.3);
 }
 
 /* Error Message */
 .form-error {
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 14px;
   line-height: 1.4;
   color: var(--danger);
-  background: rgba(214, 94, 94, 0.08);
-  border: 1px solid rgba(214, 94, 94, 0.2);
-  border-radius: var(--radius-sm);
+  background: rgba(214, 94, 94, 0.1);
+  border: 2px solid rgba(214, 94, 94, 0.3);
+  border-radius: 0;
+  border-left: 3px solid var(--danger);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
-/* Buttons */
+/* Buttons - Industrial Tech Style */
 .btn {
-  padding: 12px 16px;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 14px 20px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1;
   color: var(--text);
-  background: var(--surface-strong);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   outline: none;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
 }
 
 .btn:hover:not(:disabled) {
   background: var(--surface-hover);
-  border-color: var(--outline-hover);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(255, 221, 0, 0.2);
 }
 
 .btn:focus-visible {
@@ -193,41 +267,52 @@
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Primary button (main CTAs) */
+/* Primary button (main CTAs) - Neumont Yellow */
 .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(255, 221, 0, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #f7b235;
-  border-color: #f7b235;
+  background: #ffed4d;
+  border-color: #ffed4d;
+  box-shadow: 0 6px 16px rgba(255, 221, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 /* Secondary button */
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-strong);
+  background: rgba(58, 58, 58, 0.5);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(58, 58, 58, 0.7);
+  border-color: var(--accent);
 }
 
-/* Ghost button - now visible at rest */
+/* Ghost button */
 .btn-ghost {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--border-strong);
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: var(--outline-hover);
+  background: rgba(58, 58, 58, 0.3);
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 /* Button group */
@@ -279,22 +364,50 @@
   border-radius: 2px;
 }
 
-/* Avatar preview */
+/* Avatar preview - Tech Frame */
 .avatar-preview-wrapper {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: rgba(58, 58, 58, 0.2);
+  border: 2px solid var(--border);
+  border-radius: 0;
+  position: relative;
+}
+
+.avatar-preview-wrapper::before,
+.avatar-preview-wrapper::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent);
+}
+
+.avatar-preview-wrapper::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.avatar-preview-wrapper::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
 }
 
 .avatar-preview {
   width: 140px;
   height: 140px;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--surface);
-  border: 2px solid var(--border-strong);
-  box-shadow: var(--shadow-1);
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 20px rgba(255, 221, 0, 0.3);
   image-rendering: pixelated;
 }
 
@@ -303,9 +416,13 @@
 }
 
 .avatar-info-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 4px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
 }
 
 .avatar-info-value {
@@ -314,9 +431,9 @@
   color: var(--text-muted);
 }
 
-/* Major selection grid */
+/* Major selection grid - Industrial Cards */
 .major-grid {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
@@ -326,19 +443,23 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
+  padding: var(--space-4);
   text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid var(--border);
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   outline: none;
+  position: relative;
+  border-left: 3px solid transparent;
 }
 
 .major-card:hover {
-  background: var(--surface-hover);
-  border-color: var(--outline-hover);
+  background: rgba(58, 58, 58, 0.5);
+  border-color: var(--accent);
+  box-shadow: -4px 0 12px rgba(255, 221, 0, 0.2);
+  transform: translateX(2px);
 }
 
 .major-card:focus-visible {
@@ -346,23 +467,27 @@
 }
 
 .major-card.selected {
-  background: var(--surface-selected);
+  background: rgba(255, 221, 0, 0.1);
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-left-color: var(--accent);
+  box-shadow: -4px 0 16px rgba(255, 221, 0, 0.3);
 }
 
 .major-icon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: block;
   flex-shrink: 0;
 }
 
 .major-label {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.3;
   color: var(--text);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Logo display */

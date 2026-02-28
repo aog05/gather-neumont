@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { NPC } from "./NPC";
 import type { NPCConfig } from "../types/npc.types";
-import type { PlayerController } from "./PlayerController";
 
 /**
  * NPCManager - Manages lifecycle of all NPCs in the current scene
@@ -51,7 +50,9 @@ export class NPCManager {
 
     try {
       // Fetch NPC configuration for this floor
-      const response = await fetch(`/assets/data/npcs/floor${floor}-npcs.json`);
+      const response = await fetch(
+        `/assets/data/npcs/floor${floor}-npcs.json`,
+      );
 
       if (!response.ok) {
         console.warn(`No NPCs found for floor ${floor}`);
@@ -112,22 +113,29 @@ export class NPCManager {
    * Call this every frame from scene update()
    * @param player - The player game object
    */
-  public update(player: PlayerController): void {
+  public update(player: Phaser.GameObjects.GameObject): void {
+    if (!player) {
+      return;
+    }
+
     // Update each NPC and track nearest one in range
-    this.checkPlayerProximity(player.getGameObject());
+    this.checkPlayerProximity(player);
+
+    // DEBUG: Log key state when key is down
+    if (this.interactionKey.isDown) {
+      console.log(`[NPCManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
+    }
 
     // Handle interaction key press
     // Note: Using shared key, so check NPC proximity first to avoid conflicts
-    if (player.isInteracting()) {
+    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
+
+    if (justDown) {
       console.log(`[NPCManager] ⌨️ E key JustDown triggered!`);
-      console.log(
-        `[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || "none"}, nearby: ${this.nearestNPC?.isPlayerNearby}`,
-      );
+      console.log(`[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || 'none'}, nearby: ${this.nearestNPC?.isPlayerNearby}`);
 
       if (this.nearestNPC && this.nearestNPC.isPlayerNearby) {
-        console.log(
-          `[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`,
-        );
+        console.log(`[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`);
         this.nearestNPC.startDialogue();
       } else {
         console.log(`[NPCManager] ❌ No NPC in range`);

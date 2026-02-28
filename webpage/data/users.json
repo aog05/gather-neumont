@@ -120,12 +120,6 @@
       "username": "dsfafdsaf",
       "isAdmin": false,
       "createdAt": "2026-02-08T00:52:45.189Z"
-    },
-    {
-      "id": "6c8e03f5-a805-4d4f-8ea4-8b729a811a33",
-      "username": "john1",
-      "isAdmin": false,
-      "createdAt": "2026-02-23T03:37:38.644Z"
     }
   ]
 }

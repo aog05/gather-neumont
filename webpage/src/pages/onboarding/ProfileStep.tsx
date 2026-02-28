@@ -2,9 +2,9 @@ import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { putProfile } from "../../api/profileApi";
-import NeumontPanelShell from "../../components/NeumontPanelShell";
 import { useAuth } from "../../features/auth/AuthContext";
 import { useProfile } from "../../features/profile/ProfileContext";
+import "../../styles/auth-onboarding.css";
 
 export default function ProfileStep() {
   const auth = useAuth();
@@ -12,7 +12,6 @@ export default function ProfileStep() {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState(profile.profileDraft.displayName);
-  const [email, setEmail] = useState(profile.profileDraft.email ?? "");
 
   const canContinue = useMemo(() => {
     return displayName.trim().length > 0;
@@ -25,12 +24,10 @@ export default function ProfileStep() {
     const nextDraft = {
       ...profile.profileDraft,
       displayName: displayName.trim(),
-      email: email.trim() ? email.trim() : undefined,
     };
 
     profile.setProfileDraft({
       displayName: nextDraft.displayName,
-      email: nextDraft.email,
     });
 
     // Guests never call the server. Logged-in users can attempt a save, but it must not block onboarding.
@@ -53,46 +50,34 @@ export default function ProfileStep() {
   }
 
   return (
-    <NeumontPanelShell title="Your Profile" maxWidth={560}>
-      <p className="quest-menu-auth-subtitle">
-        Tell us a bit about yourself to get started.
-      </p>
+    <div className="onboarding-overlay">
+      <div className="onboarding-container">
+        <h1 className="onboarding-heading">Your Profile</h1>
+        <p className="onboarding-description">
+          Tell us a bit about yourself to get started.
+        </p>
 
-      <form onSubmit={onSubmit} className="quest-menu-auth-form">
-        <div className="quest-menu-auth-field">
-          <label htmlFor="displayName" className="quest-menu-auth-label">Display Name</label>
-          <input
-            id="displayName"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Alex"
-            className="quest-menu-auth-input"
-          />
-        </div>
+        <form onSubmit={onSubmit} className="onboarding-form">
+          <div className="form-field">
+            <label htmlFor="displayName" className="form-label">Display name</label>
+            <input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Alex"
+              className="form-input"
+            />
+          </div>
 
-        <div className="quest-menu-auth-field">
-          <label htmlFor="email" className="quest-menu-auth-label">Email (Optional)</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alex@example.com"
-            autoComplete="email"
-            className="quest-menu-auth-input"
-          />
-        </div>
-
-        <div className="quest-menu-action-group">
           <button
             type="submit"
             disabled={!canContinue}
-            className="quest-menu-action-btn quest-menu-action-btn--primary"
+            className="btn btn-primary"
           >
             Continue
           </button>
-        </div>
-      </form>
-    </NeumontPanelShell>
+        </form>
+      </div>
+    </div>
   );
 }

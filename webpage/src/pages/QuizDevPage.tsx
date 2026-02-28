@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QuizModal } from "../components/quiz/QuizModal";
+import { DEMO_LEADERBOARD } from "../demo/demoLeaderboard";
 import "./QuizDevPage.css";
 import "../styles/quiz-ui.css";
 
@@ -10,9 +11,10 @@ type AuthUser = {
 };
 
 type LeaderboardEntry = {
-  playerId: string;
-  displayName: string;
-  streakDays: number;
+  rank: number;
+  username: string;
+  longestStreak: number;
+  currentStreak: number;
   totalPoints: number;
 };
 
@@ -35,9 +37,11 @@ export default function QuizDevPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [leaderboardUsingDemo, setLeaderboardUsingDemo] = useState(false);
   const leaderboardScrollRef = useRef(false);
   const [leaderboardAnimNonce, setLeaderboardAnimNonce] = useState(0);
   const leaderboardLoadedRef = useRef(false);
+  const [useDemoLeaderboard, setUseDemoLeaderboard] = useState(true);
   const [rankAnimActive, setRankAnimActive] = useState(false);
   const [rankAnimValue, setRankAnimValue] = useState(0);
   const [rankAnimDone, setRankAnimDone] = useState(false);
@@ -155,32 +159,51 @@ export default function QuizDevPage() {
   };
 
   const showMainUi = !!authUser || guestMode;
-  const entries = leaderboard.map((entry, index) => ({
-    ...entry,
-    rank: index + 1,
-  }));
+  const displayedLeaderboard = useDemoLeaderboard
+    ? DEMO_LEADERBOARD
+    : { entries: leaderboard };
+  const entries = displayedLeaderboard.entries ?? [];
   const meUsername = authUser?.username;
   const myEntry = meUsername
     ? entries.find(
-        (entry) => entry.displayName.toLowerCase() === meUsername.toLowerCase()
+        (entry) => entry.username.toLowerCase() === meUsername.toLowerCase()
       )
     : undefined;
-  const topStreak = entries[0];
+  const previewLeaderboard =
+    entries.length > 0 ? entries : DEMO_LEADERBOARD.entries;
+  const topStreak = previewLeaderboard[0];
 
   const loadLeaderboard = async () => {
+    if (useDemoLeaderboard) {
+      setLeaderboardUsingDemo(true);
+      setLeaderboard(DEMO_LEADERBOARD.entries);
+      leaderboardLoadedRef.current = true;
+      return;
+    }
     setLeaderboardLoading(true);
     setLeaderboardError(null);
     try {
       const res = await fetch("/api/leaderboard?limit=50");
       const data = (await res.json()) as { entries?: LeaderboardEntry[] };
       if (!res.ok) {
-        throw new Error("Failed to load leaderboard");
+        setLeaderboardError("Failed to load leaderboard");
+        setLeaderboardUsingDemo(true);
+        setLeaderboard(DEMO_LEADERBOARD.entries);
+        return;
       }
-      setLeaderboard(data.entries ?? []);
+      if (!data.entries || data.entries.length === 0) {
+        setLeaderboardUsingDemo(true);
+        setLeaderboard(DEMO_LEADERBOARD.entries);
+        leaderboardLoadedRef.current = true;
+        return;
+      }
+      setLeaderboardUsingDemo(false);
+      setLeaderboard(data.entries);
       leaderboardLoadedRef.current = true;
     } catch {
       setLeaderboardError("Failed to load leaderboard");
-      setLeaderboard([]);
+      setLeaderboardUsingDemo(true);
+      setLeaderboard(DEMO_LEADERBOARD.entries);
       leaderboardLoadedRef.current = true;
     } finally {
       setLeaderboardLoading(false);
@@ -199,7 +222,7 @@ export default function QuizDevPage() {
       leaderboardScrollRef.current = false;
       loadLeaderboard();
     }
-  }, [activeTab, leaderboardLoading]);
+  }, [activeTab, leaderboardLoading, useDemoLeaderboard]);
 
   useEffect(() => {
     if (activeTab !== "leaderboard") {
@@ -211,7 +234,7 @@ export default function QuizDevPage() {
     if (leaderboardAnimNonce === 0) {
       return;
     }
-    const targetUsername = myEntry.displayName.toLowerCase();
+    const targetUsername = myEntry.username.toLowerCase();
     const el = document.querySelector(
       `[data-username="${targetUsername}"]`
     ) as HTMLElement | null;
@@ -234,7 +257,7 @@ export default function QuizDevPage() {
       return;
     }
 
-    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.playerId}:${myEntry.rank}`;
+    const animKey = `leaderboard:${leaderboardAnimNonce}:${myEntry.username}:${myEntry.rank}`;
     if (rankAnimKeyRef.current === animKey) {
       return;
     }
@@ -326,8 +349,8 @@ export default function QuizDevPage() {
         )}
         <div className="podium-names">
           {visible.map((entry, idx) => (
-            <span className="podium-name" key={`${rankNum}-${entry.playerId}-${idx}`}>
-              {entry.displayName}
+            <span className="podium-name" key={`${rankNum}-${entry.username}-${idx}`}>
+              {entry.username}
             </span>
           ))}
           {remaining > 0 && (
@@ -490,11 +513,11 @@ export default function QuizDevPage() {
                       <span className="quiz-streak-rank-badge" data-rank="1">
                         #1
                       </span>
-                      <span className="quiz-streak-username">{topStreak.displayName}</span>
+                      <span className="quiz-streak-username">{topStreak.username}</span>
                     </div>
                     <div className="quiz-streak-stats">
                       <div className="quiz-streak-stat">
-                        <span className="quiz-streak-stat-value">{topStreak.streakDays}</span>
+                        <span className="quiz-streak-stat-value">{topStreak.longestStreak}</span>
                         <span className="quiz-streak-stat-label">Streak</span>
                       </div>
                       <div className="quiz-streak-divider"></div>
@@ -516,10 +539,32 @@ export default function QuizDevPage() {
                     <div className="lb-left-header">
                       <div className="lb-header-content">
                         <h3>Leaderboard</h3>
+                        {(useDemoLeaderboard || leaderboardUsingDemo) && (
+                          <span className="quiz-dev-demo-label">Demo</span>
+                        )}
                       </div>
                     </div>
                     
                     <div className="lb-controls">
+                      <label className="lb-toggle">
+                        <input
+                          type="checkbox"
+                          checked={useDemoLeaderboard}
+                          onChange={(event) => {
+                            setUseDemoLeaderboard(event.target.checked);
+                            leaderboardLoadedRef.current = false;
+                            leaderboardScrollRef.current = false;
+                            if (event.target.checked) {
+                              setLeaderboardUsingDemo(true);
+                              setLeaderboard(DEMO_LEADERBOARD.entries);
+                            } else {
+                              setLeaderboardUsingDemo(false);
+                              setLeaderboard([]);
+                            }
+                          }}
+                        />
+                        <span>Use demo data</span>
+                      </label>
                       <button
                         type="button"
                         className="lb-refresh-btn"
@@ -568,7 +613,7 @@ export default function QuizDevPage() {
                             <div className="lb-stat-separator"></div>
                             <div className="lb-stat">
                               <span className="lb-stat-label">Streak</span>
-                              <span className="lb-stat-value">{myEntry.streakDays}</span>
+                              <span className="lb-stat-value">{myEntry.longestStreak}</span>
                             </div>
                             <div className="lb-stat-separator"></div>
                             <div className="lb-stat">
@@ -578,7 +623,7 @@ export default function QuizDevPage() {
                           </div>
                         </div>
                       )
-                    ) : authUser ? (
+                    ) : authUser && !useDemoLeaderboard && !leaderboardUsingDemo ? (
                       <div className="lb-your-card lb-empty">
                         <span className="lb-empty-text">
                           Complete a quiz to appear on the leaderboard.
@@ -640,7 +685,7 @@ export default function QuizDevPage() {
                           {entries.map((entry, index) => {
                             const isMe =
                               authUser?.username?.toLowerCase() ===
-                              entry.displayName.toLowerCase();
+                              entry.username.toLowerCase();
                             const showDivider = index > 0 && (index === 3 || index === 10 || index % 10 === 0);
                             return (
                               <>
@@ -649,8 +694,8 @@ export default function QuizDevPage() {
                                   className={`lb-table-row ${
                                     isMe ? "lb-table-row--me" : ""
                                   }`}
-                                  data-username={entry.displayName.toLowerCase()}
-                                  key={`${entry.rank}-${entry.playerId}`}
+                                  data-username={entry.username.toLowerCase()}
+                                  key={`${entry.rank}-${entry.username}`}
                                   role="row"
                                 >
                                   <span className="lb-table-rank">
@@ -659,12 +704,12 @@ export default function QuizDevPage() {
                                     </span>
                                   </span>
                                   <span className="lb-table-user">
-                                    {entry.displayName}
+                                    {entry.username}
                                     {isMe && (
                                       <span className="lb-you-badge">YOU</span>
                                     )}
                                   </span>
-                                  <span className="lb-table-streak">{entry.streakDays}</span>
+                                  <span className="lb-table-streak">{entry.longestStreak}</span>
                                   <span className="lb-table-points">{entry.totalPoints}</span>
                                 </div>
                               </>

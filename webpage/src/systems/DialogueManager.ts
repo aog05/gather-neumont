@@ -113,7 +113,7 @@ export class DialogueManager {
 
     // Set current tree and node
     this.currentTree = tree;
-    this.currentNode = tree.nodes[startNodeId]!;
+    this.currentNode = tree.nodes[startNodeId];
 
     if (!this.currentNode) {
       console.error(`Start node not found: ${startNodeId}`);
@@ -217,9 +217,7 @@ export class DialogueManager {
     }
 
     // Fallback: if we reach here, something is wrong
-    console.warn(
-      `Unhandled node type or missing data: ${this.currentNode.type}`,
-    );
+    console.warn(`Unhandled node type or missing data: ${this.currentNode.type}`);
     this.endDialogue();
   }
 
@@ -243,9 +241,7 @@ export class DialogueManager {
 
     // Handle null/undefined nodeId
     if (!nodeId) {
-      console.warn(
-        "Attempted to navigate to null/undefined node, ending dialogue",
-      );
+      console.warn("Attempted to navigate to null/undefined node, ending dialogue");
       this.endDialogue();
       return;
     }
@@ -253,9 +249,7 @@ export class DialogueManager {
     const node = this.currentTree.nodes[nodeId];
 
     if (!node) {
-      console.error(
-        `Node not found: ${nodeId} in tree ${this.state.currentTreeId}`,
-      );
+      console.error(`Node not found: ${nodeId} in tree ${this.state.currentTreeId}`);
       console.error(`Available nodes:`, Object.keys(this.currentTree.nodes));
       this.endDialogue();
       return;
@@ -275,6 +269,11 @@ export class DialogueManager {
 
       // Emit update to show end text
       this.bridge.emit("dialogue:update", { node });
+
+      // End dialogue after a short delay
+      setTimeout(() => {
+        this.endDialogue();
+      }, 100);
 
       return;
     }
@@ -330,8 +329,7 @@ export class DialogueManager {
 
       switch (condition.type) {
         case "flag":
-          passed =
-            this.gameState.checkFlag(condition.check) === condition.value;
+          passed = this.gameState.checkFlag(condition.check) === condition.value;
           break;
         case "quest":
           passed = this.gameState.checkQuest(condition.check, condition.value);

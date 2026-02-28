@@ -1,4 +1,7 @@
-/* Quiz Result - Apple/Enterprise Results Screen */
+/**
+ * Quiz Result - Neumont Brand Identity
+ * Industrial tech results screen with yellow accents
+ */
 
 .quiz-result {
   display: flex;
@@ -20,11 +23,11 @@
   justify-content: center;
   width: 56px;
   height: 56px;
-  background: rgba(82, 201, 124, 0.12);
-  border: 1px solid rgba(82, 201, 124, 0.3);
-  border-radius: 50%;
+  background: rgba(82, 201, 124, 0.15);
+  border: 3px solid rgba(82, 201, 124, 0.4);
+  border-radius: 0;
   font-size: 28px;
-  color: var(--success);
+  color: #52c97c;
   flex-shrink: 0;
 }
 
@@ -32,67 +35,100 @@
   margin: 0;
   font-size: 32px;
   font-weight: 700;
-  color: var(--success);
-  letter-spacing: -0.02em;
+  color: #52c97c;
+  letter-spacing: 1px;
   line-height: 1.1;
+  text-transform: uppercase;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
-/* Points Display - Premium Card */
+/* Points Display - Industrial Tech Card */
 .quiz-result-points {
   display: flex;
   align-items: baseline;
   gap: 12px;
   padding: 32px 28px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid #3a3a3a;
+  border-left: 3px solid #FFDD00;
+  border-radius: 0;
   text-align: center;
   justify-content: center;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.quiz-result-points::before,
+.quiz-result-points::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #FFDD00;
+}
+
+.quiz-result-points::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.quiz-result-points::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
 }
 
 .quiz-result-points-value {
   font-size: 48px;
   font-weight: 700;
-  color: var(--accent);
+  color: #FFDD00;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
+  letter-spacing: 1px;
   line-height: 1;
+  text-shadow: 0 0 20px rgba(255, 221, 0, 0.5);
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 .quiz-result-points-label {
   font-size: 18px;
-  color: var(--text-muted);
-  font-weight: 500;
+  color: #888;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
-/* Breakdown Card */
+/* Breakdown Card - Industrial Tech */
 .quiz-result-breakdown {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid #3a3a3a;
+  border-left: 3px solid #FFDD00;
+  border-radius: 0;
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .quiz-result-breakdown h3 {
   margin: 0 0 16px 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFDD00;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 1px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 .quiz-result-breakdown-row {
   display: flex;
   justify-content: space-between;
-  padding: 11px 0;
+  padding: 12px 0;
   font-size: 14px;
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
+  color: #f0f0f0;
+  border-bottom: 1px solid #3a3a3a;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 .quiz-result-breakdown-row:last-child {
@@ -100,49 +136,52 @@
 }
 
 .quiz-result-breakdown-row.muted {
-  color: var(--text-muted);
+  color: #888;
   font-size: 13px;
 }
 
 .quiz-result-breakdown-row.bonus {
-  color: var(--success);
+  color: #52c97c;
 }
 
 .quiz-result-breakdown-row.total {
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: #FFDD00;
   padding-top: 16px;
   margin-top: 6px;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-top: 2px solid #FFDD00;
   font-variant-numeric: tabular-nums;
 }
 
-/* Answer & Explanation Cards */
+/* Answer & Explanation Cards - Industrial Tech */
 .quiz-result-answer,
 .quiz-result-explanation {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: rgba(58, 58, 58, 0.3);
+  border: 2px solid #3a3a3a;
+  border-left: 3px solid #FFDD00;
+  border-radius: 0;
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .quiz-result-answer h3,
 .quiz-result-explanation h3 {
   margin: 0 0 12px 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  color: #FFDD00;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 1px;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 .quiz-result-answer p,
 .quiz-result-explanation p {
   margin: 0;
   font-size: 14px;
-  color: var(--text);
+  color: #f0f0f0;
   line-height: 1.6;
+  font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 
 /* Action Buttons */

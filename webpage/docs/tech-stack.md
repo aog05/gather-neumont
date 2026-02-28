@@ -26,7 +26,7 @@
 
 ## Leaderboard (demo mode)
 
-- The server leaderboard endpoint is backed by Firestore `Player` docs.
-- Quiz completion persistence is in Firestore under `Player/{playerId}/QuizCompletions/{dateKey}`.
-- Legacy JSON/demo leaderboard assets may still exist in the repo but are not used by runtime leaderboard/quiz completion flows.
+- The quiz UI can show a **placeholder/demo leaderboard dataset** for demos.
+- The server also exposes a real leaderboard endpoint backed by the JSON progress store.
+- Until a database is online, assume leaderboard data is demo-first and persistence is JSON.
 

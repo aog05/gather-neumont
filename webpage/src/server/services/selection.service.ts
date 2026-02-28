@@ -1,67 +1,165 @@
+/**
+ * Daily question selection service.
+ * Deterministically selects a question for a given date.
+ *
+ * UPDATED: Now uses Firebase Quiz puzzles instead of JSON files
+ */
+
+import { getAllQuizQuestions } from "./firebase-quiz.service";
+import {
+  addScheduleEntry,
+  getScheduleEntries,
+} from "../data/schedule.store";
 import type { Question } from "../../types/quiz.types";
-import { getQuizQuestionById } from "./quiz-questions.repository";
-import { getScheduledQuestionId } from "./schedule-firestore.service";
+
+const BASE_POINTS_BY_DIFFICULTY: Record<number, number> = {
+  1: 100,
+  2: 150,
+  3: 200,
+};
 
 function isValidQuestion(question: Question): boolean {
-  if (!question?.id || !question.prompt?.trim()) return false;
-  if (typeof question.basePoints !== "number") return false;
-
-  if (question.type === "mcq") {
-    return (
-      Array.isArray(question.choices) &&
-      question.choices.length >= 2 &&
-      Number.isInteger(question.correctIndex) &&
-      question.correctIndex >= 0 &&
-      question.correctIndex < question.choices.length
+  if (!question?.id) {
+    return false;
+  }
+  if (typeof question.basePoints !== "number") {
+    return false;
+  }
+  const expectedBase = BASE_POINTS_BY_DIFFICULTY[question.difficulty];
+  if (expectedBase && question.basePoints !== expectedBase) {
+    console.warn(
+      `[quiz] basePoints mismatch for ${question.id}: ${question.basePoints} != ${expectedBase}`
     );
   }
 
-  if (question.type === "select-all") {
-    if (!Array.isArray(question.choices) || question.choices.length < 2) {
+  switch (question.type) {
+    case "mcq":
+      return (
+        Array.isArray(question.choices) &&
+        question.choices.length === 4 &&
+        Number.isInteger(question.correctIndex) &&
+        question.correctIndex >= 0 &&
+        question.correctIndex < 4
+      );
+    case "select-all":
+      if (!Array.isArray(question.choices) || question.choices.length !== 5) {
+        return false;
+      }
+      if (!Array.isArray(question.correctIndices)) {
+        return false;
+      }
+      if (question.correctIndices.length === 0) {
+        return false;
+      }
+      const unique = new Set(question.correctIndices);
+      if (unique.size !== question.correctIndices.length) {
+        return false;
+      }
+      return question.correctIndices.every(
+        (index) => Number.isInteger(index) && index >= 0 && index < 5
+      );
+    case "written":
+      return (
+        Array.isArray(question.acceptedAnswers) &&
+        question.acceptedAnswers.length > 0
+      );
+    default:
       return false;
-    }
-    if (!Array.isArray(question.correctIndices) || question.correctIndices.length === 0) {
-      return false;
-    }
-    const unique = new Set(question.correctIndices);
-    if (unique.size !== question.correctIndices.length) {
-      return false;
-    }
-    return question.correctIndices.every(
-      (index) => Number.isInteger(index) && index >= 0 && index < question.choices.length
-    );
   }
-
-  return false;
 }
 
-export async function getQuestionForDate(dateKey: string): Promise<Question | null> {
-  const scheduledQuestionId = await getScheduledQuestionId(dateKey);
-  if (!scheduledQuestionId) {
-    console.warn(`[selection] no scheduled question for ${dateKey}`);
+function getQuestionSortKey(question: Question): number {
+  const match = /^q(\d+)$/i.exec(question.id);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+  return Number.parseInt(match[1], 10);
+}
+
+function logDuplicateIds(questions: Question[]): void {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const question of questions) {
+    if (seen.has(question.id)) {
+      duplicates.add(question.id);
+    }
+    seen.add(question.id);
+  }
+  if (duplicates.size > 0) {
+    console.error(
+      `[quiz] duplicate question IDs detected: ${Array.from(duplicates).join(", ")}`
+    );
+  }
+}
+
+/**
+ * Get the question for a specific date.
+ * Uses schedule-based selection (write-once per date).
+ * Returns null if no questions are available.
+ *
+ * UPDATED: Now fetches from Firebase Quiz puzzles
+ */
+export async function getQuestionForDate(
+  dateKey: string
+): Promise<Question | null> {
+  console.log(`[selection] Getting question for date: ${dateKey}`);
+  const questions = await getAllQuizQuestions();
+
+  if (questions.length === 0) {
+    console.warn(`[selection] No quiz questions available from Firebase`);
     return null;
   }
 
-  const record = await getQuizQuestionById(scheduledQuestionId, {
-    includeLegacy: true,
+  console.log(`[selection] Loaded ${questions.length} questions from Firebase`);
+  logDuplicateIds(questions);
+
+  const scheduleEntries = await getScheduleEntries();
+  const todayEntry = scheduleEntries.find(
+    (entry) => entry.dateKey === dateKey
+  );
+
+  if (todayEntry) {
+    const scheduled = questions.find(
+      (question) => question.id === todayEntry.questionId
+    );
+    if (scheduled && isValidQuestion(scheduled)) {
+      return scheduled;
+    }
+    console.error(
+      `[quiz] scheduled question invalid/missing for ${dateKey}: ${todayEntry.questionId}`
+    );
+  }
+
+  const scheduledIds = new Set(scheduleEntries.map((entry) => entry.questionId));
+  const ordered = [...questions].sort((a, b) => {
+    const aKey = getQuestionSortKey(a);
+    const bKey = getQuestionSortKey(b);
+    if (aKey !== bKey) return aKey - bKey;
+    return a.id.localeCompare(b.id);
   });
-  if (!record) {
-    console.error(
-      `[selection] scheduled question not found for ${dateKey}: ${scheduledQuestionId}`
-    );
+
+  const nextQuestion = ordered.find(
+    (question) =>
+      !scheduledIds.has(question.id) && isValidQuestion(question)
+  );
+
+  if (!nextQuestion) {
     return null;
   }
 
-  const { signature, source, questionId, ...question } = record;
-  if (!isValidQuestion(question)) {
-    console.error(
-      `[selection] scheduled question invalid for ${dateKey}: ${scheduledQuestionId}`
-    );
-    return null;
+  if (!todayEntry) {
+    await addScheduleEntry({
+      dateKey,
+      questionId: nextQuestion.id,
+      assignedAt: new Date().toISOString(),
+    });
   }
-  return question;
+
+  return nextQuestion;
 }
 
+/**
+ * Strip correct answer fields from a question for client display.
+ * Returns a safe version that doesn't reveal the answer.
+ */
 export function stripCorrectAnswers(
   question: Question
 ): Omit<Question, "correctIndex" | "correctIndices" | "acceptedAnswers"> & {
@@ -71,6 +169,7 @@ export function stripCorrectAnswers(
 } {
   const { ...base } = question;
 
+  // Remove answer fields based on question type
   if ("correctIndex" in base) {
     const { correctIndex, ...rest } = base;
     return rest as any;
@@ -86,4 +185,3 @@ export function stripCorrectAnswers(
 
   return base as any;
 }
-
