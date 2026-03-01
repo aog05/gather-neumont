@@ -22,21 +22,47 @@ export interface FirestoreDocument {
 /**
  * Quiz question for Quiz-type puzzles
  */
+export type QuizQuestionType = "mcq" | "select-all";
+
 export interface QuizQuestion {
+  /** Canonical question type */
+  type: QuizQuestionType;
+
   /** Score value for this question */
   SV: number;
 
-  /** Question type: "one-select" or "multiple-choice" */
-  type: "one-select" | "multiple-choice";
+  /** Optional prompt text (schema v1: may be absent on older documents) */
+  prompt?: string;
 
-  /** Correct answer (for one-select) */
+  /** Correct answer (for mcq) */
   answer?: string;
 
-  /** Correct answers (for multiple-choice) */
+  /** Correct answers (for select-all) */
   answers?: string[];
 
   /** Incorrect options */
   other: string[];
+
+  /** Optional metadata used by admin tooling */
+  explanation?: string;
+  difficulty?: 1 | 2 | 3;
+  tags?: string[];
+}
+
+export interface QuizQuestionDocV2 extends FirestoreDocument {
+  schemaVersion: 2;
+  type: "mcq" | "select-all";
+  prompt: string;
+  choices: string[];
+  correctIndex?: number;
+  correctIndices?: number[];
+  basePoints: number;
+  explanation?: string;
+  difficulty?: 1 | 2 | 3;
+  tags?: string[];
+  topic?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -84,6 +110,17 @@ export interface QuizPuzzle extends PuzzleBase {
 
   /** Array of quiz questions */
   Questions: QuizQuestion[];
+}
+
+/**
+ * Daily quiz schedule entry stored in Firestore.
+ * Collection: QUIZ_SCHEDULE, document id: dateKey (YYYY-MM-DD)
+ */
+export interface FirestoreQuizScheduleEntry extends FirestoreDocument {
+  dateKey: string;
+  questionId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -244,6 +281,28 @@ export interface Player extends FirestoreDocument {
   
   /** Array of active/in-progress Quest document IDs */
   ActiveQuests: string[];
+
+  /** Display name used in quiz leaderboard */
+  displayName?: string;
+
+  /** Firestore-backed quiz total points */
+  totalPoints?: number;
+
+  /** Firestore-backed quiz streak in days */
+  streakDays?: number;
+
+  /** Last completed quiz date key in local server time (YYYY-MM-DD) */
+  lastCompletedDateKey?: string;
+}
+
+/**
+ * Player quiz completion idempotency record.
+ * Stored under Player/{playerId}/QuizCompletions/{dateKey}
+ */
+export interface PlayerQuizCompletionRecord extends FirestoreDocument {
+  dateKey: string;
+  pointsAwarded: number;
+  createdAt: string;
 }
 
 // ============================================================================

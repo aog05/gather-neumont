@@ -6,7 +6,6 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuiz } from "../../hooks/useQuiz";
 import type { Question } from "../../types/quiz.types";
 import { QuizCards } from "./QuizCards";
-import { WrittenResponse } from "./WrittenResponse";
 import { QuizResult } from "./QuizResult";
 import "./QuizModal.css";
 
@@ -38,10 +37,9 @@ type AdminTestResult = {
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
-  acceptedAnswers?: string[];
 };
 
-type QuestionType = "mcq" | "select-all" | "written";
+type QuestionType = "mcq" | "select-all";
 
 type EditorState = {
   mode: "create" | "edit";
@@ -55,7 +53,6 @@ type EditorState = {
   choices: string[];
   correctIndex: number;
   correctIndices: number[];
-  acceptedAnswersText: string;
 };
 
 type ScheduleEntry = {
@@ -458,17 +455,29 @@ export function QuizModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, questionId: assignQuestionId }),
       });
+      const data = (await res.json()) as {
+        code?: string;
+        message?: string;
+        existingDates?: string[];
+      };
       if (res.status === 409) {
+        const existingDates =
+          Array.isArray(data.existingDates) && data.existingDates.length > 0
+            ? ` Existing dates: ${data.existingDates.join(", ")}`
+            : "";
         setScheduleErrorsByDate((prev) => ({
           ...prev,
-          [date]: "Already scheduled.",
+          [date]:
+            data.code === "QUESTION_ALREADY_SCHEDULED"
+              ? `${data.message ?? "Question is already scheduled."}${existingDates}`
+              : data.message ?? "Already scheduled.",
         }));
         return;
       }
       if (!res.ok) {
         setScheduleErrorsByDate((prev) => ({
           ...prev,
-          [date]: "Failed to assign.",
+          [date]: data.message ?? "Failed to assign.",
         }));
         return;
       }
@@ -495,7 +504,6 @@ export function QuizModal({
       choices: [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: [0],
-      acceptedAnswersText: "",
     });
   };
 
@@ -510,7 +518,7 @@ export function QuizModal({
       difficulty: question.difficulty,
       basePoints: question.basePoints,
       tags: question.tags ?? [],
-      choices: question.type === "written" ? [...EMPTY_MCQ_CHOICES] : [...(question.choices ?? [])],
+      choices: [...question.choices],
       correctIndex: question.type === "mcq" ? question.correctIndex : 0,
       correctIndices:
         question.type === "select-all"
@@ -518,10 +526,6 @@ export function QuizModal({
           : question.type === "mcq"
             ? [question.correctIndex]
             : [],
-      acceptedAnswersText:
-        question.type === "written"
-          ? (question.acceptedAnswers ?? []).join("\n")
-          : "",
     });
   };
 
@@ -559,7 +563,6 @@ export function QuizModal({
           nextType === "select-all"
             ? nextCorrectIndices
             : editorState.correctIndices,
-        acceptedAnswersText: "",
       });
       return;
     }
@@ -570,7 +573,6 @@ export function QuizModal({
       choices: nextType === "select-all" ? [...EMPTY_SELECT_CHOICES] : [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: nextType === "select-all" ? [0] : [],
-      acceptedAnswersText: "",
     });
   };
 
@@ -614,11 +616,6 @@ export function QuizModal({
     setEditorState({ ...editorState, correctIndices: Array.from(set).sort() });
   };
 
-  const handleAcceptedAnswersChange = (value: string) => {
-    if (!editorState) return;
-    setEditorState({ ...editorState, acceptedAnswersText: value });
-  };
-
   const buildEditorPayload = () => {
     if (!editorState) return null;
     const payload: any = {
@@ -637,12 +634,6 @@ export function QuizModal({
     if (editorState.type === "select-all") {
       payload.choices = editorState.choices.slice(0, 5);
       payload.correctIndices = editorState.correctIndices;
-    }
-    if (editorState.type === "written") {
-      payload.acceptedAnswers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
     }
     return payload;
   };
@@ -676,15 +667,6 @@ export function QuizModal({
       }
       if (editorState.correctIndices.length < 1) {
         return { valid: false, error: "Select at least one correct answer." };
-      }
-    }
-    if (editorState.type === "written") {
-      const answers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (answers.length < 1) {
-        return { valid: false, error: "Provide at least one accepted answer." };
       }
     }
     return { valid: true, error: "" };
@@ -784,17 +766,6 @@ export function QuizModal({
                 showCorrect
               />
             )}
-
-          {testQuestion.type === "written" && (
-            <WrittenResponse
-              key={testQuestion.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-              showCorrect
-              acceptedAnswers={testQuestion.acceptedAnswers}
-            />
-          )}
 
           {testResult && (
             <div className="quiz-test-result">
@@ -905,7 +876,6 @@ export function QuizModal({
           explanation={quiz.lastResult.explanation}
           correctIndex={quiz.lastResult.correctIndex}
           correctIndices={quiz.lastResult.correctIndices}
-          acceptedAnswers={quiz.lastResult.acceptedAnswers}
           attemptNumber={quiz.attemptNumber}
           onViewLeaderboard={onViewLeaderboard ? handleViewLeaderboard : undefined}
           onReset={() => {
@@ -949,16 +919,6 @@ export function QuizModal({
                 showIncorrect={showIncorrect}
               />
             )}
-
-          {/* Written */}
-          {quiz.question.type === "written" && (
-            <WrittenResponse
-              key={quiz.question.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-            />
-          )}
 
           {/* Feedback message */}
           {showIncorrect && (
@@ -1180,7 +1140,6 @@ export function QuizModal({
                         >
                           <option value="mcq">mcq</option>
                           <option value="select-all">select-all</option>
-                          <option value="written">written</option>
                         </select>
                       </label>
                       <label className="quiz-admin-field">
@@ -1286,18 +1245,6 @@ export function QuizModal({
                               </div>
                             ))}
                           </div>
-                        </div>
-                      )}
-                      {editorState.type === "written" && (
-                        <div className="quiz-admin-field">
-                          <span>Accepted Answers (one per line)</span>
-                          <textarea
-                            value={editorState.acceptedAnswersText}
-                            onChange={(event) =>
-                              handleAcceptedAnswersChange(event.target.value)
-                            }
-                            placeholder="answer one\nanswer two"
-                          />
                         </div>
                       )}
                       {editorError && (

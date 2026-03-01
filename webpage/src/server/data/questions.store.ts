@@ -151,21 +151,7 @@ function validateQuestionInput(
     return { ok: true };
   }
 
-  if (input.type === "written") {
-    if (!Array.isArray(input.acceptedAnswers) || input.acceptedAnswers.length < 1) {
-      return { ok: false, error: "written acceptedAnswers required" };
-    }
-    if (
-      !input.acceptedAnswers.every(
-        (answer) => typeof answer === "string" && answer.trim().length > 0
-      )
-    ) {
-      return { ok: false, error: "written acceptedAnswers must be non-empty" };
-    }
-    return { ok: true };
-  }
-
-  return { ok: false, error: "type must be mcq, select-all, or written" };
+  return { ok: false, error: "type must be mcq or select-all" };
 }
 
 function getNextQuestionId(questions: Question[]): string {
