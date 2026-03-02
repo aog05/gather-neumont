@@ -1,0 +1,323 @@
+.puzzleweek-days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.days-header {
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.days-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-sm);
+}
+
+.days-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.day-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.day-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.day-input {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--neumont-grey);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+
+.day-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.day-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.days-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--color-border);
+}
+
+/* New comprehensive day display styles */
+.days-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--spacing-sm);
+}
+
+.day-card {
+  background-color: var(--neumont-grey);
+  border-left: 3px solid var(--color-primary);
+  padding: var(--spacing-lg);
+}
+
+.day-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.day-name {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.day-status {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px solid;
+}
+
+.day-status-assigned {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  background-color: rgba(82, 201, 124, 0.1);
+}
+
+.day-status-empty {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.day-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.day-card-empty {
+  padding: var(--spacing-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.day-puzzle-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.day-info-row {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.day-info-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 100px;
+}
+
+.day-info-value {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+}
+
+.day-puzzle-id {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  color: var(--color-info);
+}
+
+.day-puzzle-type {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 2px solid;
+}
+
+.day-type-quiz {
+  color: var(--color-info);
+  border-color: var(--color-info);
+  background-color: rgba(92, 192, 222, 0.1);
+}
+
+.day-type-code {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  background-color: rgba(240, 173, 78, 0.1);
+}
+
+.day-section-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-sm);
+}
+
+.day-quiz-details,
+.day-code-details,
+.day-scores {
+  padding: var(--spacing-md);
+  background-color: var(--color-surface);
+  border-left: 3px solid var(--color-info);
+}
+
+.day-quiz-threshold {
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.day-quiz-question {
+  padding: var(--spacing-sm);
+  background-color: var(--neumont-grey);
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-sm);
+}
+
+.day-quiz-question-header {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.day-quiz-question-num {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.day-quiz-question-score {
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.day-quiz-question-type {
+  padding: 2px var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.day-type-one-select {
+  color: var(--color-info);
+  background-color: rgba(92, 192, 222, 0.2);
+}
+
+.day-type-multiple-choice {
+  color: var(--color-warning);
+  background-color: rgba(240, 173, 78, 0.2);
+}
+
+.day-quiz-answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+}
+
+.day-quiz-correct {
+  color: var(--color-success);
+  padding-left: var(--spacing-sm);
+}
+
+.day-quiz-incorrect {
+  color: var(--color-danger);
+  padding-left: var(--spacing-sm);
+}
+
+.day-scores-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.day-scores-table thead {
+  background-color: var(--neumont-grey);
+}
+
+.day-scores-table th {
+  padding: var(--spacing-sm);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.day-scores-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.day-scores-table tbody tr:hover {
+  background-color: rgba(255, 221, 0, 0.05);
+}
+
+.day-rank {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.day-player {
+  font-weight: 600;
+}
+
+.day-score {
+  font-weight: 700;
+  color: var(--color-success);
+  text-align: right;
+}
+

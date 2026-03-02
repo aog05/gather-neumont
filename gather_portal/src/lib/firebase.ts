@@ -1,12 +1,11 @@
 /**
- * Firebase Configuration and Initialization
- * 
- * This file sets up the Firebase app, Firestore database, and Analytics
- * for the Neumont Virtual Campus Web App.
+ * Firebase Configuration and Initialization for Admin Portal
+ *
+ * This file sets up the Firebase app and Firestore database
+ * for the Neumont Virtual Campus Admin Portal.
  */
 
 import { initializeApp, FirebaseApp } from "firebase/app";
-import { getAnalytics, Analytics } from "firebase/analytics";
 import { getFirestore, Firestore } from "firebase/firestore";
 
 /**
@@ -30,21 +29,6 @@ const firebaseConfig = {
 export const app: FirebaseApp = initializeApp(firebaseConfig);
 
 /**
- * Initialize Firebase Analytics
- * Tracks user interactions and app usage
- * Note: Analytics only works in browser environments
- */
-let analytics: Analytics | null = null;
-if (typeof window !== 'undefined') {
-  try {
-    analytics = getAnalytics(app);
-  } catch (error) {
-    console.warn('Firebase Analytics initialization failed:', error);
-  }
-}
-export { analytics };
-
-/**
  * Initialize Firestore Database
  * This is the main database instance for all data operations
  */
@@ -56,7 +40,7 @@ export const db: Firestore = getFirestore(app);
  */
 export const COLLECTIONS = {
   PUZZLE: 'Puzzle',
-  PUZZLE_WEEK: 'PuzzleWeek', // Parent collection (e.g., "Jan20261" subcollections)
+  PUZZLE_WEEK: 'PuzzleWeek',
   NPC: 'NPC',
   PLAYER: 'Player',
   COSMETIC: 'Cosmetic',
@@ -83,7 +67,6 @@ export const isFirestoreReady = (): boolean => {
  */
 export default {
   app,
-  analytics,
   db,
   COLLECTIONS,
   isFirestoreReady,

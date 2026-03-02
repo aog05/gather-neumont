@@ -1,0 +1,9 @@
+[build]
+target = "browser"
+outdir = "dist"
+sourcemap = "external"
+minify = true
+
+[dev]
+port = 3001
+

@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
 
 // Generate a random guest token for this session
 function generateGuestToken(): string {
@@ -170,6 +171,20 @@ export function useQuiz(): UseQuizReturn {
         quizDate: data.quizDate
       });
 
+      // Track quiz start analytics
+      const analyticsService = AnalyticsService.getInstance();
+      analyticsService.trackEvent(
+        AnalyticsEventType.QUIZ_START,
+        guestToken,
+        {
+          questionId: data.question.id,
+          questionType: data.question.type,
+          difficulty: data.question.difficulty,
+          basePoints: data.question.basePoints,
+          quizDate: data.quizDate,
+        }
+      );
+
       setQuestion(data.question);
       setQuizDate(data.quizDate);
       setAttemptNumber(0);
@@ -232,6 +247,21 @@ export function useQuiz(): UseQuizReturn {
         const data: SubmitResult = await response.json();
         console.log(`[useQuiz] 📦 Submit response:`, data);
 
+        // Track quiz attempt analytics
+        const analyticsService = AnalyticsService.getInstance();
+        analyticsService.trackEvent(
+          AnalyticsEventType.QUIZ_ATTEMPT,
+          guestToken,
+          {
+            questionId: question.id,
+            questionType: question.type,
+            attemptNumber: data.attemptNumber || attemptNumber + 1,
+            correct: data.correct || false,
+            elapsedMs: elapsed,
+            elapsedSeconds: (elapsed / 1000).toFixed(2),
+          }
+        );
+
         setLastResult(data);
         if (typeof data.attemptNumber === "number") {
           console.log(`[useQuiz] 🔢 Attempt number: ${data.attemptNumber}`);
@@ -240,6 +270,20 @@ export function useQuiz(): UseQuizReturn {
 
         if (data.alreadyCompleted) {
           console.log(`[useQuiz] ✅ Quiz completed!`);
+
+          // Track quiz completion analytics
+          analyticsService.trackEvent(
+            AnalyticsEventType.QUIZ_COMPLETE,
+            guestToken,
+            {
+              questionId: question.id,
+              pointsEarned: data.pointsEarned || 0,
+              attemptNumber: data.attemptNumber || attemptNumber,
+              elapsedMs: elapsed,
+              quizDate: data.quizDate,
+            }
+          );
+
           setQuestion(null);
           setState("completed");
           if (intervalRef.current) {
@@ -256,6 +300,20 @@ export function useQuiz(): UseQuizReturn {
           setState("active");
         } else if (data.correct) {
           console.log(`[useQuiz] ✅ Answer CORRECT! Points: ${data.pointsEarned}`);
+
+          // Track quiz completion analytics
+          analyticsService.trackEvent(
+            AnalyticsEventType.QUIZ_COMPLETE,
+            guestToken,
+            {
+              questionId: question.id,
+              pointsEarned: data.pointsEarned || 0,
+              attemptNumber: data.attemptNumber || attemptNumber + 1,
+              elapsedMs: elapsed,
+              quizDate: data.quizDate,
+            }
+          );
+
           setState("correct");
           if (intervalRef.current) {
             window.clearInterval(intervalRef.current);

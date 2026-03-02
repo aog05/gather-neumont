@@ -5,6 +5,7 @@ import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
+import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
 
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
@@ -51,6 +52,7 @@ export class MainScene extends Phaser.Scene {
   private playerState: "EXPLORING" | "DIALOGUE" = "EXPLORING";
   private escapeKey!: Phaser.Input.Keyboard.Key;
   private interactionKey!: Phaser.Input.Keyboard.Key; // Shared E key for NPCs and terminal
+  private analyticsService!: AnalyticsService;
 
   constructor() {
     super({ key: "MainScene" });
@@ -145,6 +147,15 @@ export class MainScene extends Phaser.Scene {
 
     this.dialogueManager = new DialogueManager(this.gameState, this.bridge);
 
+    // Initialize analytics service and track session start
+    this.analyticsService = AnalyticsService.getInstance();
+    this.analyticsService.trackSessionStart("sarah_dev");
+    this.analyticsService.trackEvent(
+      AnalyticsEventType.SCENE_ENTER,
+      "sarah_dev",
+      { scene: "MainScene", floor: "ground" }
+    );
+
     // Initialize NPC system with shared interaction key
     this.npcManager = new NPCManager(this, this.interactionKey);
     this.npcManager.loadNPCs(1); // Load ground floor NPCs
@@ -152,14 +163,15 @@ export class MainScene extends Phaser.Scene {
     // Listen for dialogue requests from NPCs
     this.bridge.on(
       "dialogue:request",
-      (data: { npcId: string; treeId: string; startNode: string }) => {
+      (data: { npcId: string; npcName?: string; treeId: string; startNode: string }) => {
         console.log(
-          `Dialogue requested: NPC ${data.npcId}, Tree ${data.treeId}`,
+          `Dialogue requested: NPC ${data.npcId}${data.npcName ? ` (${data.npcName})` : ''}, Tree ${data.treeId}`,
         );
         this.dialogueManager.startDialogue(
           data.npcId,
           data.treeId,
           data.startNode,
+          data.npcName,
         );
       },
     );
@@ -221,6 +233,16 @@ export class MainScene extends Phaser.Scene {
       playerBody.setVelocityY(PLAYER_SPEED);
     } else {
       playerBody.setVelocityY(0);
+    }
+  }
+
+  /**
+   * Cleanup when scene is destroyed
+   */
+  shutdown(): void {
+    // Track session end before scene shutdown
+    if (this.analyticsService) {
+      this.analyticsService.trackSessionEnd("sarah_dev");
     }
   }
 }

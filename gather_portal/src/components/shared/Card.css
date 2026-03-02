@@ -1,0 +1,37 @@
+.card {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.card-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.card-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.card-body {
+  padding: var(--spacing-lg);
+}
+

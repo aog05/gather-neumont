@@ -1,6 +1,7 @@
 import { GameEventBridge } from "./GameEventBridge";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db, COLLECTIONS } from "../lib/firebase";
+import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
 
 /**
  * GameState - Global game state management with quest integration
@@ -141,6 +142,17 @@ export class GameState {
 
       console.log(`[GameState] ✅ Quest added to Firebase: ${questId}`);
 
+      // Track quest start analytics
+      const analyticsService = AnalyticsService.getInstance();
+      analyticsService.trackEvent(
+        AnalyticsEventType.QUEST_START,
+        this.playerUsername,
+        {
+          questId,
+          questData: data,
+        }
+      );
+
       // Emit event to notify UI to refresh quest data
       this.bridge.emit("quest:started", { questId });
     } catch (error) {
@@ -209,6 +221,20 @@ export class GameState {
 
       console.log(`[GameState] ✅ Quest completed in Firebase: ${questId}`);
       console.log(`[GameState] ✅ Awarded ${rewardPoints} points to player (${currentPoints} → ${newPoints})`);
+
+      // Track quest completion analytics
+      const analyticsService = AnalyticsService.getInstance();
+      analyticsService.trackEvent(
+        AnalyticsEventType.QUEST_COMPLETE,
+        this.playerUsername,
+        {
+          questId,
+          questTitle: questData.Title,
+          rewardPoints,
+          previousPoints: currentPoints,
+          newPoints,
+        }
+      );
 
       // Emit event to notify UI to refresh quest data
       this.bridge.emit("quest:completed", {

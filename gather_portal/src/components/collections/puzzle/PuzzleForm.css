@@ -1,0 +1,138 @@
+.puzzle-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: var(--spacing-sm);
+}
+
+.form-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-top: var(--spacing-xs);
+}
+
+/* Question Editor */
+.question-editor {
+  padding: var(--spacing-lg);
+  background-color: var(--neumont-grey);
+  border-left: 3px solid var(--color-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.question-number {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.question-settings {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Answer Sections */
+.answer-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.answer-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.answer-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.answer-input-correct {
+  border-left: 3px solid var(--color-success) !important;
+  background-color: rgba(82, 201, 124, 0.05);
+}
+
+.answer-input-incorrect {
+  border-left: 3px solid var(--color-danger) !important;
+  background-color: rgba(217, 83, 79, 0.05);
+}
+
+/* Code Textarea */
+.code-textarea {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  background-color: #1f1f1f;
+  color: #f8f8f2;
+  border: 2px solid var(--color-border);
+  padding: var(--spacing-md);
+}
+
+.code-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Condition Editor */
+.condition-editor {
+  margin-bottom: var(--spacing-md);
+}
+
+.condition-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.condition-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Legacy styles (keep for compatibility) */
+.puzzle-options-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.puzzle-option-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.puzzle-option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.puzzle-option-label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+

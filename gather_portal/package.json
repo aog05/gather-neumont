@@ -1,0 +1,30 @@
+{
+  "name": "gather_portal",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun build src/index.tsx --outdir=dist --target=browser; bun run index.ts",
+    "build": "bun build src/index.tsx --outdir=dist --target=browser",
+    "start": "bun run index.ts",
+    "watch": "bun build src/index.tsx --outdir=dist --target=browser --watch"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "firebase": "^12.10.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-hook-form": "^7.71.2",
+    "react-router-dom": "^7.13.1",
+    "recharts": "^3.7.0",
+    "zod": "^4.3.6"
+  }
+}

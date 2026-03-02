@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { NPCConfig } from "../types/npc.types";
 import { GameEventBridge } from "../systems/GameEventBridge";
+import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
 import { firestoreDialogueService } from "../services/FirestoreDialogueService";
 
 /**
@@ -180,10 +181,32 @@ export class NPC extends Phaser.GameObjects.Container {
       this.sprite.play(this.config.sprite.animations.talk);
     }
 
+    // Track NPC interaction analytics
+    const analyticsService = AnalyticsService.getInstance();
+    analyticsService.trackEvent(
+      AnalyticsEventType.NPC_INTERACTION,
+      "sarah_dev", // TODO: Get from GameState
+      {
+        npcId: this.config.id,
+        npcName: this.config.name,
+        dialogueTreeId: this.config.dialogue.treeId,
+      }
+    );
+
+    analyticsService.trackEvent(
+      AnalyticsEventType.DIALOGUE_START,
+      "sarah_dev",
+      {
+        npcId: this.config.id,
+        treeId: this.config.dialogue.treeId,
+      }
+    );
+
     // Emit dialogue:request event to trigger DialogueManager
     const bridge = GameEventBridge.getInstance();
     bridge.emit("dialogue:request", {
       npcId: this.config.id,
+      npcName: this.actualName || this.config.name, // Use actual name from Firebase or fallback to config
       treeId: this.config.dialogue.treeId,
       startNode: this.config.dialogue.defaultNode,
     });
@@ -194,6 +217,17 @@ export class NPC extends Phaser.GameObjects.Container {
    */
   public endDialogue(): void {
     this.isInteracting = false;
+
+    // Track dialogue end analytics
+    const analyticsService = AnalyticsService.getInstance();
+    analyticsService.trackEvent(
+      AnalyticsEventType.DIALOGUE_END,
+      "sarah_dev",
+      {
+        npcId: this.config.id,
+        treeId: this.config.dialogue.treeId,
+      }
+    );
 
     // Play idle animation if available
     if (
@@ -265,33 +299,46 @@ export class NPC extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Load NPC name from Firebase dialogue tree
-   * Fetches the dialogue tree and extracts the speaker name from the first node
+   * Load NPC name from Firebase NPC document
+   * Fetches the NPC document from Firebase to get the actual name
    */
   private async loadNameFromDialogue(): Promise<void> {
     try {
-      console.log(`[NPC ${this.config.id}] Loading name from dialogue tree: ${this.config.dialogue.treeId}`);
+      console.log(`[NPC ${this.config.id}] Loading name from Firebase NPC document`);
 
-      // Load the dialogue tree from Firebase
-      const tree = await firestoreDialogueService.loadDialogueTree(this.config.dialogue.treeId);
+      // Import FirestoreQueries to get NPC data
+      const { FirestoreQueries } = await import("../lib/firestore-helpers");
 
-      // Get the first node (root node) to extract speaker name
-      const rootNode = tree.nodes[this.config.dialogue.defaultNode];
+      // Try to get NPC by the config name (which should match Firebase Name field)
+      const npcDoc = await FirestoreQueries.getNPCByName(this.config.name);
 
-      if (rootNode && rootNode.speaker) {
-        this.actualName = rootNode.speaker;
+      if (npcDoc && npcDoc.Name) {
+        this.actualName = npcDoc.Name;
         console.log(`[NPC ${this.config.id}] Loaded name from Firebase: "${this.actualName}"`);
 
         // Update the name label text
         this.nameLabel.setText(this.actualName);
+
+        // Pre-load the dialogue tree with the NPC name so it's cached with correct speaker
+        await firestoreDialogueService.loadDialogueTree(this.config.dialogue.treeId, this.actualName);
       } else {
-        console.warn(`[NPC ${this.config.id}] No speaker name found in dialogue tree, using config name: "${this.config.name}"`);
+        console.warn(`[NPC ${this.config.id}] No NPC document found in Firebase, using config name: "${this.config.name}"`);
         this.actualName = this.config.name;
+
+        // Still pre-load dialogue tree with config name
+        await firestoreDialogueService.loadDialogueTree(this.config.dialogue.treeId, this.actualName);
       }
     } catch (error) {
-      console.error(`[NPC ${this.config.id}] Failed to load name from dialogue:`, error);
+      console.error(`[NPC ${this.config.id}] Failed to load name from Firebase:`, error);
       // Fallback to config name
       this.actualName = this.config.name;
+
+      // Try to load dialogue tree anyway
+      try {
+        await firestoreDialogueService.loadDialogueTree(this.config.dialogue.treeId, this.actualName);
+      } catch (dialogueError) {
+        console.error(`[NPC ${this.config.id}] Failed to pre-load dialogue tree:`, dialogueError);
+      }
     }
   }
 

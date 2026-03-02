@@ -1,0 +1,219 @@
+.dialogue-id {
+  font-family: 'Courier New', monospace;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.dialogue-content-preview {
+  color: var(--color-text);
+  font-style: italic;
+}
+
+.dialogue-paths-count {
+  color: var(--color-info);
+  font-weight: 600;
+}
+
+.dialogue-has-quest {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.dialogue-no-quest {
+  color: var(--color-text-muted);
+}
+
+.dialogue-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.dialogue-detail-section {
+  padding: var(--spacing-lg);
+  background-color: var(--neumont-grey);
+  border-left: 3px solid var(--color-primary);
+}
+
+.dialogue-detail-heading {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-md);
+}
+
+.dialogue-content {
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.dialogue-paths-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.dialogue-path-item {
+  padding: var(--spacing-md);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-left: 3px solid var(--color-info);
+}
+
+.dialogue-path-label {
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+}
+
+.dialogue-path-next {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-family: 'Courier New', monospace;
+}
+
+.dialogue-no-paths {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ============================================================================
+   DIALOGUE TREE VIEW
+   ============================================================================ */
+
+.dialogue-loading,
+.dialogue-empty {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+}
+
+.dialogue-tree-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.dialogue-tree {
+  border: 2px solid var(--color-border);
+  border-radius: 0;
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.dialogue-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--neumont-grey);
+  border-left: 4px solid var(--color-primary);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.dialogue-tree-header:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.dialogue-tree-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.dialogue-tree-icon {
+  color: var(--color-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  width: 20px;
+  text-align: center;
+}
+
+.dialogue-tree-prefix {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-family-heading);
+}
+
+.dialogue-tree-count {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
+.dialogue-tree-content {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-background);
+}
+
+.dialogue-tree-item {
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-md) var(--spacing-lg);
+  transition: background-color 0.2s ease;
+}
+
+.dialogue-tree-item:hover {
+  background-color: var(--color-surface);
+}
+
+.dialogue-tree-item-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+}
+
+.dialogue-tree-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.dialogue-tree-item-id {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.dialogue-tree-item-preview {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.dialogue-tree-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-size: var(--font-size-xs);
+}
+
+.dialogue-tree-item-paths {
+  color: var(--color-info);
+  font-weight: 600;
+}
+
+.dialogue-tree-item-quest {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.dialogue-tree-item-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+

@@ -69,9 +69,10 @@ export class DialogueManager {
   /**
    * Load a dialogue tree from Firestore
    * @param treeId - Dialogue tree identifier (Firestore document ID)
+   * @param npcName - Optional NPC name to use as speaker
    * @returns Promise that resolves when tree is loaded
    */
-  public async loadTree(treeId: string): Promise<void> {
+  public async loadTree(treeId: string, npcName?: string): Promise<void> {
     // Check cache first
     if (this.trees.has(treeId)) {
       return;
@@ -79,10 +80,10 @@ export class DialogueManager {
 
     try {
       // Load from Firestore using the dialogue service
-      const tree = await firestoreDialogueService.loadDialogueTree(treeId);
+      const tree = await firestoreDialogueService.loadDialogueTree(treeId, npcName);
       this.trees.set(treeId, tree);
 
-      console.log(`Loaded dialogue tree from Firestore: ${treeId}`);
+      console.log(`Loaded dialogue tree from Firestore: ${treeId}${npcName ? ` for NPC: ${npcName}` : ''}`);
     } catch (error) {
       console.error(`Error loading dialogue tree ${treeId}:`, error);
       throw error;
@@ -94,15 +95,17 @@ export class DialogueManager {
    * @param npcId - NPC identifier
    * @param treeId - Dialogue tree identifier
    * @param startNodeId - Starting node ID (default: 'start')
+   * @param npcName - Optional NPC name to use as speaker
    */
   public async startDialogue(
     npcId: string,
     treeId: string,
     startNodeId: string = "start",
+    npcName?: string,
   ): Promise<void> {
     // Load tree if not cached
     if (!this.trees.has(treeId)) {
-      await this.loadTree(treeId);
+      await this.loadTree(treeId, npcName);
     }
 
     const tree = this.trees.get(treeId);

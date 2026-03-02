@@ -24,17 +24,19 @@ export class FirestoreDialogueService {
   /**
    * Load a dialogue tree from Firestore
    * @param treeIdOrDocId - Stable tree ID (e.g., "walsh-greeting") or Firestore document ID
+   * @param npcName - Optional NPC name to use as speaker (if not provided, will try to extract from content)
    * @returns Promise resolving to DialogueTree
    */
-  public async loadDialogueTree(treeIdOrDocId: string): Promise<DialogueTree> {
+  public async loadDialogueTree(treeIdOrDocId: string, npcName?: string): Promise<DialogueTree> {
     // Check cache first
-    if (this.cache.has(treeIdOrDocId)) {
-      return this.cache.get(treeIdOrDocId)!;
+    const cacheKey = npcName ? `${treeIdOrDocId}_${npcName}` : treeIdOrDocId;
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey)!;
     }
 
     try {
       // Try to fetch by treeId first (stable identifier)
-      console.log(`[FirestoreDialogueService] Loading dialogue tree: ${treeIdOrDocId}`);
+      console.log(`[FirestoreDialogueService] Loading dialogue tree: ${treeIdOrDocId}${npcName ? ` for NPC: ${npcName}` : ''}`);
       let rootDialogue = await FirestoreQueries.getDialogueByTreeId(treeIdOrDocId);
 
       // If not found by treeId, try as Firestore document ID (fallback for legacy)
@@ -51,14 +53,14 @@ export class FirestoreDialogueService {
       const rootId = rootDialogue.id;
 
       // Build the complete dialogue tree by traversing all paths
-      const tree = await this.buildDialogueTree(rootId, rootDialogue);
+      const tree = await this.buildDialogueTree(rootId, rootDialogue, npcName);
 
       // Cache the tree using both the treeId and document ID
-      this.cache.set(treeIdOrDocId, tree);
+      this.cache.set(cacheKey, tree);
       if (rootDialogue.treeId && rootDialogue.treeId !== treeIdOrDocId) {
-        this.cache.set(rootDialogue.treeId, tree);
+        this.cache.set(`${rootDialogue.treeId}${npcName ? `_${npcName}` : ''}`, tree);
       }
-      this.cache.set(rootId, tree);
+      this.cache.set(`${rootId}${npcName ? `_${npcName}` : ''}`, tree);
 
       console.log(`[FirestoreDialogueService] Loaded dialogue tree: ${treeIdOrDocId} (treeId: ${rootDialogue.treeId})`);
       return tree;
@@ -100,11 +102,13 @@ export class FirestoreDialogueService {
    * Build a complete dialogue tree by recursively fetching all connected nodes
    * @param rootId - Root dialogue ID
    * @param rootDialogue - Root dialogue node
+   * @param npcName - Optional NPC name to use as speaker
    * @returns Promise resolving to DialogueTree
    */
   private async buildDialogueTree(
     rootId: string,
-    rootDialogue: Dialogue
+    rootDialogue: Dialogue,
+    npcName?: string
   ): Promise<DialogueTree> {
     const nodes: Record<string, DialogueNode> = {};
     const visited = new Set<string>();
@@ -125,7 +129,7 @@ export class FirestoreDialogueService {
       visited.add(currentId);
 
       const dialogue = firestoreNodes.get(currentId) || await this.getDialogueNode(currentId);
-      
+
       if (!dialogue) {
         console.warn(`Dialogue node not found: ${currentId}`);
         continue;
@@ -151,7 +155,7 @@ export class FirestoreDialogueService {
 
     // Convert Firestore dialogues to DialogueNode format
     for (const [id, dialogue] of firestoreNodes.entries()) {
-      nodes[id] = this.convertToDialogueNode(id, dialogue, firestoreNodes);
+      nodes[id] = this.convertToDialogueNode(id, dialogue, firestoreNodes, npcName);
     }
 
     // Create the dialogue tree
@@ -170,12 +174,14 @@ export class FirestoreDialogueService {
    * @param id - Node ID
    * @param dialogue - Firestore Dialogue document
    * @param allNodes - Map of all dialogue nodes for reference
+   * @param npcName - Optional NPC name to use as speaker
    * @returns DialogueNode
    */
   private convertToDialogueNode(
     id: string,
     dialogue: Dialogue,
-    allNodes: Map<string, Dialogue>
+    allNodes: Map<string, Dialogue>,
+    npcName?: string
   ): DialogueNode {
     const hasResponses = dialogue.Paths && Object.keys(dialogue.Paths).length > 0;
     const hasNext = hasResponses;
@@ -211,19 +217,24 @@ export class FirestoreDialogueService {
         ]
       : undefined;
 
-    // Extract speaker name from dialogue content
-    // Format: "Speaker Name: dialogue text" or just use content as-is
+    // Determine speaker name
     let speaker = "NPC";
     let text = dialogue.content;
 
-    // Try to extract speaker name from content (format: "Name: text")
-    const speakerMatch = dialogue.content.match(/^([^:]+):\s*(.+)$/s);
-    if (speakerMatch) {
-      speaker = speakerMatch[1].trim();
-      text = speakerMatch[2].trim();
-      console.log(`[FirestoreDialogueService] Extracted speaker: "${speaker}" from dialogue ${id}`);
+    // Priority 1: Use provided NPC name
+    if (npcName) {
+      speaker = npcName;
+      console.log(`[FirestoreDialogueService] Using provided NPC name: "${speaker}" for dialogue ${id}`);
     } else {
-      console.warn(`[FirestoreDialogueService] No speaker found in dialogue ${id}, using "NPC"`);
+      // Priority 2: Try to extract speaker name from content (format: "Name: text")
+      const speakerMatch = dialogue.content.match(/^([^:]+):\s*(.+)$/s);
+      if (speakerMatch) {
+        speaker = speakerMatch[1].trim();
+        text = speakerMatch[2].trim();
+        console.log(`[FirestoreDialogueService] Extracted speaker: "${speaker}" from dialogue ${id}`);
+      } else {
+        console.warn(`[FirestoreDialogueService] No speaker found in dialogue ${id}, using "NPC"`);
+      }
     }
 
     // Create the dialogue node

@@ -1,0 +1,6 @@
+.skilltree-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
