@@ -202,6 +202,7 @@ export async function handleGetToday(req: Request): Promise<Response> {
     hasQuiz: true,
     quizDate: dateKey,
     questionId: question.id,
+    basePoints: question.basePoints,
     ...(completion
       ? {
           alreadyCompleted: true,

@@ -63,6 +63,12 @@ type ScheduleEntry = {
   questionId: string;
 };
 
+type DailyQuizSummary = {
+  hasQuiz?: boolean;
+  basePoints?: number;
+  message?: string;
+};
+
 const TAG_OPTIONS = [
   "bscs",
   "bsse",
@@ -146,6 +152,10 @@ export function QuizModal({
   const [scheduleRange, setScheduleRange] = useState<RangeOption>("week");
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [dailyQuizLoading, setDailyQuizLoading] = useState(false);
+  const [dailyQuizAvailable, setDailyQuizAvailable] = useState<boolean | null>(null);
+  const [dailyQuizBasePoints, setDailyQuizBasePoints] = useState<number | null>(null);
+  const [dailyQuizMessage, setDailyQuizMessage] = useState<string | null>(null);
   const [scheduleDeleting, setScheduleDeleting] = useState<string | null>(null);
   const [confirmExitOpen, setConfirmExitOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -228,6 +238,45 @@ export function QuizModal({
     load();
     return () => {};
   }, [isOpen, isAdmin]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== "daily") return;
+
+    let cancelled = false;
+
+    const loadDailyQuizSummary = async () => {
+      setDailyQuizLoading(true);
+      try {
+        const res = await fetch("/api/quiz/today", {
+          credentials: "include",
+        });
+        const data = (await res.json()) as DailyQuizSummary;
+        if (cancelled) return;
+
+        const hasQuiz = data.hasQuiz === true;
+        setDailyQuizAvailable(hasQuiz);
+        setDailyQuizBasePoints(
+          hasQuiz && typeof data.basePoints === "number" ? data.basePoints : null
+        );
+        setDailyQuizMessage(hasQuiz ? null : data.message ?? "No scheduled daily question");
+      } catch {
+        if (cancelled) return;
+        setDailyQuizAvailable(null);
+        setDailyQuizBasePoints(null);
+        setDailyQuizMessage(null);
+      } finally {
+        if (!cancelled) {
+          setDailyQuizLoading(false);
+        }
+      }
+    };
+
+    void loadDailyQuizSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mode]);
 
   const handleClose = useCallback(() => {
     // If quiz is in progress (active or incorrect) and not completed, confirm
@@ -875,6 +924,16 @@ export function QuizModal({
       );
     }
 
+    if (quiz.state === "unavailable") {
+      return (
+        <div className="quiz-loading">
+          <p className="quiz-feedback">
+            {dailyQuizMessage ?? quiz.lastResult?.message ?? "No scheduled daily question"}
+          </p>
+        </div>
+      );
+    }
+
     // Idle state - show start button
     if (quiz.state === "idle") {
       return (
@@ -884,7 +943,7 @@ export function QuizModal({
               <span className="quiz-info-card-icon">⭐</span>
               <span className="quiz-info-card-label">Base points today</span>
               <span className="quiz-info-card-value quiz-info-card-value--accent">
-                {quiz.question?.basePoints != null ? `${quiz.question.basePoints}` : "—"}
+                {dailyQuizBasePoints != null ? `${dailyQuizBasePoints}` : "—"}
               </span>
             </div>
             {myStats != null && (
@@ -907,13 +966,14 @@ export function QuizModal({
             )}
           </div>
           <div className="quiz-idle-cta">
-            <p>Ready to test your CS knowledge?</p>
+            <p>{dailyQuizAvailable === false ? "No scheduled daily question" : "Ready to test your CS knowledge?"}</p>
             <button
               className="quiz-submit-btn"
               onClick={quiz.startQuiz}
+              disabled={dailyQuizLoading || dailyQuizAvailable === false}
               style={{ width: "auto", padding: "14px 40px" }}
             >
-              Start Today's Quiz
+              {dailyQuizLoading ? "Checking today's quiz..." : "Start Today's Quiz"}
             </button>
           </div>
         </div>
