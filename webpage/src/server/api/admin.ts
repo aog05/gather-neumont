@@ -9,6 +9,7 @@ import {
 import {
   listScheduleEntries,
   setScheduleEntry,
+  deleteScheduleEntry,
 } from "../services/schedule-firestore.service";
 import { getUserIdFromRequest } from "./auth";
 import { checkAnswer } from "../services/answer-checker.service";
@@ -247,6 +248,26 @@ async function handleTestSubmit(req: Request): Promise<Response> {
   });
 }
 
+async function handleScheduleByKey(
+  req: Request,
+  dateKey: string
+): Promise<Response> {
+  if (req.method !== "DELETE") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return Response.json({ error: "invalid_date" }, { status: 400 });
+  }
+  const result = await deleteScheduleEntry(dateKey);
+  if (!result.success) {
+    if (result.error === "invalid_date") {
+      return Response.json({ error: "invalid_date" }, { status: 400 });
+    }
+    return Response.json({ error: "delete_failed" }, { status: 500 });
+  }
+  return Response.json({ success: true });
+}
+
 export async function handleAdminApi(req: Request): Promise<Response> {
   const authResponse = await requireAdmin(req);
   if (authResponse) return authResponse;
@@ -268,6 +289,14 @@ export async function handleAdminApi(req: Request): Promise<Response> {
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
     return handleTestSubmit(req);
+  }
+
+  if (
+    path.startsWith("/api/admin/schedule/") &&
+    path.length > "/api/admin/schedule/".length
+  ) {
+    const dateKey = path.split("/").pop() ?? "";
+    return handleScheduleByKey(req, dateKey);
   }
 
   if (path === "/api/admin/schedule") {

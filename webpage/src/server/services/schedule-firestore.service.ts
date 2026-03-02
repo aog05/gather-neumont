@@ -1,5 +1,5 @@
 import type { FirestoreQuizScheduleEntry } from "../../types/firestore.types";
-import { collection, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { db, COLLECTIONS } from "../../lib/firebase";
 import { getQuizQuestionById } from "./quiz-questions.repository";
 
@@ -149,4 +149,19 @@ export async function listScheduleEntries(range?: {
 
   entries.sort((a, b) => a.dateKey.localeCompare(b.dateKey));
   return entries;
+}
+
+export async function deleteScheduleEntry(
+  dateKey: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalized = dateKey.trim();
+  if (!isValidDateKey(normalized)) {
+    return { success: false, error: "invalid_date" };
+  }
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.QUIZ_SCHEDULE, normalized));
+    return { success: true };
+  } catch {
+    return { success: false, error: "delete_failed" };
+  }
 }
