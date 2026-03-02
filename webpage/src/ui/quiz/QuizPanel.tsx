@@ -1,12 +1,7 @@
-import type { ReactNode } from "react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { QuizModal } from "../../components/quiz/QuizModal";
-import { DEMO_LEADERBOARD } from "../../demo/demoLeaderboard";
 import "../../styles/quiz-ui.css";
-import "../../pages/QuizDevPage.css";
-
-type Tab = "quiz" | "leaderboard" | "data" | "admin";
 
 type LeaderboardEntry = {
   rank: number;
@@ -33,15 +28,13 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
     }
   }, [isOpen, username, isAdmin]);
 
-  const [tab, setTab] = useState<Tab>("quiz");
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const quizModalCloseRef = useRef<null | (() => void)>(null);
 
-  const [useDemoLeaderboard, setUseDemoLeaderboard] = useState(true);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
-  const [leaderboardUsingDemo, setLeaderboardUsingDemo] = useState(false);
   const leaderboardScrollRef = useRef(false);
   const [leaderboardAnimNonce, setLeaderboardAnimNonce] = useState(0);
   const leaderboardLoadedRef = useRef(false);
@@ -65,8 +58,11 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
 
   useEffect(() => {
     if (!isOpen) return;
-    console.log(`[QuizPanel] 🔄 Resetting tab to 'quiz' on panel open`);
-    setTab("quiz");
+    console.log(`[QuizPanel] 🔄 Resetting to quiz view on panel open`);
+    setShowLeaderboard(false);
+    leaderboardLoadedRef.current = false;
+    setLeaderboardError(null);
+    leaderboardScrollRef.current = false;
   }, [isOpen]);
 
   useEffect(() => {
@@ -101,71 +97,64 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   }, [handleClose, isOpen]);
 
   const loadLeaderboard = useCallback(async () => {
-    if (useDemoLeaderboard) {
-      setLeaderboardUsingDemo(true);
-      setLeaderboard(DEMO_LEADERBOARD.entries);
-      leaderboardLoadedRef.current = true;
-      return;
-    }
     setLeaderboardLoading(true);
     setLeaderboardError(null);
     try {
       const res = await fetch("/api/leaderboard?limit=50");
       const data = (await res.json()) as { entries?: LeaderboardEntry[] };
       if (!res.ok) {
-        setLeaderboardError("Failed to load leaderboard");
-        setLeaderboardUsingDemo(true);
-        setLeaderboard(DEMO_LEADERBOARD.entries);
-        return;
+        throw new Error("Failed to load leaderboard");
       }
-      if (!data.entries || data.entries.length === 0) {
-        setLeaderboardUsingDemo(true);
-        setLeaderboard(DEMO_LEADERBOARD.entries);
-        leaderboardLoadedRef.current = true;
-        return;
-      }
-      setLeaderboardUsingDemo(false);
-      setLeaderboard(data.entries);
-      leaderboardLoadedRef.current = true;
+      setLeaderboard(Array.isArray(data.entries) ? data.entries : []);
     } catch {
       setLeaderboardError("Failed to load leaderboard");
-      setLeaderboardUsingDemo(true);
-      setLeaderboard(DEMO_LEADERBOARD.entries);
-      leaderboardLoadedRef.current = true;
     } finally {
+      leaderboardLoadedRef.current = true;
       setLeaderboardLoading(false);
     }
-  }, [useDemoLeaderboard]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (tab !== "leaderboard") return;
+    if (!showLeaderboard) return;
     if (!leaderboardLoadedRef.current && !leaderboardLoading) {
       leaderboardScrollRef.current = false;
       void loadLeaderboard();
     }
-  }, [isOpen, leaderboardLoading, loadLeaderboard, tab, useDemoLeaderboard]);
+  }, [isOpen, leaderboardLoading, loadLeaderboard, showLeaderboard]);
 
-  const showAdminTab = isAdmin;
-  const tabs = useMemo(() => {
-    const base: Array<{ key: Tab; label: string }> = [
-      { key: "quiz", label: "Quiz" },
-      { key: "leaderboard", label: "Leaderboard" },
-      { key: "data", label: "Data" },
-    ];
-    if (showAdminTab) base.push({ key: "admin", label: "Admin" });
-    return base;
-  }, [showAdminTab]);
+  // Pre-fetch leaderboard on panel open for header strip + info cards
+  useEffect(() => {
+    if (!isOpen) return;
+    if (leaderboardLoadedRef.current || leaderboardLoading) return;
+    void loadLeaderboard();
+  }, [isOpen, leaderboardLoading, loadLeaderboard]);
 
-  const displayedLeaderboard = useDemoLeaderboard ? DEMO_LEADERBOARD : { entries: leaderboard };
-  const entries = displayedLeaderboard.entries ?? [];
+  const entries = leaderboard;
   const meUsername = auth.me?.username;
   const myEntry = meUsername
     ? entries.find((entry) => entry.username.toLowerCase() === meUsername.toLowerCase())
     : undefined;
 
+  const topPerformer = entries.length > 0 ? entries[0] : undefined;
+  const myStats = myEntry
+    ? { currentStreak: myEntry.currentStreak, totalPoints: myEntry.totalPoints }
+    : undefined;
+  const isLeaderboardEmpty = !leaderboardLoading && !leaderboardError && entries.length === 0;
+  const showUnrankedHint =
+    !!auth.me?.username && !myEntry && !leaderboardLoading && !leaderboardError && entries.length > 0;
+  const leaderboardStatusLabel = leaderboardLoading
+    ? entries.length > 0
+      ? "Refreshing live standings..."
+      : "Loading live standings..."
+    : leaderboardError
+      ? "Live data unavailable"
+      : entries.length > 0
+        ? `${entries.length} ranked players`
+        : "Waiting for first completion";
+
   const handleViewLeaderboard = useCallback(() => {
-    setTab("leaderboard");
+    setShowLeaderboard(true);
     setLeaderboardAnimNonce((prev) => prev + 1);
     leaderboardScrollRef.current = false;
   }, []);
@@ -211,7 +200,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
   };
 
   useEffect(() => {
-    if (tab !== "leaderboard") {
+    if (!showLeaderboard) {
       return;
     }
     if (!myEntry || leaderboardScrollRef.current) {
@@ -226,10 +215,12 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
       leaderboardScrollRef.current = true;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-  }, [leaderboardAnimNonce, myEntry, tab]);
+  }, [leaderboardAnimNonce, myEntry, showLeaderboard]);
 
   useEffect(() => {
-    if (tab !== "leaderboard") {
+    if (!showLeaderboard) {
+      setRankAnimActive(false);
+      setRankAnimDone(false);
       return;
     }
     if (!myEntry) {
@@ -291,7 +282,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
         rankAnimDelayRef.current = null;
       }
     };
-  }, [leaderboardAnimNonce, myEntry, tab]);
+  }, [leaderboardAnimNonce, myEntry, showLeaderboard]);
 
   useEffect(() => {
     return () => {
@@ -310,87 +301,88 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
 
   return (
     <div
+      className="quiz-ui"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 950,
-        background: "rgba(0, 0, 0, 0.55)",
+        background: "var(--overlay-backdrop)",
         backdropFilter: "blur(6px)",
         display: "grid",
         placeItems: "center",
-        padding: 12,
+        padding: "var(--space-3)",
       }}
     >
       <div
         ref={panelRef}
-        className="quiz-ui"
+        className="quiz-panel quiz-ui"
         style={{
           width: "min(900px, calc(100vw - 24px))",
           height: "min(860px, calc(100vh - 24px))",
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 18,
-          boxShadow: "var(--shadow-2)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 16px",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--panel)",
-            gap: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.01em" }}>
-                Daily Quiz
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {auth.me?.username ? `Logged in as ${username}` : "Guest Mode — progress not saved"}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {tabs.map((t) => (
-                <TabButton key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>
-                  {t.label}
-                </TabButton>
-              ))}
+        <div className="quiz-panel-header">
+          <div className="quiz-panel-header-top">
+            <span className="quiz-panel-title">DAILY QUIZ</span>
+            <div className="quiz-panel-header-actions">
+              {showLeaderboard ? (
+                <button
+                  type="button"
+                  className="quiz-panel-chrome-btn"
+                  onClick={() => setShowLeaderboard(false)}
+                >
+                  ← Quiz
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="quiz-panel-chrome-btn"
+                  onClick={() => {
+                    setShowLeaderboard(true);
+                    setLeaderboardAnimNonce((prev) => prev + 1);
+                    leaderboardScrollRef.current = false;
+                  }}
+                >
+                  Leaderboard
+                </button>
+              )}
+              <button
+                type="button"
+                className="quiz-panel-chrome-btn quiz-panel-chrome-btn--close"
+                onClick={handleClose}
+                aria-label="Close"
+              >
+                ×
+              </button>
             </div>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "0 0 auto" }}>
-            <button
-              type="button"
-              onClick={handleClose}
-              aria-label="Close"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                border: "1px solid var(--border)",
-                background: "var(--surface)",
-                color: "var(--text)",
-                cursor: "pointer",
-                fontSize: 18,
-                lineHeight: 1,
-              }}
-            >
-              ×
-            </button>
-          </div>
+          {auth.mode === "guest" || auth.mode === "unknown" ? (
+            <div className="quiz-panel-guest-notice">Log in to start your streak</div>
+          ) : (
+            <div className="quiz-panel-user-strip">
+              <span className="quiz-panel-username">@{username}</span>
+              <span className="quiz-panel-role-badge">{auth.me?.isAdmin ? "ADMIN" : "PLAYER"}</span>
+              {myStats && (
+                <div className="quiz-panel-stats">
+                  <div className="quiz-panel-stat">
+                    <span className="quiz-panel-stat-value">{myStats.currentStreak}</span>
+                    <span className="quiz-panel-stat-label">Streak</span>
+                  </div>
+                  <div className="quiz-panel-stat-separator" />
+                  <div className="quiz-panel-stat">
+                    <span className="quiz-panel-stat-value">{myStats.totalPoints.toLocaleString()}</span>
+                    <span className="quiz-panel-stat-label">Points</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <div
             style={{
-              display: tab === "quiz" || tab === "admin" ? "block" : "none",
+              display: showLeaderboard ? "none" : "block",
               height: "100%",
             }}
           >
@@ -398,70 +390,43 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
               isOpen
               onClose={onClose}
               isAdmin={isAdmin}
-              initialTab={tab === "admin" ? "admin" : "quiz"}
               onViewLeaderboard={handleViewLeaderboard}
               variant="embedded"
               closeHandleRef={quizModalCloseRef}
+              topPerformer={topPerformer}
+              myStats={myStats}
             />
           </div>
 
-          {tab === "leaderboard" ? (
+          {showLeaderboard ? (
             <section className="quiz-dev-leaderboard" style={{ height: "100%", overflow: "hidden" }}>
-              <div className="lb-layout">
-                <div className="lb-left">
-                  <div className="lb-left-header">
-                    <div className="lb-header-content">
-                      <h3>Leaderboard</h3>
-                      {(useDemoLeaderboard || leaderboardUsingDemo) && (
-                        <span className="quiz-dev-demo-label">Demo</span>
-                      )}
-                    </div>
-                  </div>
+              <div className="lb-view">
 
-                  <div className="lb-controls">
-                    <label className="lb-toggle">
-                      <input
-                        type="checkbox"
-                        checked={useDemoLeaderboard}
-                        onChange={(event) => {
-                          setUseDemoLeaderboard(event.target.checked);
-                          leaderboardLoadedRef.current = false;
-                          leaderboardScrollRef.current = false;
-                          if (event.target.checked) {
-                            setLeaderboardUsingDemo(true);
-                            setLeaderboard(DEMO_LEADERBOARD.entries);
-                          } else {
-                            setLeaderboardUsingDemo(false);
-                            setLeaderboard([]);
-                          }
-                        }}
-                      />
-                      <span>Use demo data</span>
-                    </label>
-                    <button
-                      type="button"
-                      className="lb-refresh-btn"
-                      onClick={loadLeaderboard}
-                      disabled={leaderboardLoading}
-                    >
-                      {leaderboardLoading ? "Refreshing..." : "Refresh"}
-                    </button>
+                {/* Stats Row */}
+                <div className="lb-stats-row">
+                  <div className="lb-info-card">
+                    <span className="lb-info-card-label">Today's Top</span>
+                    {topPerformer ? (
+                      <>
+                        <span className="lb-info-card-value">{topPerformer.username}</span>
+                        <span className="lb-info-card-sub">{topPerformer.totalPoints.toLocaleString()} pts</span>
+                      </>
+                    ) : (
+                      <span className="lb-info-card-sub lb-info-card-sub--empty">No entries yet</span>
+                    )}
                   </div>
 
                   {myEntry ? (
                     rankAnimActive && !rankAnimDone ? (
-                      <div className="lb-your-card lb-finding">
-                        <span className="lb-finding-text">Finding your rank…</span>
+                      <div className="lb-info-card lb-info-card--accent lb-info-card--finding">
+                        <span className="lb-info-card-label">Finding your rank…</span>
                         <div className="lb-finding-bar">
                           <div
                             className="lb-finding-bar-fill"
                             style={{
                               width: `${
                                 myEntry.rank
-                                  ? Math.min(
-                                      100,
-                                      Math.round((rankAnimValue / myEntry.rank) * 100)
-                                    )
+                                  ? Math.min(100, Math.round((rankAnimValue / myEntry.rank) * 100))
                                   : 0
                               }%`,
                             }}
@@ -470,19 +435,24 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                         <span className="lb-finding-count">#{rankAnimValue}</span>
                       </div>
                     ) : (
-                      <div className="lb-your-card">
-                        <span className="lb-your-title">Your Position</span>
-                        <div className="lb-your-stats">
+                      <div className="lb-info-card lb-info-card--accent lb-info-card--stats">
+                        <span className="lb-info-card-label">Your Position</span>
+                        <div className="lb-info-stats">
                           <div className="lb-stat">
                             <span className="lb-stat-label">Rank</span>
                             <span className="lb-stat-value">#{myEntry.rank}</span>
                           </div>
-                          <div className="lb-stat-separator"></div>
+                          <div className="lb-stat-separator" />
                           <div className="lb-stat">
-                            <span className="lb-stat-label">Streak</span>
+                            <span className="lb-stat-label">Best</span>
                             <span className="lb-stat-value">{myEntry.longestStreak}</span>
                           </div>
-                          <div className="lb-stat-separator"></div>
+                          <div className="lb-stat-separator" />
+                          <div className="lb-stat">
+                            <span className="lb-stat-label">Streak</span>
+                            <span className="lb-stat-value">{myEntry.currentStreak}</span>
+                          </div>
+                          <div className="lb-stat-separator" />
                           <div className="lb-stat">
                             <span className="lb-stat-label">Points</span>
                             <span className="lb-stat-value">{myEntry.totalPoints}</span>
@@ -490,46 +460,50 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                         </div>
                       </div>
                     )
-                  ) : auth.me?.username && !useDemoLeaderboard && !leaderboardUsingDemo ? (
-                    <div className="lb-your-card lb-empty">
-                      <span className="lb-empty-text">
-                        Complete a quiz to appear on the leaderboard.
+                  ) : (
+                    <div className="lb-info-card lb-info-card--accent">
+                      <span className="lb-info-card-label">Your Position</span>
+                      <span className="lb-info-card-value lb-info-card-value--muted">
+                        {showUnrankedHint ? "Unranked" : "Guest"}
+                      </span>
+                      <span className="lb-info-card-sub">
+                        {showUnrankedHint ? "Complete a quiz to appear" : "Log in to start your streak"}
                       </span>
                     </div>
-                  ) : null}
-
-                  <div className="lb-top-summary">
-                    <span className="lb-top-summary-label">Top Performers</span>
-                    <div className="lb-podium">
-                      <div className="lb-podium-col lb-podium-second">
-                        <span className="podium-rank-badge" data-rank="2">
-                          #2
-                        </span>
-                        {renderPodiumGroup(2, podiumGroups.second, "No one yet")}
-                      </div>
-                      <div className="lb-podium-col lb-podium-first">
-                        <span className="podium-rank-badge" data-rank="1">
-                          #1
-                        </span>
-                        {renderPodiumGroup(1, podiumGroups.first, "No one yet")}
-                      </div>
-                      <div className="lb-podium-col lb-podium-third">
-                        <span className="podium-rank-badge" data-rank="3">
-                          #3
-                        </span>
-                        {renderPodiumGroup(3, podiumGroups.third, "No one yet")}
-                      </div>
-                    </div>
-                  </div>
-
-                  {leaderboardError && (
-                    <p className="lb-error" role="status">
-                      {leaderboardError}
-                    </p>
                   )}
+
+                  <div className="lb-info-card">
+                    <span className="lb-info-card-label">Players Ranked</span>
+                    <span className="lb-info-card-value">{entries.length}</span>
+                    <span className={`lb-info-card-sub${leaderboardError ? " lb-info-card-sub--error" : ""}`}>
+                      {leaderboardStatusLabel}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="lb-right">
+                {/* Podium Section */}
+                <div className="lb-podium-section">
+                  <div className="lb-section-header">
+                    <span className="lb-section-label">Top Performers</span>
+                  </div>
+                  <div className="lb-podium">
+                    <div className="lb-podium-col lb-podium-second">
+                      <span className="podium-rank-badge" data-rank="2">#2</span>
+                      {renderPodiumGroup(2, podiumGroups.second, "No one yet")}
+                    </div>
+                    <div className="lb-podium-col lb-podium-first">
+                      <span className="podium-rank-badge" data-rank="1">#1</span>
+                      {renderPodiumGroup(1, podiumGroups.first, "No one yet")}
+                    </div>
+                    <div className="lb-podium-col lb-podium-third">
+                      <span className="podium-rank-badge" data-rank="3">#3</span>
+                      {renderPodiumGroup(3, podiumGroups.third, "No one yet")}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Card */}
+                <div className="lb-table-card">
                   <div className="lb-table-header" role="row">
                     <span>Rank</span>
                     <span>User</span>
@@ -537,7 +511,13 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                     <span>Points</span>
                   </div>
                   <div className="lb-table-scroll">
-                    {entries.length === 0 ? (
+                    {leaderboardLoading && entries.length === 0 ? (
+                      <div className="lb-table-empty">Loading live standings...</div>
+                    ) : leaderboardError && entries.length === 0 ? (
+                      <div className="lb-table-empty lb-table-empty--error">
+                        Unable to load leaderboard.
+                      </div>
+                    ) : isLeaderboardEmpty ? (
                       <div className="lb-table-empty">No entries yet.</div>
                     ) : (
                       <div className="lb-table-body" role="table">
@@ -549,11 +529,7 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                           const rowKey = `${entry.rank}-${entry.username}`;
                           return (
                             <Fragment key={rowKey}>
-                              {showDivider && (
-                                <div
-                                  className="lb-table-divider"
-                                ></div>
-                              )}
+                              {showDivider && <div className="lb-table-divider" />}
                               <div
                                 className={`lb-table-row ${isMe ? "lb-table-row--me" : ""}`}
                                 data-username={entry.username.toLowerCase()}
@@ -578,73 +554,16 @@ export default function QuizPanel(props: { isOpen: boolean; onClose: () => void 
                     )}
                   </div>
                 </div>
+
+                {leaderboardError && (
+                  <p className="lb-error" role="status">{leaderboardError}</p>
+                )}
+
               </div>
             </section>
-          ) : null}
-
-          {tab === "data" ? (
-            <div style={{ height: "100%", overflow: "auto", padding: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Data</h3>
-              <p style={{ margin: "8px 0 0 0", color: "var(--text-muted)", fontSize: 12 }}>
-                Static demo leaderboard dataset used by the standalone quiz page.
-              </p>
-
-              <div style={{ marginTop: 12, display: "grid", gap: 8, fontSize: 12 }}>
-                <div>
-                  <span style={{ color: "var(--text-muted)" }}>Total participants:</span>{" "}
-                  <span className="nums">{DEMO_LEADERBOARD.totalParticipants}</span>
-                </div>
-                <div>
-                  <span style={{ color: "var(--text-muted)" }}>Last updated:</span>{" "}
-                  <span className="nums">{DEMO_LEADERBOARD.lastUpdated}</span>
-                </div>
-              </div>
-
-              <pre
-                style={{
-                  marginTop: 12,
-                  padding: 12,
-                  borderRadius: 12,
-                  border: "1px solid var(--border)",
-                  background: "var(--surface)",
-                  color: "var(--text)",
-                  fontSize: 11,
-                  lineHeight: 1.4,
-                  overflow: "auto",
-                }}
-              >
-                {JSON.stringify(DEMO_LEADERBOARD, null, 2)}
-              </pre>
-            </div>
           ) : null}
         </div>
       </div>
     </div>
-  );
-}
-
-function TabButton(props: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        border: props.active ? "1px solid rgba(245, 166, 35, 0.55)" : "1px solid var(--border)",
-        background: props.active ? "rgba(245, 166, 35, 0.14)" : "transparent",
-        color: props.active ? "var(--text)" : "var(--text-muted)",
-        cursor: "pointer",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "0.01em",
-      }}
-    >
-      {props.children}
-    </button>
   );
 }

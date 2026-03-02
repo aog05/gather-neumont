@@ -1,6 +1,5 @@
 /**
- * Answer checking service for all question types.
- * Handles MCQ, select-all, and written response validation.
+ * Answer checking service for supported quiz question types.
  */
 
 import type { Question } from "../../types/quiz.types";
@@ -11,15 +10,6 @@ export interface AnswerCheckResult {
   selectedIndex?: number;
   /** For select-all: the indices the user selected */
   selectedIndices?: number[];
-  /** For written: the normalized answer the user provided */
-  normalizedAnswer?: string;
-}
-
-/**
- * Normalize a written answer: trim, lowercase, collapse multiple spaces.
- */
-export function normalizeWrittenAnswer(answer: string): string {
-  return answer.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /**
@@ -58,26 +48,6 @@ export function checkSelectAllAnswer(
 }
 
 /**
- * Check a written answer against accepted answers.
- */
-export function checkWrittenAnswer(
-  question: Question & { type: "written" },
-  answer: string
-): AnswerCheckResult {
-  const normalized = normalizeWrittenAnswer(answer);
-
-  // Check against all accepted answers (also normalized)
-  const correct = question.acceptedAnswers.some(
-    (accepted) => normalizeWrittenAnswer(accepted) === normalized
-  );
-
-  return {
-    correct,
-    normalizedAnswer: normalized,
-  };
-}
-
-/**
  * Main answer checker - dispatches to type-specific checker.
  */
 export function checkAnswer(
@@ -110,20 +80,6 @@ export function checkAnswer(
       return checkSelectAllAnswer(
         question as Question & { type: "select-all" },
         selectedIndices
-      );
-    }
-
-    case "written": {
-      if (typeof answer !== "string" && typeof answer !== "object") {
-        return { correct: false, normalizedAnswer: "" };
-      }
-      const text =
-        typeof answer === "string"
-          ? answer
-          : (answer as { text?: string }).text ?? "";
-      return checkWrittenAnswer(
-        question as Question & { type: "written" },
-        text
       );
     }
 

@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import QuizDevPage from "./pages/QuizDevPage.tsx";
 import OverlayLayout from "./ui/OverlayLayout.tsx";
 import { useAuth } from "./features/auth/AuthContext.tsx";
 import OnboardingLanding from "./pages/onboarding/Landing";
@@ -73,7 +72,6 @@ export function App() {
               <Route path="avatar" element={<EditAvatar />} />
             </Route>
             <Route path="admin" element={<AdminPage />} />
-            <Route path="dev/quiz" element={<QuizDevPage />} />
           </Route>
         </Route>
       </Routes>

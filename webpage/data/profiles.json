@@ -35,14 +35,13 @@
   },
   "admin": {
     "displayName": "Admin",
-    "location": "Neumont",
     "intendedMajorId": "UNDECIDED",
     "avatar": {
       "provider": "dicebear",
       "style": "pixelArt",
       "seed": "admin"
     },
-    "updatedAt": "2026-02-08T00:51:45.477Z"
+    "updatedAt": "2026-03-02T00:08:44.711Z"
   },
   "dsfafdsaf": {
     "displayName": "asfdasdfa",
