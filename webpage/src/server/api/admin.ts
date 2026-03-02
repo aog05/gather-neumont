@@ -1,12 +1,16 @@
 import { getUserById } from "../data/users.store";
 import {
-  createQuestion,
-  deleteQuestion,
-  getAllQuestions,
-  getQuestionById,
-  updateQuestion,
-} from "../data/questions.store";
-import { addScheduleEntry, getScheduleEntries } from "../data/schedule.store";
+  createAdminQuestion,
+  deleteAdminQuestion,
+  getAdminQuestionById,
+  getAllAdminQuestions,
+  updateAdminQuestion,
+} from "../services/admin-questions-firestore.service";
+import {
+  listScheduleEntries,
+  setScheduleEntry,
+  deleteScheduleEntry,
+} from "../services/schedule-firestore.service";
 import { getUserIdFromRequest } from "./auth";
 import { checkAnswer } from "../services/answer-checker.service";
 import { calculatePoints } from "../services/scoring.service";
@@ -39,8 +43,6 @@ function getCorrectAnswerInfo(question: Question): Record<string, unknown> {
       return { correctIndex: question.correctIndex };
     case "select-all":
       return { correctIndices: question.correctIndices };
-    case "written":
-      return { acceptedAnswers: question.acceptedAnswers };
     default:
       return {};
   }
@@ -59,7 +61,7 @@ function isValidDateKey(dateKey: string): boolean {
 
 async function handleSchedule(req: Request): Promise<Response> {
   if (req.method === "GET") {
-    const schedule = await getScheduleEntries();
+    const schedule = await listScheduleEntries();
     return Response.json({
       schedule: schedule.map((entry) => ({
         date: entry.dateKey,
@@ -88,34 +90,50 @@ async function handleSchedule(req: Request): Promise<Response> {
       logValidationFailure("POST /api/admin/schedule", "past date", date);
       return Response.json({ error: "date_in_past" }, { status: 400 });
     }
-    if (!/^q\d{3}$/.test(questionId)) {
+    if (!questionId) {
       logValidationFailure("POST /api/admin/schedule", "invalid questionId", questionId);
       return Response.json({ error: "invalid_question" }, { status: 400 });
     }
 
-    const question = await getQuestionById(questionId);
-    if (!question) {
-      logValidationFailure("POST /api/admin/schedule", "question not found", questionId);
-      return Response.json({ error: "not_found" }, { status: 404 });
-    }
-
-    const existing = (await getScheduleEntries()).find(
-      (entry) => entry.dateKey === date
-    );
-    if (existing) {
-      return Response.json({ error: "already_scheduled" }, { status: 409 });
-    }
-
-    const entry = await addScheduleEntry({
-      dateKey: date,
-      questionId,
-      assignedAt: new Date().toISOString(),
-    });
-    if (!entry) {
+    const result = await setScheduleEntry(date, questionId);
+    if (result.error) {
+      if (result.error === "invalid_date") {
+        logValidationFailure("POST /api/admin/schedule", "invalid date", date);
+        return Response.json({ error: "invalid_date" }, { status: 400 });
+      }
+      if (result.error === "invalid_question_id") {
+        logValidationFailure(
+          "POST /api/admin/schedule",
+          "invalid questionId",
+          questionId
+        );
+        return Response.json({ error: "invalid_question_id" }, { status: 400 });
+      }
+      if (result.error === "invalid_question") {
+        logValidationFailure(
+          "POST /api/admin/schedule",
+          "invalid questionId",
+          questionId
+        );
+        return Response.json({ error: "invalid_question" }, { status: 400 });
+      }
+      if (result.error === "question_already_scheduled") {
+        return Response.json(
+          {
+            code: result.code,
+            message: result.message,
+            existingDates: result.existingDates ?? [],
+          },
+          { status: 409 }
+        );
+      }
       return Response.json({ error: "failed_to_save" }, { status: 500 });
     }
 
-    return Response.json({ success: true });
+    return Response.json({
+      success: true,
+      questionId: result.entry?.questionId,
+    });
   }
 
   return Response.json({ error: "Not found" }, { status: 404 });
@@ -123,7 +141,7 @@ async function handleSchedule(req: Request): Promise<Response> {
 
 async function handleQuestions(req: Request): Promise<Response> {
   if (req.method === "GET") {
-    const questions = await getAllQuestions();
+    const questions = await getAllAdminQuestions();
     return Response.json({ questions });
   }
 
@@ -136,7 +154,7 @@ async function handleQuestions(req: Request): Promise<Response> {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const result = await createQuestion(body);
+    const result = await createAdminQuestion(body);
     if (result.error) {
       logValidationFailure("POST /api/admin/questions", result.error);
       return Response.json({ error: result.error }, { status: 400 });
@@ -160,10 +178,13 @@ async function handleQuestionById(
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const result = await updateQuestion(id, body);
+    const result = await updateAdminQuestion(id, body);
     if (result.error) {
       if (result.error === "not_found") {
         return Response.json({ error: "not_found" }, { status: 404 });
+      }
+      if (result.error === "legacy_read_only") {
+        return Response.json({ error: "legacy_read_only" }, { status: 409 });
       }
       logValidationFailure(`PUT /api/admin/questions/${id}`, result.error, id);
       return Response.json({ error: result.error }, { status: 400 });
@@ -172,10 +193,13 @@ async function handleQuestionById(
   }
 
   if (req.method === "DELETE") {
-    const result = await deleteQuestion(id);
+    const result = await deleteAdminQuestion(id);
     if (!result.success) {
       if (result.error === "not_found") {
         return Response.json({ error: "not_found" }, { status: 404 });
+      }
+      if (result.error === "legacy_read_only") {
+        return Response.json({ error: "legacy_read_only" }, { status: 409 });
       }
       return Response.json({ error: result.error ?? "failed to delete" }, { status: 500 });
     }
@@ -204,7 +228,7 @@ async function handleTestSubmit(req: Request): Promise<Response> {
     return Response.json({ error: "elapsedMs must be a number" }, { status: 400 });
   }
 
-  const question = await getQuestionById(questionId);
+  const question = await getAdminQuestionById(questionId);
   if (!question) {
     return Response.json({ error: "not_found" }, { status: 404 });
   }
@@ -222,6 +246,26 @@ async function handleTestSubmit(req: Request): Promise<Response> {
     explanation: question.explanation,
     ...correctAnswerInfo,
   });
+}
+
+async function handleScheduleByKey(
+  req: Request,
+  dateKey: string
+): Promise<Response> {
+  if (req.method !== "DELETE") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return Response.json({ error: "invalid_date" }, { status: 400 });
+  }
+  const result = await deleteScheduleEntry(dateKey);
+  if (!result.success) {
+    if (result.error === "invalid_date") {
+      return Response.json({ error: "invalid_date" }, { status: 400 });
+    }
+    return Response.json({ error: "delete_failed" }, { status: 500 });
+  }
+  return Response.json({ success: true });
 }
 
 export async function handleAdminApi(req: Request): Promise<Response> {
@@ -245,6 +289,14 @@ export async function handleAdminApi(req: Request): Promise<Response> {
       return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
     return handleTestSubmit(req);
+  }
+
+  if (
+    path.startsWith("/api/admin/schedule/") &&
+    path.length > "/api/admin/schedule/".length
+  ) {
+    const dateKey = path.split("/").pop() ?? "";
+    return handleScheduleByKey(req, dateKey);
   }
 
   if (path === "/api/admin/schedule") {

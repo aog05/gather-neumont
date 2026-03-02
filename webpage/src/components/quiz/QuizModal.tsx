@@ -6,8 +6,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuiz } from "../../hooks/useQuiz";
 import type { Question } from "../../types/quiz.types";
 import { QuizCards } from "./QuizCards";
-import { WrittenResponse } from "./WrittenResponse";
 import { QuizResult } from "./QuizResult";
+import "../../styles/quiz-ui.css";
 import "./QuizModal.css";
 
 interface QuizModalProps {
@@ -18,6 +18,8 @@ interface QuizModalProps {
   onViewLeaderboard?: () => void;
   variant?: "modal" | "embedded";
   closeHandleRef?: { current: null | (() => void) };
+  myStats?: { currentStreak: number; totalPoints: number };
+  topPerformer?: { username: string; totalPoints: number };
 }
 
 type Tab = "quiz" | "admin" | "questions" | "schedule";
@@ -38,10 +40,9 @@ type AdminTestResult = {
   explanation?: string;
   correctIndex?: number;
   correctIndices?: number[];
-  acceptedAnswers?: string[];
 };
 
-type QuestionType = "mcq" | "select-all" | "written";
+type QuestionType = "mcq" | "select-all";
 
 type EditorState = {
   mode: "create" | "edit";
@@ -55,12 +56,17 @@ type EditorState = {
   choices: string[];
   correctIndex: number;
   correctIndices: number[];
-  acceptedAnswersText: string;
 };
 
 type ScheduleEntry = {
   date: string;
   questionId: string;
+};
+
+type DailyQuizSummary = {
+  hasQuiz?: boolean;
+  basePoints?: number;
+  message?: string;
 };
 
 const TAG_OPTIONS = [
@@ -117,6 +123,8 @@ export function QuizModal({
   onViewLeaderboard,
   variant = "modal",
   closeHandleRef,
+  myStats,
+  topPerformer,
 }: QuizModalProps) {
   console.log(`[QuizModal] 🎮 Component render - isOpen: ${isOpen}, variant: ${variant}, isAdmin: ${isAdmin}`);
 
@@ -144,6 +152,13 @@ export function QuizModal({
   const [scheduleRange, setScheduleRange] = useState<RangeOption>("week");
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [dailyQuizLoading, setDailyQuizLoading] = useState(false);
+  const [dailyQuizAvailable, setDailyQuizAvailable] = useState<boolean | null>(null);
+  const [dailyQuizBasePoints, setDailyQuizBasePoints] = useState<number | null>(null);
+  const [dailyQuizMessage, setDailyQuizMessage] = useState<string | null>(null);
+  const [scheduleDeleting, setScheduleDeleting] = useState<string | null>(null);
+  const [confirmExitOpen, setConfirmExitOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [assignDate, setAssignDate] = useState<string | null>(null);
   const [assignQuestionId, setAssignQuestionId] = useState("");
   const [scheduleErrorsByDate, setScheduleErrorsByDate] = useState<
@@ -224,13 +239,50 @@ export function QuizModal({
     return () => {};
   }, [isOpen, isAdmin]);
 
+  useEffect(() => {
+    if (!isOpen || mode !== "daily") return;
+
+    let cancelled = false;
+
+    const loadDailyQuizSummary = async () => {
+      setDailyQuizLoading(true);
+      try {
+        const res = await fetch("/api/quiz/today", {
+          credentials: "include",
+        });
+        const data = (await res.json()) as DailyQuizSummary;
+        if (cancelled) return;
+
+        const hasQuiz = data.hasQuiz === true;
+        setDailyQuizAvailable(hasQuiz);
+        setDailyQuizBasePoints(
+          hasQuiz && typeof data.basePoints === "number" ? data.basePoints : null
+        );
+        setDailyQuizMessage(hasQuiz ? null : data.message ?? "No scheduled daily question");
+      } catch {
+        if (cancelled) return;
+        setDailyQuizAvailable(null);
+        setDailyQuizBasePoints(null);
+        setDailyQuizMessage(null);
+      } finally {
+        if (!cancelled) {
+          setDailyQuizLoading(false);
+        }
+      }
+    };
+
+    void loadDailyQuizSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, mode]);
+
   const handleClose = useCallback(() => {
     // If quiz is in progress (active or incorrect) and not completed, confirm
     if (mode === "daily" && (quiz.state === "active" || quiz.state === "incorrect")) {
-      const confirmed = window.confirm(
-        "Leave without finishing today's quiz?"
-      );
-      if (!confirmed) return;
+      setConfirmExitOpen(true);
+      return;
     }
     quiz.reset();
     onClose();
@@ -243,6 +295,14 @@ export function QuizModal({
       closeHandleRef.current = null;
     };
   }, [closeHandleRef, handleClose]);
+
+  const handleConfirmExit = useCallback(() => {
+    quiz.reset();
+    onClose();
+    setConfirmExitOpen(false);
+  }, [quiz, onClose]);
+
+  const handleCancelExit = () => setConfirmExitOpen(false);
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
@@ -444,6 +504,22 @@ export function QuizModal({
     setAssignQuestionId("");
   };
 
+  const handleUnschedule = async (date: string) => {
+    setScheduleDeleting(date);
+    try {
+      const res = await fetch(`/api/admin/schedule/${date}`, { method: "DELETE" });
+      if (res.ok) {
+        await refreshSchedule();
+      } else {
+        setScheduleError("Failed to unschedule");
+      }
+    } catch {
+      setScheduleError("Failed to unschedule");
+    } finally {
+      setScheduleDeleting(null);
+    }
+  };
+
   const handleAssignSave = async (date: string) => {
     if (!assignQuestionId) {
       setScheduleErrorsByDate((prev) => ({
@@ -458,17 +534,29 @@ export function QuizModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, questionId: assignQuestionId }),
       });
+      const data = (await res.json()) as {
+        code?: string;
+        message?: string;
+        existingDates?: string[];
+      };
       if (res.status === 409) {
+        const existingDates =
+          Array.isArray(data.existingDates) && data.existingDates.length > 0
+            ? ` Existing dates: ${data.existingDates.join(", ")}`
+            : "";
         setScheduleErrorsByDate((prev) => ({
           ...prev,
-          [date]: "Already scheduled.",
+          [date]:
+            data.code === "QUESTION_ALREADY_SCHEDULED"
+              ? `${data.message ?? "Question is already scheduled."}${existingDates}`
+              : data.message ?? "Already scheduled.",
         }));
         return;
       }
       if (!res.ok) {
         setScheduleErrorsByDate((prev) => ({
           ...prev,
-          [date]: "Failed to assign.",
+          [date]: data.message ?? "Failed to assign.",
         }));
         return;
       }
@@ -495,7 +583,6 @@ export function QuizModal({
       choices: [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: [0],
-      acceptedAnswersText: "",
     });
   };
 
@@ -510,7 +597,7 @@ export function QuizModal({
       difficulty: question.difficulty,
       basePoints: question.basePoints,
       tags: question.tags ?? [],
-      choices: question.type === "written" ? [...EMPTY_MCQ_CHOICES] : [...(question.choices ?? [])],
+      choices: [...question.choices],
       correctIndex: question.type === "mcq" ? question.correctIndex : 0,
       correctIndices:
         question.type === "select-all"
@@ -518,10 +605,6 @@ export function QuizModal({
           : question.type === "mcq"
             ? [question.correctIndex]
             : [],
-      acceptedAnswersText:
-        question.type === "written"
-          ? (question.acceptedAnswers ?? []).join("\n")
-          : "",
     });
   };
 
@@ -559,7 +642,6 @@ export function QuizModal({
           nextType === "select-all"
             ? nextCorrectIndices
             : editorState.correctIndices,
-        acceptedAnswersText: "",
       });
       return;
     }
@@ -570,7 +652,6 @@ export function QuizModal({
       choices: nextType === "select-all" ? [...EMPTY_SELECT_CHOICES] : [...EMPTY_MCQ_CHOICES],
       correctIndex: 0,
       correctIndices: nextType === "select-all" ? [0] : [],
-      acceptedAnswersText: "",
     });
   };
 
@@ -614,11 +695,6 @@ export function QuizModal({
     setEditorState({ ...editorState, correctIndices: Array.from(set).sort() });
   };
 
-  const handleAcceptedAnswersChange = (value: string) => {
-    if (!editorState) return;
-    setEditorState({ ...editorState, acceptedAnswersText: value });
-  };
-
   const buildEditorPayload = () => {
     if (!editorState) return null;
     const payload: any = {
@@ -637,12 +713,6 @@ export function QuizModal({
     if (editorState.type === "select-all") {
       payload.choices = editorState.choices.slice(0, 5);
       payload.correctIndices = editorState.correctIndices;
-    }
-    if (editorState.type === "written") {
-      payload.acceptedAnswers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
     }
     return payload;
   };
@@ -676,15 +746,6 @@ export function QuizModal({
       }
       if (editorState.correctIndices.length < 1) {
         return { valid: false, error: "Select at least one correct answer." };
-      }
-    }
-    if (editorState.type === "written") {
-      const answers = editorState.acceptedAnswersText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (answers.length < 1) {
-        return { valid: false, error: "Provide at least one accepted answer." };
       }
     }
     return { valid: true, error: "" };
@@ -728,8 +789,13 @@ export function QuizModal({
   };
 
   const handleDeleteQuestion = async (id: string) => {
-    const confirmed = window.confirm("Delete this question?");
-    if (!confirmed) return;
+    setConfirmDeleteId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    const id = confirmDeleteId;
+    if (!id) return;
+    setConfirmDeleteId(null);
     try {
       const res = await fetch(`/api/admin/questions/${id}`, {
         method: "DELETE",
@@ -743,6 +809,8 @@ export function QuizModal({
       setAdminError("Failed to delete question");
     }
   };
+
+  const handleCancelDelete = () => setConfirmDeleteId(null);
 
   if (!isOpen) return null;
 
@@ -784,17 +852,6 @@ export function QuizModal({
                 showCorrect
               />
             )}
-
-          {testQuestion.type === "written" && (
-            <WrittenResponse
-              key={testQuestion.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-              showCorrect
-              acceptedAnswers={testQuestion.acceptedAnswers}
-            />
-          )}
 
           {testResult && (
             <div className="quiz-test-result">
@@ -867,20 +924,58 @@ export function QuizModal({
       );
     }
 
+    if (quiz.state === "unavailable") {
+      return (
+        <div className="quiz-loading">
+          <p className="quiz-feedback">
+            {dailyQuizMessage ?? quiz.lastResult?.message ?? "No scheduled daily question"}
+          </p>
+        </div>
+      );
+    }
+
     // Idle state - show start button
     if (quiz.state === "idle") {
       return (
-        <div className="quiz-loading">
-          <p style={{ marginBottom: 16, color: "#ccc" }}>
-            Ready to test your CS knowledge?
-          </p>
-          <button
-            className="quiz-submit-btn"
-            onClick={quiz.startQuiz}
-            style={{ width: "auto", padding: "14px 40px" }}
-          >
-            Start Today's Quiz
-          </button>
+        <div className="quiz-idle-state">
+          <div className="quiz-info-cards">
+            <div className="quiz-info-card">
+              <span className="quiz-info-card-icon">⭐</span>
+              <span className="quiz-info-card-label">Base points today</span>
+              <span className="quiz-info-card-value quiz-info-card-value--accent">
+                {dailyQuizBasePoints != null ? `${dailyQuizBasePoints}` : "—"}
+              </span>
+            </div>
+            {myStats != null && (
+              <div className="quiz-info-card">
+                <span className="quiz-info-card-icon">🔥</span>
+                <span className="quiz-info-card-label">Your streak</span>
+                <span className="quiz-info-card-value quiz-info-card-value--accent">
+                  {myStats.currentStreak} <span className="quiz-info-card-unit">days</span>
+                </span>
+                <span className="quiz-info-card-subtitle">Complete today's quiz to keep it going</span>
+              </div>
+            )}
+            {topPerformer && (
+              <div className="quiz-info-card">
+                <span className="quiz-info-card-icon">🏆</span>
+                <span className="quiz-info-card-label">Today's top performer</span>
+                <span className="quiz-info-card-value">@{topPerformer.username}</span>
+                <span className="quiz-info-card-subtitle">{topPerformer.totalPoints.toLocaleString()} pts</span>
+              </div>
+            )}
+          </div>
+          <div className="quiz-idle-cta">
+            <p>{dailyQuizAvailable === false ? "No scheduled daily question" : "Ready to test your CS knowledge?"}</p>
+            <button
+              className="quiz-submit-btn"
+              onClick={quiz.startQuiz}
+              disabled={dailyQuizLoading || dailyQuizAvailable === false}
+              style={{ width: "auto", padding: "14px 40px" }}
+            >
+              {dailyQuizLoading ? "Checking today's quiz..." : "Start Today's Quiz"}
+            </button>
+          </div>
         </div>
       );
     }
@@ -905,14 +1000,8 @@ export function QuizModal({
           explanation={quiz.lastResult.explanation}
           correctIndex={quiz.lastResult.correctIndex}
           correctIndices={quiz.lastResult.correctIndices}
-          acceptedAnswers={quiz.lastResult.acceptedAnswers}
           attemptNumber={quiz.attemptNumber}
           onViewLeaderboard={onViewLeaderboard ? handleViewLeaderboard : undefined}
-          onReset={() => {
-            console.log("[QuizModal] 🔄 Resetting quiz...");
-            quiz.reset();
-            quiz.startQuiz();
-          }}
         />
       );
     }
@@ -950,16 +1039,6 @@ export function QuizModal({
               />
             )}
 
-          {/* Written */}
-          {quiz.question.type === "written" && (
-            <WrittenResponse
-              key={quiz.question.id}
-              onSubmit={handleSubmit}
-              disabled={isSubmitting}
-              showIncorrect={showIncorrect}
-            />
-          )}
-
           {/* Feedback message */}
           {showIncorrect && (
             <p className="quiz-feedback incorrect">Incorrect. Try again.</p>
@@ -973,7 +1052,7 @@ export function QuizModal({
 
   const panel = (
     <div
-      className="quiz-modal-panel quiz-ui"
+      className={`quiz-modal-panel quiz-ui${variant === "embedded" ? " quiz-modal-panel--embedded" : ""}`}
       style={
         variant === "embedded"
           ? {
@@ -1022,23 +1101,25 @@ export function QuizModal({
               </>
             )}
           </div>
-          <div className="quiz-modal-header-actions">
-            {activeTab === "quiz" && mode === "daily" && (
-              <span className="quiz-modal-timer nums">
-                {(() => {
-                  const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
-                  const minutes = Math.floor(totalSeconds / 60);
-                  const seconds = totalSeconds % 60;
-                  return `${minutes.toString().padStart(2, "0")}:${seconds
-                    .toString()
-                    .padStart(2, "0")}`;
-                })()}
-              </span>
-            )}
-            <button className="quiz-modal-close" onClick={handleClose}>
-              ✕
-            </button>
-          </div>
+          {variant !== "embedded" && (
+            <div className="quiz-modal-header-actions">
+              {activeTab === "quiz" && mode === "daily" && (
+                <span className="quiz-modal-timer nums">
+                  {(() => {
+                    const totalSeconds = Math.floor(quiz.elapsedMs / 1000);
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = totalSeconds % 60;
+                    return `${minutes.toString().padStart(2, "0")}:${seconds
+                      .toString()
+                      .padStart(2, "0")}`;
+                  })()}
+                </span>
+              )}
+              <button className="quiz-modal-close" onClick={handleClose}>
+                ✕
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="quiz-modal-body">
@@ -1107,7 +1188,6 @@ export function QuizModal({
                 <div className="quiz-admin-table-row quiz-admin-table-head">
                   <span>ID</span>
                   <span>Type</span>
-                  <span>Diff</span>
                   <span>Prompt</span>
                   <span>Tags</span>
                 </div>
@@ -1118,13 +1198,15 @@ export function QuizModal({
                     }`}
                     key={question.id}
                   >
-                    <span>{question.id}</span>
-                    <span>{question.type}</span>
-                    <span>{question.difficulty}</span>
-                    <span title={question.prompt}>
+                    <span className="quiz-admin-cell quiz-admin-cell--id">{question.id}</span>
+                    <span className="quiz-admin-cell quiz-admin-cell--type">{question.type}</span>
+                    <span
+                      className="quiz-admin-cell quiz-admin-cell--prompt"
+                      title={question.prompt}
+                    >
                       {getTruncatedPrompt(question.prompt)}
                     </span>
-                    <span className="quiz-admin-tags">
+                    <span className="quiz-admin-tags quiz-admin-cell quiz-admin-cell--tags">
                       {(question.tags ?? []).join(", ")}
                     </span>
                     <div className="quiz-admin-row-actions">
@@ -1180,7 +1262,6 @@ export function QuizModal({
                         >
                           <option value="mcq">mcq</option>
                           <option value="select-all">select-all</option>
-                          <option value="written">written</option>
                         </select>
                       </label>
                       <label className="quiz-admin-field">
@@ -1288,18 +1369,6 @@ export function QuizModal({
                           </div>
                         </div>
                       )}
-                      {editorState.type === "written" && (
-                        <div className="quiz-admin-field">
-                          <span>Accepted Answers (one per line)</span>
-                          <textarea
-                            value={editorState.acceptedAnswersText}
-                            onChange={(event) =>
-                              handleAcceptedAnswersChange(event.target.value)
-                            }
-                            placeholder="answer one\nanswer two"
-                          />
-                        </div>
-                      )}
                       {editorError && (
                         <p className="quiz-feedback error">{editorError}</p>
                       )}
@@ -1352,7 +1421,7 @@ export function QuizModal({
               )}
               {scheduleLoading && <p className="quiz-admin-status">Loading...</p>}
               {scheduleError && <p className="quiz-feedback error">{scheduleError}</p>}
-              <div className="quiz-admin-table">
+              <div className="quiz-admin-table quiz-schedule-table">
                 <div className="quiz-admin-table-row quiz-admin-table-head">
                   <span>Date</span>
                   <span>Day</span>
@@ -1369,14 +1438,22 @@ export function QuizModal({
                     <div
                       className={`quiz-admin-table-row ${
                         assignDate === date ? "is-active" : ""
-                      }`}
+                      } ${!entry ? "quiz-admin-table-row--empty" : ""}`}
                       key={date}
                     >
-                      <span>{date}</span>
-                      <span>{getDayOfWeek(date)}</span>
-                      <span>{entry?.questionId ?? "-"}</span>
+                      <span className="quiz-admin-cell quiz-admin-cell--date">{date}</span>
+                      <span className="quiz-admin-cell quiz-admin-cell--day">
+                        {getDayOfWeek(date)}
+                      </span>
+                      <span className="quiz-admin-cell quiz-admin-cell--id">
+                        {entry?.questionId ?? "-"}
+                      </span>
                       <span
-                        className={question ? undefined : "quiz-admin-muted"}
+                        className={
+                          question
+                            ? "quiz-admin-cell quiz-admin-preview"
+                            : "quiz-admin-cell quiz-admin-preview quiz-admin-muted"
+                        }
                       >
                         {question
                           ? `${entry?.questionId} — ${getPromptPreview(question.prompt)}`
@@ -1392,6 +1469,25 @@ export function QuizModal({
                           >
                             Assign
                           </button>
+                        )}
+                        {entry && (
+                          <>
+                            <button
+                              type="button"
+                              className="quiz-admin-icon-btn"
+                              onClick={() => openAssign(date)}
+                            >
+                              Change
+                            </button>
+                            <button
+                              type="button"
+                              className="quiz-admin-icon-btn quiz-admin-icon-btn--danger"
+                              onClick={() => handleUnschedule(date)}
+                              disabled={scheduleDeleting === date}
+                            >
+                              {scheduleDeleting === date ? "..." : "Unschedule"}
+                            </button>
+                          </>
                         )}
                       </span>
                       {assignDate === date && (
@@ -1436,6 +1532,30 @@ export function QuizModal({
             </div>
           )}
         </div>
+
+        {confirmExitOpen && (
+          <div className="quiz-confirm-overlay">
+            <div className="quiz-confirm-panel">
+              <p className="quiz-confirm-message">Leave without finishing today's quiz?</p>
+              <div className="quiz-confirm-actions">
+                <button className="quiz-confirm-cancel" onClick={handleCancelExit}>Stay</button>
+                <button className="quiz-confirm-ok" onClick={handleConfirmExit}>Leave</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmDeleteId !== null && (
+          <div className="quiz-confirm-overlay">
+            <div className="quiz-confirm-panel">
+              <p className="quiz-confirm-message">Delete this question?</p>
+              <div className="quiz-confirm-actions">
+                <button className="quiz-confirm-cancel" onClick={handleCancelDelete}>Cancel</button>
+                <button className="quiz-confirm-ok quiz-confirm-ok--danger" onClick={handleConfirmDelete}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
   );
 

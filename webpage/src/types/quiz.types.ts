@@ -4,7 +4,7 @@
 
 // ============ Question Types ============
 
-export type QuestionType = "mcq" | "select-all" | "written";
+export type QuestionType = "mcq" | "select-all";
 
 export interface BaseQuestion {
   id: string;
@@ -28,12 +28,7 @@ export interface SelectAllQuestion extends BaseQuestion {
   correctIndices: number[];
 }
 
-export interface WrittenQuestion extends BaseQuestion {
-  type: "written";
-  acceptedAnswers: string[]; // normalized: trimmed, lowercase, collapsed spaces
-}
-
-export type Question = McqQuestion | SelectAllQuestion | WrittenQuestion;
+export type Question = McqQuestion | SelectAllQuestion;
 
 // ============ Schedule Types ============
 
