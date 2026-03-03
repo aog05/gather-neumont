@@ -5,31 +5,15 @@ import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
-import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
+import {
+  AnalyticsService,
+  AnalyticsEventType,
+} from "../services/analytics.service";
 
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
-
-const temporaryMap = `
--0007,-0003 ob
-+0005,-0005 ob
-+0005,+0001 ob
-+0000,-0001
--0005,-0007
-+0002,-0007
--0002,-0004
-+0002,-0005
--0005,+0005
--0006,+0002
-+0003,+0002
-+0001,+0005
-+0006,+0000
--0008,+0000 ob
--0008,-0007 ob
-+0002,-0009 ob
-+0008,-0004 ob
--0003,+0007 ob
-`;
+const GROUND_FLOOR_MAP_KEY = "ground-floor-map";
+const GROUND_FLOOR_TILESET_KEY = "ground-floor-tileset";
 
 /**
  * MainScene - The primary game scene for the Neumont Virtual Campus
@@ -59,13 +43,31 @@ export class MainScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // No assets to load for MVP - using simple shapes
+    this.load.json(
+      GROUND_FLOOR_MAP_KEY,
+      "assets/images/map/ground_floor/ground_floor_map.json",
+    );
+    this.load.json(
+      GROUND_FLOOR_TILESET_KEY,
+      "assets/images/map/ground_floor/Wooden House.json",
+    );
   }
 
   create(): void {
+    const tiledMapData: string = JSON.stringify(
+      this.cache.json.get(GROUND_FLOOR_MAP_KEY),
+    );
+    const tiledTilesetData: string = JSON.stringify(
+      this.cache.json.get(GROUND_FLOOR_TILESET_KEY),
+    );
+
+    if (!tiledMapData || !tiledTilesetData) {
+      throw new Error("Ground floor map assets failed to load.");
+    }
+
     // Create tiles group for physics
     const tiles = this.physics.add.staticGroup();
-    const groundFloor = new GroundFloor(temporaryMap);
+    const groundFloor = new GroundFloor(tiledMapData, tiledTilesetData);
 
     // Create ground floor layout from map file
     groundFloor.createTiles(this, tiles);
@@ -73,9 +75,11 @@ export class MainScene extends Phaser.Scene {
     // Calculate center point between the three NPCs
     // Dean Walsh: (500, 400), Dr. Chen: (1200, 800), Prof. Rodriguez: (1800, 600)
     const npcCenterX = (500 + 1200 + 1800) / 3; // = 1166.67
-    const npcCenterY = (400 + 800 + 600) / 3;   // = 600
+    const npcCenterY = (400 + 800 + 600) / 3; // = 600
 
-    console.log(`[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`);
+    console.log(
+      `[MainScene] Player spawning at center of NPCs: (${npcCenterX}, ${npcCenterY})`,
+    );
 
     // Create player (blue square) at center of NPCs
     this.player = this.add.rectangle(
@@ -88,7 +92,6 @@ export class MainScene extends Phaser.Scene {
 
     // Enable physics on player
     this.physics.add.existing(this.player);
-    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
 
     // Set up collision between player and tiles
     this.physics.add.collider(this.player, tiles);
@@ -114,10 +117,15 @@ export class MainScene extends Phaser.Scene {
 
     // Create quiz terminal manager (follows NPC pattern)
     // Terminal spawns ABOVE the player (negative Y offset)
-    this.quizTerminalManager = new QuizTerminalManager(this, this.interactionKey);
+    this.quizTerminalManager = new QuizTerminalManager(
+      this,
+      this.interactionKey,
+    );
     const terminalX = npcCenterX;
     const terminalY = npcCenterY - 150; // 150px above player
-    console.log(`[MainScene] Quiz terminal spawning above player at: (${terminalX}, ${terminalY})`);
+    console.log(
+      `[MainScene] Quiz terminal spawning above player at: (${terminalX}, ${terminalY})`,
+    );
     this.quizTerminalManager.createTerminal(terminalX, terminalY);
 
     // Add "Daily Quiz" label above terminal
@@ -153,7 +161,7 @@ export class MainScene extends Phaser.Scene {
     this.analyticsService.trackEvent(
       AnalyticsEventType.SCENE_ENTER,
       "sarah_dev",
-      { scene: "MainScene", floor: "ground" }
+      { scene: "MainScene", floor: "ground" },
     );
 
     // Initialize NPC system with shared interaction key
@@ -163,9 +171,14 @@ export class MainScene extends Phaser.Scene {
     // Listen for dialogue requests from NPCs
     this.bridge.on(
       "dialogue:request",
-      (data: { npcId: string; npcName?: string; treeId: string; startNode: string }) => {
+      (data: {
+        npcId: string;
+        npcName?: string;
+        treeId: string;
+        startNode: string;
+      }) => {
         console.log(
-          `Dialogue requested: NPC ${data.npcId}${data.npcName ? ` (${data.npcName})` : ''}, Tree ${data.treeId}`,
+          `Dialogue requested: NPC ${data.npcId}${data.npcName ? ` (${data.npcName})` : ""}, Tree ${data.treeId}`,
         );
         this.dialogueManager.startDialogue(
           data.npcId,
