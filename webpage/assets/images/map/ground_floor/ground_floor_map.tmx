@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="10" height="10" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="1">
+ <editorsettings>
+  <export target="ground_floor.tmj" format="json"/>
+ </editorsettings>
+ <tileset firstgid="1" source="Wooden House.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="10" height="10">
+  <data encoding="csv">
+8,9,2,9,9,9,9,2,9,10,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+15,16,16,16,16,16,16,16,16,17,
+22,23,23,23,23,23,23,23,23,24
+</data>
+ </layer>
+ <layer id="2" name="Tile Layer 2" width="10" height="10">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,
+0,29,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,29,0,
+0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+</map>

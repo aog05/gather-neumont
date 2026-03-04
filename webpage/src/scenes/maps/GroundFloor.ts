@@ -1,4 +1,5 @@
 import { MapParser } from "@/utils/MapParser";
+import { TilesetParser } from "@/utils/TilesetParser";
 import Phaser from "phaser";
 
 /**
@@ -6,9 +7,11 @@ import Phaser from "phaser";
  */
 export class GroundFloor {
   private readonly mapData: string;
+  private readonly tilesetData: string;
 
-  public constructor(mapData: string) {
+  public constructor(mapData: string, tilesetData: string) {
     this.mapData = mapData;
+    this.tilesetData = tilesetData;
   }
 
   /**
@@ -20,20 +23,33 @@ export class GroundFloor {
     scene: Phaser.Scene,
     tileGroup: Phaser.Physics.Arcade.StaticGroup,
   ): void {
-    const map = MapParser.parseMapFile(this.mapData);
+    const parsedTileset = TilesetParser.parseTilesetFile(this.tilesetData);
+    const map = MapParser.parseMapFile(this.mapData, parsedTileset);
 
     map.tiles.forEach((tile) => {
-      const wall = scene.add.rectangle(
+      const tileVisual = scene.add.rectangle(
         tile.x,
         tile.y,
         MapParser.TILE_SIZE,
         MapParser.TILE_SIZE,
         tile.obstacle ? 0xff0000 : 0x0000ff,
       );
-      scene.physics.add.existing(wall, true);
+      tileVisual.setOrigin(0, 0);
 
       if (tile.obstacle) {
-        tileGroup.add(wall);
+        tile.collisionBoxes.forEach((collisionBox) => {
+          const wall = scene.add.rectangle(
+            collisionBox.x,
+            collisionBox.y,
+            collisionBox.width,
+            collisionBox.height,
+            0xff0000,
+            0,
+          );
+          wall.setOrigin(0, 0);
+          scene.physics.add.existing(wall, true);
+          tileGroup.add(wall);
+        });
       }
     });
   }

@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { AnalyticsService, AnalyticsEventType } from "../services/analytics.service";
+import {
+  AnalyticsService,
+  AnalyticsEventType,
+} from "../services/analytics.service";
 
 function generateGuestToken(): string {
   return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -37,6 +40,7 @@ export interface PointsBreakdown {
 }
 
 export interface SubmitResult {
+  question?: Question;
   correct?: boolean;
   attemptNumber?: number;
   feedback?: {
@@ -174,49 +178,52 @@ export function useQuiz(): UseQuizReturn {
           return;
         }
 
-      console.log(`[useQuiz] 📝 Quiz started - Question loaded:`, {
-        type: data.question.type,
-        difficulty: data.question.difficulty,
-        basePoints: data.question.basePoints,
-        quizDate: data.quizDate
-      });
+        const startQuestion = data.question;
+        if (!startQuestion) {
+          throw new Error("No question returned from start endpoint");
+        }
 
-      // Track quiz start analytics
-      const analyticsService = AnalyticsService.getInstance();
-      analyticsService.trackEvent(
-        AnalyticsEventType.QUIZ_START,
-        guestToken,
-        {
-          questionId: data.question.id,
-          questionType: data.question.type,
-          difficulty: data.question.difficulty,
-          basePoints: data.question.basePoints,
+        console.log(`[useQuiz] 📝 Quiz started - Question loaded:`, {
+          type: startQuestion.type,
+          difficulty: startQuestion.difficulty,
+          basePoints: startQuestion.basePoints,
           quizDate: data.quizDate,
-        }
-      );
+        });
 
-      setQuestion(data.question);
-      setQuizDate(data.quizDate);
-      setAttemptNumber(0);
-      setLastResult(null);
-      startTimeRef.current = Date.now();
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-      }
-      intervalRef.current = window.setInterval(() => {
-        if (startTimeRef.current) {
-          setElapsedMs(Date.now() - startTimeRef.current);
+        // Track quiz start analytics
+        const analyticsService = AnalyticsService.getInstance();
+        analyticsService.trackEvent(AnalyticsEventType.QUIZ_START, guestToken, {
+          questionId: startQuestion.id,
+          questionType: startQuestion.type,
+          difficulty: startQuestion.difficulty,
+          basePoints: startQuestion.basePoints,
+          quizDate: data.quizDate,
+        });
+
+        setQuestion(startQuestion);
+        setQuizDate(data.quizDate);
+        setAttemptNumber(0);
+        setLastResult(null);
+        startTimeRef.current = Date.now();
+        if (intervalRef.current) {
+          window.clearInterval(intervalRef.current);
         }
-      }, 250);
-      console.log(`[useQuiz] ⏱️ Timer started - tracking elapsed time`);
-      setState("active");
-      console.log(`[useQuiz] ✅ Quiz state set to 'active'`);
-    } catch (err) {
-      console.error(`[useQuiz] ❌ Error starting quiz:`, err);
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setState("error");
-    }
-  }, [guestToken]);
+        intervalRef.current = window.setInterval(() => {
+          if (startTimeRef.current) {
+            setElapsedMs(Date.now() - startTimeRef.current);
+          }
+        }, 250);
+        console.log(`[useQuiz] ⏱️ Timer started - tracking elapsed time`);
+        setState("active");
+        console.log(`[useQuiz] ✅ Quiz state set to 'active'`);
+      } catch (err) {
+        console.error(`[useQuiz] ❌ Error starting quiz:`, err);
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setState("error");
+      }
+    },
+    [guestToken],
+  );
 
   const startQuiz = useCallback(async () => {
     await startQuizAt("/api/quiz/start", { guestToken });
@@ -229,19 +236,21 @@ export function useQuiz(): UseQuizReturn {
         ...(questionId ? { questionId } : {}),
       });
     },
-    [guestToken, startQuizAt]
+    [guestToken, startQuizAt],
   );
 
   const submitAnswerAt = useCallback(
     async (
       endpoint: string,
       answer: unknown,
-      options?: { practice?: boolean }
+      options?: { practice?: boolean },
     ): Promise<SubmitResult | null> => {
       if (!question) return null;
 
       setState("submitting");
-      const elapsed = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      const elapsed = startTimeRef.current
+        ? Date.now() - startTimeRef.current
+        : 0;
       setElapsedMs(elapsed);
 
       try {
@@ -294,7 +303,7 @@ export function useQuiz(): UseQuizReturn {
             correct: data.correct || false,
             elapsedMs: elapsed,
             elapsedSeconds: (elapsed / 1000).toFixed(2),
-          }
+          },
         );
 
         setLastResult(data);
@@ -318,7 +327,7 @@ export function useQuiz(): UseQuizReturn {
               attemptNumber: data.attemptNumber || attemptNumber,
               elapsedMs: elapsed,
               quizDate: data.quizDate,
-            }
+            },
           );
 
           setQuestion(null);
@@ -334,7 +343,9 @@ export function useQuiz(): UseQuizReturn {
           setElapsedMs(0);
           setState("active");
         } else if (data.correct) {
-          console.log(`[useQuiz] ✅ Answer CORRECT! Points: ${data.pointsEarned}`);
+          console.log(
+            `[useQuiz] ✅ Answer CORRECT! Points: ${data.pointsEarned}`,
+          );
 
           // Track quiz completion analytics
           analyticsService.trackEvent(
@@ -346,7 +357,7 @@ export function useQuiz(): UseQuizReturn {
               attemptNumber: data.attemptNumber || attemptNumber + 1,
               elapsedMs: elapsed,
               quizDate: data.quizDate,
-            }
+            },
           );
 
           setState("correct");
@@ -365,19 +376,19 @@ export function useQuiz(): UseQuizReturn {
         return null;
       }
     },
-    [guestToken, question]
+    [guestToken, question],
   );
 
   const submitAnswer = useCallback(
     async (answer: unknown): Promise<SubmitResult | null> =>
       submitAnswerAt("/api/quiz/submit", answer),
-    [submitAnswerAt]
+    [submitAnswerAt],
   );
 
   const submitPracticeAnswer = useCallback(
     async (answer: unknown): Promise<SubmitResult | null> =>
       submitAnswerAt("/api/quiz/practice/submit", answer, { practice: true }),
-    [submitAnswerAt]
+    [submitAnswerAt],
   );
 
   const reset = useCallback(() => {
