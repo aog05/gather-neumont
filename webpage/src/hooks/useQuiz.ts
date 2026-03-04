@@ -144,7 +144,13 @@ export function useQuiz(): UseQuizReturn {
           body: JSON.stringify(payload),
         });
 
-        const data = (await response.json()) as SubmitResult;
+        let data: SubmitResult;
+        try {
+          data = (await response.json()) as SubmitResult;
+        } catch (jsonError) {
+          throw new Error("Failed to parse server response");
+        }
+
         if (!response.ok) {
           if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
             practiceAttemptIdRef.current = null;
@@ -211,34 +217,6 @@ export function useQuiz(): UseQuizReturn {
       setState("error");
     }
   }, [guestToken]);
-        const startQuestion = (data as any).question as Question | undefined;
-        if (!startQuestion) {
-          throw new Error("No question returned from start endpoint");
-        }
-
-        setQuestion(startQuestion);
-        setQuizDate(data.quizDate);
-        setAttemptNumber(0);
-        setLastResult(null);
-        practiceAttemptIdRef.current =
-          typeof data.practiceAttemptId === "string" ? data.practiceAttemptId : null;
-        startTimeRef.current = Date.now();
-        if (intervalRef.current) {
-          window.clearInterval(intervalRef.current);
-        }
-        intervalRef.current = window.setInterval(() => {
-          if (startTimeRef.current) {
-            setElapsedMs(Date.now() - startTimeRef.current);
-          }
-        }, 250);
-        setState("active");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error");
-        setState("error");
-      }
-    },
-    []
-  );
 
   const startQuiz = useCallback(async () => {
     await startQuizAt("/api/quiz/start", { guestToken });
@@ -285,7 +263,13 @@ export function useQuiz(): UseQuizReturn {
           body: JSON.stringify(body),
         });
 
-        const data: SubmitResult = await response.json();
+        let data: SubmitResult;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          throw new Error("Failed to parse server response");
+        }
+
         if (!response.ok) {
           if (data.code === "NO_QUIZ_SCHEDULED_TODAY") {
             practiceAttemptIdRef.current = null;

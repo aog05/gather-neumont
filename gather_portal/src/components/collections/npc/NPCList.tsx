@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
-import type { NPC } from '../../../types/firestore.types';
+import type { NPC, Dialogue } from '../../../types/firestore.types';
 import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
@@ -11,16 +11,37 @@ import './NPCList.css';
 
 export default function NPCList() {
   const { data: npcs, loading, error, refresh, remove } = useCollection<NPC>(COLLECTIONS.NPC);
+  const { data: dialogues } = useCollection<Dialogue>(COLLECTIONS.DIALOGUE);
   const [selectedNPC, setSelectedNPC] = useState<NPC | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDialogueModalOpen, setIsDialogueModalOpen] = useState(false);
+  const [selectedDialogue, setSelectedDialogue] = useState<Dialogue | null>(null);
+
+  /**
+   * Get dialogue by treeId
+   */
+  const getDialogueByTreeId = (treeId: string): Dialogue | undefined => {
+    return dialogues.find((d) => d.treeId === treeId || d.id === treeId);
+  };
+
+  /**
+   * Get display name for a dialogue
+   */
+  const getDialogueName = (dialogue: Dialogue): string => {
+    if (dialogue.content && dialogue.content.trim()) {
+      const content = dialogue.content.trim();
+      return content.length > 50 ? content.substring(0, 50) + '...' : content;
+    }
+    return dialogue.treeId || dialogue.id || 'Unnamed dialogue';
+  };
 
   const columns: Column<NPC>[] = [
     {
-      key: 'Sprite',
+      key: 'Name',
       label: 'Name',
-      render: (npc) => npc.Sprite?.Name || 'Unnamed NPC',
+      render: (npc) => npc.Name || 'Unnamed NPC',
     },
     {
       key: 'Behavior',
@@ -34,8 +55,18 @@ export default function NPCList() {
     {
       key: 'Placement',
       label: 'Location',
-      render: (npc) =>
-        npc.Placement ? `(${npc.Placement.x}, ${npc.Placement.y})` : 'Not placed',
+      render: (npc) => {
+        if (!npc.Placement) return 'Not placed';
+        // Placement is an array [x, y]
+        if (Array.isArray(npc.Placement)) {
+          return `(${npc.Placement[0]}, ${npc.Placement[1]})`;
+        }
+        // Fallback for object format {x, y}
+        if (typeof npc.Placement === 'object' && 'x' in npc.Placement && 'y' in npc.Placement) {
+          return `(${(npc.Placement as any).x}, ${(npc.Placement as any).y})`;
+        }
+        return 'Invalid placement';
+      },
     },
     {
       key: 'dialogueTreeId',
@@ -59,7 +90,7 @@ export default function NPCList() {
   };
 
   const handleDelete = async (npc: NPC) => {
-    if (window.confirm(`Are you sure you want to delete NPC "${npc.Sprite?.Name}"?`)) {
+    if (window.confirm(`Are you sure you want to delete NPC "${npc.Name}"?`)) {
       try {
         await remove(npc.id!);
         alert('NPC deleted successfully');
@@ -131,7 +162,7 @@ export default function NPCList() {
         <Modal
           isOpen={isDetailModalOpen}
           onClose={handleCloseModals}
-          title={`NPC: ${selectedNPC.Sprite?.Name || 'Unnamed'}`}
+          title={`NPC: ${selectedNPC.Name || 'Unnamed'}`}
           size="lg"
         >
           <div className="npc-detail">
@@ -140,16 +171,36 @@ export default function NPCList() {
               <div className="npc-detail-grid">
                 <div className="npc-detail-item">
                   <span className="npc-detail-label">Name:</span>
-                  <span className="npc-detail-value">{selectedNPC.Sprite?.Name || 'N/A'}</span>
+                  <span className="npc-detail-value">{selectedNPC.Name || 'N/A'}</span>
                 </div>
                 <div className="npc-detail-item">
                   <span className="npc-detail-label">Behavior:</span>
                   <span className="npc-detail-value">{selectedNPC.Behavior || 'None'}</span>
                 </div>
                 <div className="npc-detail-item">
-                  <span className="npc-detail-label">Dialogue Tree ID:</span>
+                  <span className="npc-detail-label">Dialogue Tree:</span>
                   <span className="npc-detail-value">
-                    {selectedNPC.dialogueTreeId || 'Not assigned'}
+                    {selectedNPC.dialogueTreeId ? (
+                      (() => {
+                        const dialogue = getDialogueByTreeId(selectedNPC.dialogueTreeId);
+                        return dialogue ? (
+                          <button
+                            className="npc-dialogue-link"
+                            onClick={() => {
+                              setSelectedDialogue(dialogue);
+                              setIsDialogueModalOpen(true);
+                            }}
+                            title={`View: ${getDialogueName(dialogue)}`}
+                          >
+                            🔗 {getDialogueName(dialogue)} <span className="npc-dialogue-link-id">({dialogue.treeId || dialogue.id})</span>
+                          </button>
+                        ) : (
+                          <span className="npc-dialogue-missing">⚠️ Missing: {selectedNPC.dialogueTreeId}</span>
+                        );
+                      })()
+                    ) : (
+                      'Not assigned'
+                    )}
                   </span>
                 </div>
               </div>
@@ -160,14 +211,58 @@ export default function NPCList() {
               <div className="npc-detail-grid">
                 <div className="npc-detail-item">
                   <span className="npc-detail-label">X Position:</span>
-                  <span className="npc-detail-value">{selectedNPC.Placement?.x ?? 'N/A'}</span>
+                  <span className="npc-detail-value">
+                    {selectedNPC.Placement ? (Array.isArray(selectedNPC.Placement) ? selectedNPC.Placement[0] : (selectedNPC.Placement as any).x) : 'N/A'}
+                  </span>
                 </div>
                 <div className="npc-detail-item">
                   <span className="npc-detail-label">Y Position:</span>
-                  <span className="npc-detail-value">{selectedNPC.Placement?.y ?? 'N/A'}</span>
+                  <span className="npc-detail-value">
+                    {selectedNPC.Placement ? (Array.isArray(selectedNPC.Placement) ? selectedNPC.Placement[1] : (selectedNPC.Placement as any).y) : 'N/A'}
+                  </span>
                 </div>
               </div>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Dialogue Detail Modal */}
+      {selectedDialogue && (
+        <Modal
+          isOpen={isDialogueModalOpen}
+          onClose={() => {
+            setIsDialogueModalOpen(false);
+            setSelectedDialogue(null);
+          }}
+          title={`Dialogue: ${selectedDialogue.treeId || selectedDialogue.id}`}
+          size="lg"
+        >
+          <div className="npc-dialogue-detail">
+            <div className="npc-dialogue-detail-section">
+              <h4 className="npc-dialogue-detail-heading">Dialogue Content</h4>
+              <p className="npc-dialogue-detail-content">{selectedDialogue.content || 'No content'}</p>
+            </div>
+            {selectedDialogue.Paths && Object.keys(selectedDialogue.Paths).length > 0 && (
+              <div className="npc-dialogue-detail-section">
+                <h4 className="npc-dialogue-detail-heading">Player Options</h4>
+                <ul className="npc-dialogue-detail-paths">
+                  {Object.entries(selectedDialogue.Paths).map(([option, nextId], index) => (
+                    <li key={index} className="npc-dialogue-detail-path">
+                      <span className="npc-dialogue-detail-path-arrow">→</span>
+                      <span className="npc-dialogue-detail-path-text">{option}</span>
+                      <span className="npc-dialogue-detail-path-next">({nextId})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {selectedDialogue.TriggeredQuest && (
+              <div className="npc-dialogue-detail-section">
+                <h4 className="npc-dialogue-detail-heading">Triggered Quest</h4>
+                <p className="npc-dialogue-detail-quest">⚡ {selectedDialogue.TriggeredQuest}</p>
+              </div>
+            )}
           </div>
         </Modal>
       )}

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS, db } from '../../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import type { Dialogue } from '../../../types/firestore.types';
+import type { Dialogue, Quest } from '../../../types/firestore.types';
 import Card from '../../shared/Card';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
@@ -27,9 +27,10 @@ interface DialogueChain {
 }
 
 export default function DialogueList() {
-  const { data: dialogues, loading, error, refresh, remove } = useCollection<Dialogue>(
+  const { data: dialogues, loading, error, refresh, remove, update } = useCollection<Dialogue>(
     COLLECTIONS.DIALOGUE
   );
+  const { data: quests } = useCollection<Quest>(COLLECTIONS.QUEST);
   const [selectedChain, setSelectedChain] = useState<DialogueChain | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -37,6 +38,20 @@ export default function DialogueList() {
   const [selectedDialogue, setSelectedDialogue] = useState<Dialogue | null>(null);
   const [expandedTrees, setExpandedTrees] = useState<Set<string>>(new Set());
   const [loadingChain, setLoadingChain] = useState(false);
+
+  /**
+   * Get quest by ID
+   */
+  const getQuestById = (questId: string): Quest | undefined => {
+    return quests.find((q) => q.id === questId);
+  };
+
+  /**
+   * Get display name for a quest
+   */
+  const getQuestName = (quest: Quest): string => {
+    return quest.Title || quest.id || 'Unnamed Quest';
+  };
 
   /**
    * Find all dialogue IDs that are referenced by other dialogues
@@ -182,10 +197,33 @@ export default function DialogueList() {
   };
 
   const handleDelete = async (dialogue: Dialogue) => {
-    if (window.confirm(`Are you sure you want to delete dialogue "${dialogue.id}"?\n\nWarning: This may break dialogue chains that reference this dialogue.`)) {
+    if (window.confirm(`Are you sure you want to delete dialogue "${dialogue.id}"?\n\nThis will also remove all references to this dialogue from parent nodes.`)) {
       try {
+        // Find all dialogues that reference this dialogue in their Paths
+        const parentDialogues = dialogues.filter((d) => {
+          if (!d.Paths) return false;
+          return Object.values(d.Paths).includes(dialogue.id!);
+        });
+
+        // Update parent dialogues to remove references
+        for (const parent of parentDialogues) {
+          const updatedPaths = { ...parent.Paths };
+          // Remove all path entries that point to the deleted dialogue
+          Object.keys(updatedPaths).forEach((key) => {
+            if (updatedPaths[key] === dialogue.id) {
+              delete updatedPaths[key];
+            }
+          });
+          await update(parent.id!, { Paths: updatedPaths });
+        }
+
+        // Delete the dialogue
         await remove(dialogue.id!);
-        alert('Dialogue deleted successfully');
+        alert(`Dialogue deleted successfully. Updated ${parentDialogues.length} parent dialogue(s).`);
+
+        // Refresh the list and close modals
+        refresh();
+        handleCloseModals();
       } catch (err) {
         alert('Failed to delete dialogue: ' + (err as Error).message);
       }
@@ -206,6 +244,17 @@ export default function DialogueList() {
   };
 
   /**
+   * Get a display name for a dialogue (first 50 chars of content or treeId)
+   */
+  const getDialogueName = (dialogue: Dialogue): string => {
+    if (dialogue.content && dialogue.content.trim()) {
+      const content = dialogue.content.trim();
+      return content.length > 50 ? content.substring(0, 50) + '...' : content;
+    }
+    return dialogue.treeId || dialogue.id || 'Unnamed dialogue';
+  };
+
+  /**
    * Recursively render dialogue chain nodes
    */
   const renderDialogueChainNode = (
@@ -222,18 +271,47 @@ export default function DialogueList() {
 
     const hasChildren = dialogue.Paths && Object.keys(dialogue.Paths).length > 0;
     const isEndNode = !hasChildren;
+    const dialogueName = getDialogueName(dialogue);
 
     return (
       <div key={dialogue.id} className="dialogue-chain-node" style={{ marginLeft: `${depth * 20}px` }}>
         <div className={`dialogue-chain-node-card ${isEndNode ? 'dialogue-chain-node-end' : ''}`}>
           <div className="dialogue-chain-node-header">
-            <span className="dialogue-chain-node-id">
-              {dialogue.treeId || dialogue.id}
-            </span>
-            {isEndNode && <span className="dialogue-chain-node-badge">END</span>}
-            {dialogue.TriggeredQuest && (
-              <span className="dialogue-chain-node-quest">⚡ Quest</span>
-            )}
+            <div className="dialogue-chain-node-header-left">
+              <span className="dialogue-chain-node-name">
+                {dialogueName}
+              </span>
+              <span className="dialogue-chain-node-id-small">
+                ({dialogue.treeId || dialogue.id})
+              </span>
+              {isEndNode && <span className="dialogue-chain-node-badge">END</span>}
+              {dialogue.TriggeredQuest && (() => {
+                const quest = getQuestById(dialogue.TriggeredQuest);
+                return quest ? (
+                  <span className="dialogue-chain-node-quest" title={`Quest: ${getQuestName(quest)}`}>
+                    ⚡ {getQuestName(quest)} <span className="dialogue-chain-node-quest-id">({quest.id})</span>
+                  </span>
+                ) : (
+                  <span className="dialogue-chain-node-quest-missing">⚡ Missing: {dialogue.TriggeredQuest}</span>
+                );
+              })()}
+            </div>
+            <div className="dialogue-chain-node-actions">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleEdit(dialogue)}
+              >
+                ✏️ Edit
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => handleDelete(dialogue)}
+              >
+                🗑️ Delete
+              </Button>
+            </div>
           </div>
 
           <div className="dialogue-chain-node-content">
@@ -242,6 +320,7 @@ export default function DialogueList() {
 
           {hasChildren && (
             <div className="dialogue-chain-node-paths">
+              <div className="dialogue-chain-paths-label">Player Options:</div>
               {Object.entries(dialogue.Paths).map(([optionText, nextId], index) => {
                 const nextDialogue = allNodes.get(nextId);
                 return (
@@ -249,13 +328,22 @@ export default function DialogueList() {
                     <div className="dialogue-chain-path-option">
                       <span className="dialogue-chain-path-arrow">→</span>
                       <span className="dialogue-chain-path-text">{optionText}</span>
+                      {nextDialogue && (
+                        <button
+                          className="dialogue-chain-path-link"
+                          onClick={() => handleEdit(nextDialogue)}
+                          title={`Edit: ${getDialogueName(nextDialogue)}`}
+                        >
+                          🔗 {getDialogueName(nextDialogue)}
+                        </button>
+                      )}
+                      {!nextDialogue && nextId && (
+                        <span className="dialogue-chain-path-missing-inline">
+                          ⚠️ Missing: {nextId}
+                        </span>
+                      )}
                     </div>
                     {nextDialogue && renderDialogueChainNode(nextDialogue, allNodes, depth + 1, new Set(visited))}
-                    {!nextDialogue && nextId && (
-                      <div className="dialogue-chain-node-missing" style={{ marginLeft: `${(depth + 1) * 20}px` }}>
-                        ⚠️ Missing dialogue: {nextId}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -334,11 +422,18 @@ export default function DialogueList() {
                               <span className="dialogue-tree-item-paths">
                                 {Object.keys(dialogue.Paths || {}).length} path(s)
                               </span>
-                              {dialogue.TriggeredQuest && (
-                                <span className="dialogue-tree-item-quest">
-                                  ⚡ Quest: {dialogue.TriggeredQuest}
-                                </span>
-                              )}
+                              {dialogue.TriggeredQuest && (() => {
+                                const quest = getQuestById(dialogue.TriggeredQuest);
+                                return quest ? (
+                                  <span className="dialogue-tree-item-quest" title={`Quest: ${getQuestName(quest)}`}>
+                                    ⚡ {getQuestName(quest)}
+                                  </span>
+                                ) : (
+                                  <span className="dialogue-tree-item-quest-missing">
+                                    ⚡ Missing: {dialogue.TriggeredQuest}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                           <div className="dialogue-tree-item-actions">

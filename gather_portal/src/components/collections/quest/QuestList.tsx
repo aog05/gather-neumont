@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
-import type { Quest } from '../../../types/firestore.types';
+import type { Quest, Cosmetic } from '../../../types/firestore.types';
 import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
@@ -11,10 +11,39 @@ import './QuestList.css';
 
 export default function QuestList() {
   const { data: quests, loading, error, refresh, remove } = useCollection<Quest>(COLLECTIONS.QUEST);
+  const { data: cosmetics } = useCollection<Cosmetic>(COLLECTIONS.COSMETIC);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  /**
+   * Get quest by ID
+   */
+  const getQuestById = (questId: string): Quest | undefined => {
+    return quests.find((q) => q.id === questId);
+  };
+
+  /**
+   * Get cosmetic by ID
+   */
+  const getCosmeticById = (cosmeticId: string): Cosmetic | undefined => {
+    return cosmetics.find((c) => c.id === cosmeticId);
+  };
+
+  /**
+   * Get display name for a quest
+   */
+  const getQuestName = (quest: Quest): string => {
+    return quest.Title || quest.id || 'Unnamed Quest';
+  };
+
+  /**
+   * Get display name for a cosmetic
+   */
+  const getCosmeticName = (cosmetic: Cosmetic): string => {
+    return cosmetic.Name || cosmetic.id || 'Unnamed Cosmetic';
+  };
 
   const columns: Column<Quest>[] = [
     {
@@ -23,19 +52,37 @@ export default function QuestList() {
     },
     {
       key: 'Reward',
-      label: 'Reward (Points)',
-      render: (quest) => (
-        <span className="quest-reward">{quest.Reward?.toString() || '0'}</span>
-      ),
+      label: 'Reward',
+      render: (quest) => {
+        if (!quest.Reward) return <span className="quest-reward">0 Points</span>;
+        const cosmetic = quest.Reward.Cosmetic ? getCosmeticById(quest.Reward.Cosmetic) : null;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span className="quest-reward">⭐ {quest.Reward.Points || 0} Points</span>
+            {quest.Reward.Cosmetic && cosmetic && (
+              <span className="quest-reward-cosmetic">🎨 {getCosmeticName(cosmetic)}</span>
+            )}
+            {quest.Reward.Cosmetic && !cosmetic && (
+              <span className="quest-missing">⚠️ Missing Cosmetic: {quest.Reward.Cosmetic}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'Next',
       label: 'Next Quest',
-      render: (quest) => (
-        <span className={quest.Next ? 'quest-has-next' : 'quest-no-next'}>
-          {quest.Next ? '→ ' + quest.Next : '✓ Final'}
-        </span>
-      ),
+      render: (quest) => {
+        if (!quest.Next) {
+          return <span className="quest-no-next">✓ Final</span>;
+        }
+        const nextQuest = getQuestById(quest.Next);
+        return (
+          <span className="quest-has-next">
+            → {nextQuest ? getQuestName(nextQuest) : quest.Next}
+          </span>
+        );
+      },
     },
   ];
 
@@ -134,15 +181,47 @@ export default function QuestList() {
                   <span className="quest-detail-value">{selectedQuest.Title}</span>
                 </div>
                 <div className="quest-detail-item">
-                  <span className="quest-detail-label">Reward (Points):</span>
-                  <span className="quest-detail-value quest-reward">
-                    {selectedQuest.Reward?.toString() || '0'}
-                  </span>
+                  <span className="quest-detail-label">Reward:</span>
+                  <div className="quest-detail-value">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span className="quest-reward">⭐ {selectedQuest.Reward?.Points || 0} Points</span>
+                      {selectedQuest.Reward?.Cosmetic && (() => {
+                        const cosmetic = getCosmeticById(selectedQuest.Reward.Cosmetic);
+                        return cosmetic ? (
+                          <span className="quest-reward-cosmetic">
+                            🎨 {getCosmeticName(cosmetic)} <span className="quest-link-id">({cosmetic.id})</span>
+                          </span>
+                        ) : (
+                          <span className="quest-missing">⚠️ Missing Cosmetic: {selectedQuest.Reward.Cosmetic}</span>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
                 <div className="quest-detail-item">
-                  <span className="quest-detail-label">Next Quest ID:</span>
+                  <span className="quest-detail-label">Next Quest:</span>
                   <span className="quest-detail-value">
-                    {selectedQuest.Next || 'None (Final quest)'}
+                    {selectedQuest.Next ? (
+                      (() => {
+                        const nextQuest = getQuestById(selectedQuest.Next);
+                        return nextQuest ? (
+                          <button
+                            className="quest-link"
+                            onClick={() => {
+                              setSelectedQuest(nextQuest);
+                              setIsDetailModalOpen(true);
+                            }}
+                            title={`View: ${getQuestName(nextQuest)}`}
+                          >
+                            🔗 {getQuestName(nextQuest)} <span className="quest-link-id">({nextQuest.id})</span>
+                          </button>
+                        ) : (
+                          <span className="quest-missing">⚠️ Missing: {selectedQuest.Next}</span>
+                        );
+                      })()
+                    ) : (
+                      'None (Final quest)'
+                    )}
                   </span>
                 </div>
                 <div className="quest-detail-item">

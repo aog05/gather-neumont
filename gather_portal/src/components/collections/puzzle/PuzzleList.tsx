@@ -165,7 +165,7 @@ export default function PuzzleList() {
       ),
     },
     {
-      key: 'scoreData',
+      key: 'completions',
       label: 'Completions',
       render: (puzzle) => (
         <span className="puzzle-completions">
@@ -174,7 +174,7 @@ export default function PuzzleList() {
       ),
     },
     {
-      key: 'scoreData',
+      key: 'topScore',
       label: 'Top Score',
       render: (puzzle) => (
         <span className="puzzle-top-score">

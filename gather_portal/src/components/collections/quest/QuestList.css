@@ -1,6 +1,13 @@
 .quest-reward {
   color: var(--color-primary);
   font-weight: 700;
+  font-size: var(--font-size-sm);
+}
+
+.quest-reward-cosmetic {
+  color: var(--color-success);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
 }
 
 .quest-has-next {
@@ -57,5 +64,43 @@
   font-size: var(--font-size-base);
   color: var(--color-text);
   font-weight: 600;
+}
+
+.quest-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: rgba(92, 192, 222, 0.2);
+  border: 1px solid var(--color-info);
+  color: var(--color-info);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.quest-link:hover {
+  background-color: rgba(255, 221, 0, 0.3);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateX(2px);
+}
+
+.quest-link-id {
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.quest-missing {
+  color: var(--color-danger);
+  font-weight: 600;
+  padding: 2px var(--spacing-xs);
+  background-color: rgba(217, 83, 79, 0.1);
+  border: 1px solid var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 

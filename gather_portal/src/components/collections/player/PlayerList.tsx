@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
-import type { Player } from '../../../types/firestore.types';
+import type { Player, Quest, Cosmetic } from '../../../types/firestore.types';
 import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
@@ -10,8 +10,38 @@ import './PlayerList.css';
 
 export default function PlayerList() {
   const { data: players, loading, error, refresh } = useCollection<Player>(COLLECTIONS.PLAYER);
+  const { data: quests } = useCollection<Quest>(COLLECTIONS.QUEST);
+  const { data: cosmetics } = useCollection<Cosmetic>(COLLECTIONS.COSMETIC);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  /**
+   * Get quest by ID
+   */
+  const getQuestById = (questId: string): Quest | undefined => {
+    return quests.find((q) => q.id === questId);
+  };
+
+  /**
+   * Get cosmetic by ID
+   */
+  const getCosmeticById = (cosmeticId: string): Cosmetic | undefined => {
+    return cosmetics.find((c) => c.id === cosmeticId);
+  };
+
+  /**
+   * Get display name for a quest
+   */
+  const getQuestName = (quest: Quest): string => {
+    return quest.Title || quest.id || 'Unnamed Quest';
+  };
+
+  /**
+   * Get display name for a cosmetic
+   */
+  const getCosmeticName = (cosmetic: Cosmetic): string => {
+    return cosmetic.Name || cosmetic.id || 'Unnamed Cosmetic';
+  };
 
   const columns: Column<Player>[] = [
     {
@@ -118,28 +148,79 @@ export default function PlayerList() {
             </div>
 
             <div className="player-detail-section">
-              <h4 className="player-detail-heading">Quest Progress</h4>
-              <div className="player-detail-grid">
-                <div className="player-detail-item">
-                  <span className="player-detail-label">Active Quests:</span>
-                  <span className="player-detail-value">
-                    {selectedPlayer.ActiveQuests?.length || 0}
-                  </span>
-                </div>
-                <div className="player-detail-item">
-                  <span className="player-detail-label">Completed Quests:</span>
-                  <span className="player-detail-value">
-                    {selectedPlayer.CompletedQuests?.length || 0}
-                  </span>
-                </div>
-              </div>
+              <h4 className="player-detail-heading">Active Quests</h4>
+              {selectedPlayer.ActiveQuests && selectedPlayer.ActiveQuests.length > 0 ? (
+                <ul className="player-quest-list">
+                  {selectedPlayer.ActiveQuests.map((questId, index) => {
+                    const quest = getQuestById(questId);
+                    return (
+                      <li key={index} className="player-quest-item">
+                        {quest ? (
+                          <>
+                            <span className="player-quest-name">{getQuestName(quest)}</span>
+                            <span className="player-quest-id">({quest.id})</span>
+                          </>
+                        ) : (
+                          <span className="player-quest-missing">⚠️ Missing: {questId}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="player-detail-empty">No active quests</p>
+              )}
             </div>
 
             <div className="player-detail-section">
-              <h4 className="player-detail-heading">Cosmetics</h4>
-              <p className="player-detail-value">
-                {selectedPlayer.OwnedCosmetics?.length || 0} items owned
-              </p>
+              <h4 className="player-detail-heading">Completed Quests</h4>
+              {selectedPlayer.CompletedQuests && selectedPlayer.CompletedQuests.length > 0 ? (
+                <ul className="player-quest-list">
+                  {selectedPlayer.CompletedQuests.map((questId, index) => {
+                    const quest = getQuestById(questId);
+                    return (
+                      <li key={index} className="player-quest-item">
+                        {quest ? (
+                          <>
+                            <span className="player-quest-name">{getQuestName(quest)}</span>
+                            <span className="player-quest-id">({quest.id})</span>
+                          </>
+                        ) : (
+                          <span className="player-quest-missing">⚠️ Missing: {questId}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="player-detail-empty">No completed quests</p>
+              )}
+            </div>
+
+            <div className="player-detail-section">
+              <h4 className="player-detail-heading">Owned Cosmetics</h4>
+              {selectedPlayer.OwnedCosmetics && selectedPlayer.OwnedCosmetics.length > 0 ? (
+                <ul className="player-cosmetic-list">
+                  {selectedPlayer.OwnedCosmetics.map((cosmeticId, index) => {
+                    const cosmetic = getCosmeticById(cosmeticId);
+                    return (
+                      <li key={index} className="player-cosmetic-item">
+                        {cosmetic ? (
+                          <>
+                            <span className="player-cosmetic-name">{getCosmeticName(cosmetic)}</span>
+                            <span className="player-cosmetic-type">({cosmetic.Type})</span>
+                            <span className="player-cosmetic-id">{cosmetic.id}</span>
+                          </>
+                        ) : (
+                          <span className="player-cosmetic-missing">⚠️ Missing: {cosmeticId}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="player-detail-empty">No cosmetics owned</p>
+              )}
             </div>
           </div>
         </Modal>

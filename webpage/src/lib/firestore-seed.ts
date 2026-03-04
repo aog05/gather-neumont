@@ -824,6 +824,7 @@ async function seedPuzzleWeeks() {
     { weekId: "Jan20261", label: "January 2026 Week 1" },
     { weekId: "Feb20263", label: "February 2026 Week 3" },
     { weekId: "Feb20264", label: "February 2026 Week 4" },
+    { weekId: "Mar20261", label: "March 2026 Week 1" },
   ];
 
   for (const week of weeksToSeed) {
