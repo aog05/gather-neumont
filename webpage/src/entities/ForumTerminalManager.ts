@@ -1,24 +1,9 @@
 import Phaser from "phaser";
-import { QuizTerminal } from "./QuizTerminal";
+import { ForumTerminal } from "./ForumTerminal";
 
-/**
- * QuizTerminalManager - Manages quiz terminal interaction
- * 
- * Follows the same pattern as NPCManager for consistent interaction handling.
- * 
- * @example
- * ```typescript
- * // In MainScene.create()
- * this.quizTerminalManager = new QuizTerminalManager(this);
- * this.quizTerminalManager.createTerminal(x, y);
- * 
- * // In MainScene.update()
- * this.quizTerminalManager.update(this.player);
- * ```
- */
-export class QuizTerminalManager {
+export class ForumTerminalManager {
   private scene: Phaser.Scene;
-  private terminal: QuizTerminal | null = null;
+  private terminal: ForumTerminal | null = null;
   private lastPlayerX = 0;
   private lastPlayerY = 0;
 
@@ -27,17 +12,12 @@ export class QuizTerminalManager {
     // interactionKey is no longer read here — MainScene dispatches E centrally.
   }
 
-  public createTerminal(x: number, y: number): QuizTerminal {
-    if (this.terminal) {
-      console.warn("Quiz terminal already exists");
-      return this.terminal;
-    }
+  public createTerminal(x: number, y: number): ForumTerminal {
+    if (this.terminal) return this.terminal;
 
-    this.terminal = new QuizTerminal(this.scene, x, y);
+    this.terminal = new ForumTerminal(this.scene, x, y);
     this.scene.add.existing(this.terminal);
     this.scene.physics.add.existing(this.terminal, true);
-
-    console.log(`Created quiz terminal at (${x}, ${y})`);
     return this.terminal;
   }
 
@@ -65,22 +45,16 @@ export class QuizTerminalManager {
     );
   }
 
-  /** Phase-2 dispatch: start quiz if player is in range. */
+  /** Phase-2 dispatch: open forum if player is in range. */
   public tryInteract(): void {
     if (this.terminal?.isPlayerNearby) {
-      this.terminal.startQuiz();
+      this.terminal.startForum();
     }
   }
 
   public destroy(): void {
-    if (this.terminal) {
-      this.terminal.destroy();
-      this.terminal = null;
-    }
-  }
-
-  public getTerminal(): QuizTerminal | null {
-    return this.terminal;
+    if (!this.terminal) return;
+    this.terminal.destroy();
+    this.terminal = null;
   }
 }
-
