@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public chat feed documents (read-only from clients).
+    match /chat/global/messages/{messageId} {
+      allow read: if true;
+      allow write: if false;
+
+      // Reports are server-only.
+      match /reports/{reporterUserId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Pinned metadata is readable but server-writable only.
+    match /chat/global/meta/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Ban records are server-only.
+    match /chat/global/bans/{userId} {
+      allow read, write: if false;
+    }
+
+    // Default deny.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
