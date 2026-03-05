@@ -1,4 +1,3 @@
-import { getUserById } from "../data/users.store";
 import {
   createAdminQuestion,
   deleteAdminQuestion,
@@ -11,26 +10,11 @@ import {
   setScheduleEntry,
   deleteScheduleEntry,
 } from "../services/schedule-firestore.service";
-import { getUserIdFromRequest } from "./auth";
 import { checkAnswer } from "../services/answer-checker.service";
 import { calculatePoints } from "../services/scoring.service";
 import type { Question } from "../../types/quiz.types";
 import { getMountainDateKey } from "../utils/timezone";
-
-async function requireAdmin(req: Request): Promise<Response | null> {
-  const userId = getUserIdFromRequest(req);
-  if (!userId) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-  const user = await getUserById(userId);
-  if (!user) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-  if (!user.isAdmin) {
-    return Response.json({ error: "forbidden" }, { status: 403 });
-  }
-  return null;
-}
+import { requireAdminUser } from "./auth-guards";
 
 function logValidationFailure(endpoint: string, reason: string, id?: string) {
   const suffix = id ? ` id=${id}` : "";
@@ -269,8 +253,10 @@ async function handleScheduleByKey(
 }
 
 export async function handleAdminApi(req: Request): Promise<Response> {
-  const authResponse = await requireAdmin(req);
-  if (authResponse) return authResponse;
+  const adminUser = await requireAdminUser(req);
+  if (adminUser instanceof Response) {
+    return adminUser;
+  }
 
   const url = new URL(req.url);
   const path = url.pathname;
