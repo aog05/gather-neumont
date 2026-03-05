@@ -7,6 +7,8 @@ import DialogueUI from "./components/DialogueUI.tsx";
 import QuestTracker from "./components/QuestTracker.tsx";
 import PlayerProfile from "./components/PlayerProfile.tsx";
 import QuizPanel from "./ui/quiz/QuizPanel.tsx";
+import ForumPanel from "./ui/forum/ForumPanel.tsx";
+import ForumErrorBoundary from "./ui/forum/ForumErrorBoundary.tsx";
 import { useQuestData, useSelectedQuest } from "./hooks/useQuestData.ts";
 import { usePlayerData } from "./hooks/usePlayerData.ts";
 import { doc, updateDoc, arrayRemove } from "firebase/firestore";
@@ -31,6 +33,7 @@ function GamePage() {
   const gameRef = useRef<Phaser.Game | null>(null);
   const location = useLocation();
   const [isDailyQuizOpen, setIsDailyQuizOpen] = useState(false);
+  const [isForumOpen, setIsForumOpen] = useState(false);
 
 
   // Fetch quest data for the current player by username (reseed-proof)
@@ -152,22 +155,35 @@ function GamePage() {
     };
   }, []);
 
+  // Listen for forum start event from game world
+  useEffect(() => {
+    const handleForumStart = () => {
+      setIsForumOpen(true);
+    };
+
+    window.addEventListener("forum:start", handleForumStart);
+    return () => {
+      window.removeEventListener("forum:start", handleForumStart);
+    };
+  }, []);
+
   // Debug: Log when isDailyQuizOpen changes
   useEffect(() => {
     console.log(`[Game] isDailyQuizOpen changed to: ${isDailyQuizOpen}`);
   }, [isDailyQuizOpen]);
 
-  // Disable keyboard input when quiz is open or overlay route is active
+  // Disable keyboard input when overlays are open or overlay routes are active
   useEffect(() => {
     const game = gameRef.current;
     if (!game) return;
 
     const isOverlayRouteActive = isOverlayRoute(location.pathname);
-    const enabled = !isOverlayRouteActive && !isDailyQuizOpen;
+    const enabled = !isOverlayRouteActive && !isDailyQuizOpen && !isForumOpen;
 
     console.log(`[Game] Keyboard state update:`, {
       isOverlayRouteActive,
       isDailyQuizOpen,
+      isForumOpen,
       enabled,
       pathname: location.pathname
     });
@@ -188,7 +204,7 @@ function GamePage() {
         console.log(`[Game] Scene "${scene.scene.key}" keyboard.enabled set to: ${enabled}`);
       }
     }
-  }, [isDailyQuizOpen, location.pathname]);
+  }, [isDailyQuizOpen, isForumOpen, location.pathname]);
 
   return (
     <div className="game-wrapper" style={{ position: "fixed", inset: 0 }}>
@@ -222,6 +238,15 @@ function GamePage() {
         isOpen={isDailyQuizOpen}
         onClose={() => setIsDailyQuizOpen(false)}
       />
+
+      <ForumErrorBoundary onClose={() => setIsForumOpen(false)}>
+        {isForumOpen ? (
+          <ForumPanel
+            isOpen={isForumOpen}
+            onClose={() => setIsForumOpen(false)}
+          />
+        ) : null}
+      </ForumErrorBoundary>
     </div>
   );
 }
