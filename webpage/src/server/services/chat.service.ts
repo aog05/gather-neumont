@@ -3,16 +3,34 @@ import { getAdminFirestore, isAdminSdkAvailable } from "./firebase-admin";
 
 let chatUnavailableWarnedOnce = false;
 
+function warnChatUnavailableOnce(reason: string): void {
+  if (chatUnavailableWarnedOnce) return;
+  chatUnavailableWarnedOnce = true;
+  console.warn(
+    `[chat] ${reason} - chat write endpoints will return 503 chat_unavailable. The rest of the app is unaffected.`,
+  );
+}
+
 function requireAdminSdk(): void {
   if (!isAdminSdkAvailable()) {
-    if (!chatUnavailableWarnedOnce) {
-      chatUnavailableWarnedOnce = true;
-      console.warn(
-        "[chat] FIREBASE_SERVICE_ACCOUNT_JSON is not set — " +
-        "chat write endpoints will return 503 chat_unavailable. " +
-        "The rest of the app is unaffected.",
-      );
-    }
+    warnChatUnavailableOnce(
+      "Firebase Admin credentials are not configured (set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH)",
+    );
+    throw new ChatServiceError(
+      503,
+      "chat_unavailable",
+      "Chat service is not configured on this server.",
+    );
+  }
+
+  try {
+    getAdminFirestore();
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message.trim().length > 0
+        ? `Firebase Admin initialization failed (${error.message})`
+        : "Firebase Admin initialization failed";
+    warnChatUnavailableOnce(reason);
     throw new ChatServiceError(
       503,
       "chat_unavailable",
