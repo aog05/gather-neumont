@@ -51,6 +51,10 @@ export class MainScene extends Phaser.Scene {
       GROUND_FLOOR_TILESET_KEY,
       "assets/images/map/ground_floor/Wooden House.json",
     );
+    this.load.image(
+      "Wooden House.png",
+      "assets/images/map/ground_floor/Wooden House.png",
+    );
   }
 
   create(): void {

@@ -3,10 +3,23 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "Wooden House.tsx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
+        "Wooden House.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3.8074
+        },
+        "ground_floor_map.tmx": {
+            "scale": 1.11328125,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 113.62807017543861,
+                "y": 114.52631578947364
+            }
+        }
     },
     "last.exportedFilePath": "/Users/arthurgrover/Virtual Campus/gather-neumont/webpage/assets/images/map/ground_floor",
     "last.imagePath": "/Users/arthurgrover/Virtual Campus/gather-neumont/webpage/assets/images/map/ground_floor",
@@ -17,9 +30,13 @@
     "map.tileWidth": 16,
     "map.width": 20,
     "openFiles": [
+        "Wooden House.tsx",
+        "ground_floor_map.tmx"
     ],
     "project": "ground_floor.tiled-project",
     "recentFiles": [
+        "ground_floor_map.tmx",
+        "Wooden House.tsx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {

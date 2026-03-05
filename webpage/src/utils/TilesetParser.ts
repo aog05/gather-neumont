@@ -1,4 +1,13 @@
 export namespace TilesetParser {
+  export type TileTextureFrame = {
+    localTileId: number;
+    image: string;
+    frameX: number;
+    frameY: number;
+    frameWidth: number;
+    frameHeight: number;
+  };
+
   export type CollisionBox = {
     x: number;
     y: number;
@@ -15,6 +24,14 @@ export namespace TilesetParser {
     name: string;
     tileWidth: number;
     tileHeight: number;
+    image: string;
+    imageWidth: number;
+    imageHeight: number;
+    columns: number;
+    margin: number;
+    spacing: number;
+    tileCount: number;
+    textureFramesByTileId: Map<number, TileTextureFrame>;
     collisionsByTileId: Map<number, ParsedTileCollision>;
   };
 
@@ -34,6 +51,13 @@ export namespace TilesetParser {
 
   type TiledTilesetJson = {
     name: string;
+    image: string;
+    imagewidth: number;
+    imageheight: number;
+    columns: number;
+    margin: number;
+    spacing: number;
+    tilecount: number;
     tilewidth: number;
     tileheight: number;
     tiles: TiledTile[];
@@ -44,6 +68,33 @@ export namespace TilesetParser {
 
     const tileWidth = parsedTileset.tilewidth;
     const tileHeight = parsedTileset.tileheight;
+    const image = parsedTileset.image;
+    const imageWidth = parsedTileset.imagewidth;
+    const imageHeight = parsedTileset.imageheight;
+    const columns = parsedTileset.columns;
+    const margin = parsedTileset.margin;
+    const spacing = parsedTileset.spacing;
+    const tileCount = parsedTileset.tilecount;
+
+    const textureFramesByTileId = new Map<number, TileTextureFrame>();
+
+    for (let localTileId = 0; localTileId < tileCount; localTileId += 1) {
+      const column = localTileId % columns;
+      const row = Math.floor(localTileId / columns);
+
+      const frameX = margin + column * (tileWidth + spacing);
+      const frameY = margin + row * (tileHeight + spacing);
+
+      textureFramesByTileId.set(localTileId, {
+        localTileId,
+        image,
+        frameX,
+        frameY,
+        frameWidth: tileWidth,
+        frameHeight: tileHeight,
+      });
+    }
+
     const collisionsByTileId = new Map<number, ParsedTileCollision>();
 
     parsedTileset.tiles.forEach((tile) => {
@@ -83,6 +134,14 @@ export namespace TilesetParser {
       name: parsedTileset.name ?? "Unnamed Tileset",
       tileWidth,
       tileHeight,
+      image,
+      imageWidth,
+      imageHeight,
+      columns,
+      margin,
+      spacing,
+      tileCount,
+      textureFramesByTileId,
       collisionsByTileId,
     };
   }
