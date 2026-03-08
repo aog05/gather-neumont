@@ -118,8 +118,22 @@ export class DialogueManager {
     this.currentTree = tree;
     this.currentNode = tree.nodes[startNodeId];
 
+    // Fallback: the NPC config's defaultNode may be a human-readable ID (e.g. "walsh-greeting")
+    // while tree.nodes is keyed by Firestore document IDs. If the lookup fails, fall back to
+    // the tree root node which is always keyed by tree.id (the Firestore root document ID).
+    if (!this.currentNode && tree.nodes[tree.id]) {
+      console.warn(
+        `[DialogueManager] Start node '${startNodeId}' not found in tree nodes — ` +
+        `falling back to tree root '${tree.id}'. ` +
+        `(NPC config 'defaultNode' should match a Firestore document ID, not the treeId string.)`
+      );
+      startNodeId = tree.id;
+      this.currentNode = tree.nodes[tree.id];
+    }
+
     if (!this.currentNode) {
       console.error(`Start node not found: ${startNodeId}`);
+      console.error(`Available nodes:`, Object.keys(tree.nodes));
       return;
     }
 

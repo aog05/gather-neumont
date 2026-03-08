@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { NPC, Dialogue } from '../../../types/firestore.types';
@@ -6,6 +6,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import NPCForm from './NPCForm';
 import './NPCList.css';
 
@@ -18,6 +19,7 @@ export default function NPCList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDialogueModalOpen, setIsDialogueModalOpen] = useState(false);
   const [selectedDialogue, setSelectedDialogue] = useState<Dialogue | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   /**
    * Get dialogue by treeId
@@ -36,6 +38,22 @@ export default function NPCList() {
     }
     return dialogue.treeId || dialogue.id || 'Unnamed dialogue';
   };
+
+  /**
+   * Filter NPCs based on search query
+   */
+  const filteredNPCs = useMemo(() => {
+    if (!searchQuery.trim()) return npcs;
+
+    const query = searchQuery.toLowerCase();
+    return npcs.filter((npc) => {
+      const name = npc.Name?.toLowerCase() || '';
+      const behavior = npc.Behavior?.toLowerCase() || '';
+      const id = npc.id?.toLowerCase() || '';
+
+      return name.includes(query) || behavior.includes(query) || id.includes(query);
+    });
+  }, [npcs, searchQuery]);
 
   const columns: Column<NPC>[] = [
     {
@@ -138,12 +156,17 @@ export default function NPCList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search NPCs by name, behavior, or ID..."
+        />
         <DataTable
-          data={npcs}
+          data={filteredNPCs}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No NPCs found"
+          emptyMessage={searchQuery ? "No NPCs match your search" : "No NPCs found"}
           actions={(npc) => (
             <>
               <Button size="sm" variant="secondary" onClick={() => handleEdit(npc)}>

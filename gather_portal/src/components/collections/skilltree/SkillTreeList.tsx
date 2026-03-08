@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { SkillTreeItems } from '../../../types/firestore.types';
@@ -6,6 +6,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import SkillTreeForm from './SkillTreeForm';
 import './SkillTreeList.css';
 
@@ -17,6 +18,24 @@ export default function SkillTreeList() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /**
+   * Filter skills based on search query
+   */
+  const filteredSkills = useMemo(() => {
+    if (!searchQuery.trim()) return skills;
+
+    const query = searchQuery.toLowerCase();
+    return skills.filter((skill) => {
+      const name = skill.Name?.toLowerCase() || '';
+      const proficiency = skill.Proficiency?.toLowerCase() || '';
+      const source = skill.Source?.toLowerCase() || '';
+      const id = skill.id?.toLowerCase() || '';
+
+      return name.includes(query) || proficiency.includes(query) || source.includes(query) || id.includes(query);
+    });
+  }, [skills, searchQuery]);
 
   const columns: Column<SkillTreeItems>[] = [
     {
@@ -103,12 +122,17 @@ export default function SkillTreeList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search skills by name, proficiency, source, or ID..."
+        />
         <DataTable
-          data={skills}
+          data={filteredSkills}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No skills found"
+          emptyMessage={searchQuery ? "No skills match your search" : "No skills found"}
           actions={(skill) => (
             <>
               <Button size="sm" variant="secondary" onClick={() => handleEdit(skill)}>

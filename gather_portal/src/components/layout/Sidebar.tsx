@@ -14,6 +14,7 @@ export default function Sidebar() {
     { path: '/puzzle-weeks', label: 'Puzzle Weeks', icon: '📅' },
     { path: '/cosmetics', label: 'Cosmetics', icon: '👕' },
     { path: '/skills', label: 'Skills', icon: '🌟' },
+    { path: '/daily-quiz', label: 'Daily Quiz', icon: '📋' },
   ];
 
   return (

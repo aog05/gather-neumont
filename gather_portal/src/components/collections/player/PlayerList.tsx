@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { Player, Quest, Cosmetic } from '../../../types/firestore.types';
@@ -6,6 +6,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import './PlayerList.css';
 
 export default function PlayerList() {
@@ -14,6 +15,7 @@ export default function PlayerList() {
   const { data: cosmetics } = useCollection<Cosmetic>(COLLECTIONS.COSMETIC);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   /**
    * Get quest by ID
@@ -42,6 +44,22 @@ export default function PlayerList() {
   const getCosmeticName = (cosmetic: Cosmetic): string => {
     return cosmetic.Name || cosmetic.id || 'Unnamed Cosmetic';
   };
+
+  /**
+   * Filter players based on search query
+   */
+  const filteredPlayers = useMemo(() => {
+    if (!searchQuery.trim()) return players;
+
+    const query = searchQuery.toLowerCase();
+    return players.filter((player) => {
+      const username = player.Username?.toLowerCase() || '';
+      const email = player.Email?.toLowerCase() || '';
+      const id = player.id?.toLowerCase() || '';
+
+      return username.includes(query) || email.includes(query) || id.includes(query);
+    });
+  }, [players, searchQuery]);
 
   const columns: Column<Player>[] = [
     {
@@ -106,12 +124,17 @@ export default function PlayerList() {
           </Button>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search players by username, email, or ID..."
+        />
         <DataTable
-          data={players}
+          data={filteredPlayers}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No players found"
+          emptyMessage={searchQuery ? "No players match your search" : "No players found"}
         />
       </Card>
 

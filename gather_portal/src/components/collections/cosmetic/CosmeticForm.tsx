@@ -3,6 +3,7 @@ import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { Cosmetic } from '../../../types/firestore.types';
 import Button from '../../shared/Button';
+import ImageUpload from '../../shared/ImageUpload';
 import './CosmeticForm.css';
 
 interface CosmeticFormProps {
@@ -100,8 +101,23 @@ export default function CosmeticForm({ cosmetic, onSuccess, onCancel }: Cosmetic
         </div>
 
         <div className="form-field">
+          <label className="form-label">
+            Cosmetic Image *
+          </label>
+          <ImageUpload
+            currentImageUrl={formData.spritePath}
+            onImageUploaded={(url) => setFormData({ ...formData, spritePath: url })}
+            folder="cosmetics"
+            disabled={loading}
+          />
+          <p className="form-hint">
+            Upload an image for this cosmetic item
+          </p>
+        </div>
+
+        <div className="form-field">
           <label htmlFor="spritePath" className="form-label">
-            Sprite Path *
+            Sprite Path (URL)
           </label>
           <input
             type="text"
@@ -109,12 +125,12 @@ export default function CosmeticForm({ cosmetic, onSuccess, onCancel }: Cosmetic
             name="spritePath"
             value={formData.spritePath}
             onChange={handleChange}
-            required
             className="form-input"
-            placeholder="Enter sprite path (e.g., /assets/cosmetics/red-hat.png)"
+            placeholder="Auto-filled after image upload or enter manually"
+            readOnly={!formData.spritePath}
           />
           <p className="form-hint">
-            Path to the sprite image file in the assets folder
+            This field is auto-populated when you upload an image above
           </p>
         </div>
 

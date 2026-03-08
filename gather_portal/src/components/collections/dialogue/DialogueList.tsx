@@ -6,6 +6,7 @@ import type { Dialogue, Quest } from '../../../types/firestore.types';
 import Card from '../../shared/Card';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import DialogueForm from './DialogueForm';
 import './DialogueList.css';
 
@@ -38,6 +39,7 @@ export default function DialogueList() {
   const [selectedDialogue, setSelectedDialogue] = useState<Dialogue | null>(null);
   const [expandedTrees, setExpandedTrees] = useState<Set<string>>(new Set());
   const [loadingChain, setLoadingChain] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   /**
    * Get quest by ID
@@ -97,6 +99,27 @@ export default function DialogueList() {
       }))
       .sort((a, b) => a.prefix.localeCompare(b.prefix));
   }, [dialogues, referencedDialogueIds]);
+
+  /**
+   * Filter dialogue trees based on search query
+   */
+  const filteredDialogueTrees = useMemo(() => {
+    if (!searchQuery.trim()) return dialogueTrees;
+
+    const query = searchQuery.toLowerCase();
+    return dialogueTrees
+      .map((tree) => ({
+        ...tree,
+        rootDialogues: tree.rootDialogues.filter((dialogue) => {
+          const treeId = dialogue.treeId?.toLowerCase() || '';
+          const content = dialogue.content?.toLowerCase() || '';
+          const id = dialogue.id?.toLowerCase() || '';
+
+          return treeId.includes(query) || content.includes(query) || id.includes(query);
+        }),
+      }))
+      .filter((tree) => tree.rootDialogues.length > 0);
+  }, [dialogueTrees, searchQuery]);
 
   /**
    * Fetch complete dialogue chain starting from a root dialogue
@@ -380,13 +403,18 @@ export default function DialogueList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search dialogues by tree ID, content, or ID..."
+        />
         {loading ? (
           <div className="dialogue-loading">Loading dialogues...</div>
-        ) : dialogueTrees.length === 0 ? (
-          <div className="dialogue-empty">No dialogues found. Create your first dialogue!</div>
+        ) : filteredDialogueTrees.length === 0 ? (
+          <div className="dialogue-empty">{searchQuery ? "No dialogues match your search" : "No dialogues found. Create your first dialogue!"}</div>
         ) : (
           <div className="dialogue-tree-container">
-            {dialogueTrees.map((tree) => (
+            {filteredDialogueTrees.map((tree) => (
               <div key={tree.prefix} className="dialogue-tree">
                 {/* Tree Header */}
                 <div

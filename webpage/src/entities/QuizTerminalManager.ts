@@ -70,24 +70,16 @@ export class QuizTerminalManager {
     // Update terminal proximity check
     this.terminal.update(player);
 
-    // DEBUG: Log key state when key is down
-    if (this.interactionKey.isDown) {
-      console.log(`[QuizTerminalManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
-    }
-
-    // Handle interaction key press (same pattern as NPCManager)
-    // Note: Using shared key, so check terminal proximity first to avoid conflicts
-    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
-
-    if (justDown) {
-      console.log(`[QuizTerminalManager] ⌨️ E key JustDown triggered!`);
-      console.log(`[QuizTerminalManager] Player nearby: ${this.terminal.isPlayerNearby}`);
-
-      if (this.terminal.isPlayerNearby) {
+    // Handle interaction key press only when player is near terminal.
+    // IMPORTANT: Phaser.Input.Keyboard.JustDown() consumes the _justDown flag,
+    // so it must NOT be called unconditionally — calling it here when the player
+    // is not nearby would silently eat the event and prevent NPCManager from
+    // detecting it on the same frame.
+    if (this.terminal.isPlayerNearby) {
+      const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
+      if (justDown) {
         console.log(`[QuizTerminalManager] ✅ Starting quiz...`);
         this.terminal.startQuiz();
-      } else {
-        console.log(`[QuizTerminalManager] ❌ Player not in range`);
       }
     }
   }

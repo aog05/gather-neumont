@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { Cosmetic } from '../../../types/firestore.types';
@@ -6,6 +6,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import CosmeticForm from './CosmeticForm';
 import './CosmeticList.css';
 
@@ -17,6 +18,23 @@ export default function CosmeticList() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /**
+   * Filter cosmetics based on search query
+   */
+  const filteredCosmetics = useMemo(() => {
+    if (!searchQuery.trim()) return cosmetics;
+
+    const query = searchQuery.toLowerCase();
+    return cosmetics.filter((cosmetic) => {
+      const name = cosmetic.Name?.toLowerCase() || '';
+      const type = cosmetic.Type?.toLowerCase() || '';
+      const id = cosmetic.id?.toLowerCase() || '';
+
+      return name.includes(query) || type.includes(query) || id.includes(query);
+    });
+  }, [cosmetics, searchQuery]);
 
   const columns: Column<Cosmetic>[] = [
     {
@@ -112,12 +130,17 @@ export default function CosmeticList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search cosmetics by name, type, or ID..."
+        />
         <DataTable
-          data={cosmetics}
+          data={filteredCosmetics}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No cosmetics found"
+          emptyMessage={searchQuery ? "No cosmetics match your search" : "No cosmetics found"}
           actions={(cosmetic) => (
             <>
               <Button size="sm" variant="secondary" onClick={() => handleEdit(cosmetic)}>

@@ -12,6 +12,7 @@ interface PuzzleFormProps {
 }
 
 interface QuizQuestionForm {
+  prompt: string; // The actual question text
   SV: number;
   type: 'one-select' | 'multiple-choice';
   correctAnswers: string[];
@@ -38,6 +39,7 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
   const [questions, setQuestions] = useState<QuizQuestionForm[]>(() => {
     if (puzzle && puzzle.Type === 'Quiz') {
       return (puzzle as QuizPuzzle).Questions.map((q) => ({
+        prompt: q.prompt || '', // Load existing prompt or empty string
         SV: q.SV,
         type: q.type,
         correctAnswers: q.type === 'one-select' ? (q.answer ? [q.answer] : []) : (q.answers || []),
@@ -46,6 +48,7 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
     }
     return [
       {
+        prompt: '', // Initialize with empty prompt
         SV: 10,
         type: 'one-select',
         correctAnswers: [''],
@@ -69,11 +72,20 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
     setPuzzleType(newType);
   };
 
+  // Auto-calculate total reward from question scores
+  const calculateTotalReward = () => {
+    if (puzzleType === 'Quiz') {
+      const total = questions.reduce((sum, q) => sum + (q.SV || 0), 0);
+      setReward(total.toString());
+    }
+  };
+
   // Quiz question handlers
   const addQuestion = () => {
     setQuestions([
       ...questions,
       {
+        prompt: '', // Initialize with empty prompt
         SV: 10,
         type: 'one-select',
         correctAnswers: [''],
@@ -94,6 +106,11 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
     const newQuestions = [...questions];
     newQuestions[index] = { ...newQuestions[index], [field]: value };
     setQuestions(newQuestions);
+
+    // Auto-recalculate reward if SV changed
+    if (field === 'SV') {
+      setTimeout(calculateTotalReward, 0);
+    }
   };
 
   const addCorrectAnswer = (questionIndex: number) => {
@@ -200,20 +217,25 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
         }
 
         // Convert QuizQuestionForm to QuizQuestion
-        const quizQuestions: QuizQuestion[] = questions.map((q) => {
+        const quizQuestions: QuizQuestion[] = questions.map((q, index) => {
           const correctAnswers = q.correctAnswers.filter((a) => a.trim() !== '');
           const incorrectOptions = q.incorrectOptions.filter((o) => o.trim() !== '');
 
+          if (!q.prompt || q.prompt.trim() === '') {
+            throw new Error(`Question ${index + 1} must have a prompt/question text`);
+          }
+
           if (correctAnswers.length === 0) {
-            throw new Error('Each question must have at least one correct answer');
+            throw new Error(`Question ${index + 1} must have at least one correct answer`);
           }
 
           if (incorrectOptions.length === 0) {
-            throw new Error('Each question must have at least one incorrect option');
+            throw new Error(`Question ${index + 1} must have at least one incorrect option`);
           }
 
           if (q.type === 'one-select') {
             return {
+              prompt: q.prompt.trim(),
               SV: q.SV,
               type: 'one-select',
               answer: correctAnswers[0],
@@ -221,6 +243,7 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
             };
           } else {
             return {
+              prompt: q.prompt.trim(),
               SV: q.SV,
               type: 'multiple-choice',
               answers: correctAnswers,
@@ -343,6 +366,17 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
         <div className="form-field">
           <label htmlFor="reward" className="form-label">
             Reward (Points) *
+            {puzzleType === 'Quiz' && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={calculateTotalReward}
+                style={{ marginLeft: '10px' }}
+              >
+                🔄 Auto-Calculate from Questions
+              </Button>
+            )}
           </label>
           <input
             type="number"
@@ -354,6 +388,11 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
             className="form-input"
             placeholder="100"
           />
+          {puzzleType === 'Quiz' && (
+            <span className="form-hint">
+              Total reward for passing the quiz. Click "Auto-Calculate" to sum all question scores.
+            </span>
+          )}
         </div>
       </div>
 
@@ -379,7 +418,7 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
                 placeholder="70"
               />
               <span className="form-hint">
-                Percentage of total score required to pass (0-100)
+                Percentage of total score required to pass (0-100). Users only receive points if they pass!
               </span>
             </div>
           </div>
@@ -406,6 +445,19 @@ export default function PuzzleForm({ puzzle, onSuccess, onCancel }: PuzzleFormPr
                       🗑️ Remove Question
                     </Button>
                   )}
+                </div>
+
+                {/* Question Prompt Field */}
+                <div className="form-field">
+                  <label className="form-label">❓ Question Text / Prompt *</label>
+                  <textarea
+                    value={question.prompt}
+                    onChange={(e) => updateQuestion(qIndex, 'prompt', e.target.value)}
+                    required
+                    className="form-textarea"
+                    placeholder="Enter the actual question here (e.g., 'What is the capital of France?')"
+                    rows={3}
+                  />
                 </div>
 
                 <div className="question-settings">

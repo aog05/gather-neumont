@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS } from '../../../lib/firebase';
 import type { Quest, Cosmetic } from '../../../types/firestore.types';
@@ -6,6 +6,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import QuestForm from './QuestForm';
 import './QuestList.css';
 
@@ -16,6 +17,7 @@ export default function QuestList() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   /**
    * Get quest by ID
@@ -44,6 +46,22 @@ export default function QuestList() {
   const getCosmeticName = (cosmetic: Cosmetic): string => {
     return cosmetic.Name || cosmetic.id || 'Unnamed Cosmetic';
   };
+
+  /**
+   * Filter quests based on search query
+   */
+  const filteredQuests = useMemo(() => {
+    if (!searchQuery.trim()) return quests;
+
+    const query = searchQuery.toLowerCase();
+    return quests.filter((quest) => {
+      const title = quest.Title?.toLowerCase() || '';
+      const desc = quest.smalldesc?.toLowerCase() || '';
+      const id = quest.id?.toLowerCase() || '';
+
+      return title.includes(query) || desc.includes(query) || id.includes(query);
+    });
+  }, [quests, searchQuery]);
 
   const columns: Column<Quest>[] = [
     {
@@ -145,12 +163,17 @@ export default function QuestList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search quests by title, description, or ID..."
+        />
         <DataTable
-          data={quests}
+          data={filteredQuests}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No quests found"
+          emptyMessage={searchQuery ? "No quests match your search" : "No quests found"}
           actions={(quest) => (
             <>
               <Button size="sm" variant="secondary" onClick={() => handleEdit(quest)}>

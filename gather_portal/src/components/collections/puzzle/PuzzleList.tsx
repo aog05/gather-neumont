@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCollection } from '../../../hooks/useCollection';
 import { COLLECTIONS, db } from '../../../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import Card from '../../shared/Card';
 import DataTable, { Column } from '../../shared/DataTable';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
+import SearchBar from '../../shared/SearchBar';
 import PuzzleForm from './PuzzleForm';
 import './PuzzleList.css';
 
@@ -28,6 +29,7 @@ export default function PuzzleList() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load score data for all puzzles
   useEffect(() => {
@@ -126,6 +128,23 @@ export default function PuzzleList() {
       return 'Unknown Player';
     }
   };
+
+  /**
+   * Filter puzzles based on search query
+   */
+  const filteredPuzzles = useMemo(() => {
+    if (!searchQuery.trim()) return puzzlesWithScores;
+
+    const query = searchQuery.toLowerCase();
+    return puzzlesWithScores.filter((puzzle) => {
+      const name = puzzle.Name?.toLowerCase() || '';
+      const topic = puzzle.Topic?.toLowerCase() || '';
+      const type = puzzle.Type?.toLowerCase() || '';
+      const id = puzzle.id?.toLowerCase() || '';
+
+      return name.includes(query) || topic.includes(query) || type.includes(query) || id.includes(query);
+    });
+  }, [puzzlesWithScores, searchQuery]);
 
   const columns: Column<PuzzleWithScores>[] = [
     {
@@ -245,12 +264,17 @@ export default function PuzzleList() {
           </>
         }
       >
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search puzzles by name, topic, type, or ID..."
+        />
         <DataTable
-          data={puzzlesWithScores}
+          data={filteredPuzzles}
           columns={columns}
           loading={loading}
           onRowClick={handleRowClick}
-          emptyMessage="No puzzles found"
+          emptyMessage={searchQuery ? "No puzzles match your search" : "No puzzles found"}
           actions={(puzzle) => (
             <>
               <Button size="sm" variant="secondary" onClick={() => handleEdit(puzzle)}>

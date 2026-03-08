@@ -7,6 +7,7 @@
 
 import { initializeApp, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 /**
  * Firebase configuration object
@@ -35,6 +36,12 @@ export const app: FirebaseApp = initializeApp(firebaseConfig);
 export const db: Firestore = getFirestore(app);
 
 /**
+ * Initialize Firebase Storage
+ * This is used for uploading and storing files (e.g., cosmetic images)
+ */
+export const storage: FirebaseStorage = getStorage(app);
+
+/**
  * Collection names as constants for type safety and consistency
  * Use these throughout the app to avoid typos and ensure consistency
  */
@@ -48,6 +55,8 @@ export const COLLECTIONS = {
   QUEST: 'Quest',
   SKILL_TREE_ITEMS: 'SkillTreeItems',
   ANALYTICS: 'Analytics',
+  QUIZ_QUESTIONS: 'QUIZ_QUESTIONS',
+  QUIZ_SCHEDULE: 'QUIZ_SCHEDULE',
 } as const;
 
 /**
@@ -68,6 +77,7 @@ export const isFirestoreReady = (): boolean => {
 export default {
   app,
   db,
+  storage,
   COLLECTIONS,
   isFirestoreReady,
 };

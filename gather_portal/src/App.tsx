@@ -11,6 +11,7 @@ import PuzzleList from './components/collections/puzzle/PuzzleList';
 import PuzzleWeekList from './components/collections/puzzleweek/PuzzleWeekList';
 import CosmeticList from './components/collections/cosmetic/CosmeticList';
 import SkillTreeList from './components/collections/skilltree/SkillTreeList';
+import DailyQuizManager from './components/collections/dailyquiz/DailyQuizManager';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="puzzle-weeks" element={<PuzzleWeekList />} />
           <Route path="cosmetics" element={<CosmeticList />} />
           <Route path="skills" element={<SkillTreeList />} />
+          <Route path="daily-quiz" element={<DailyQuizManager />} />
         </Route>
       </Routes>
     </BrowserRouter>
