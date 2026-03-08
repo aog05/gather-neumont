@@ -11,7 +11,14 @@ function asStatus(value: unknown): ForumMessageStatus {
 
 function asTimestamp(value: unknown): Timestamp | null {
   if (value && typeof (value as any).toDate === "function") {
-    return value as Timestamp;
+    try {
+      // Verify toDate() is callable without throwing (serverTimestamp sentinels
+      // have toDate but throw "not available" before the server resolves them).
+      (value as any).toDate();
+      return value as Timestamp;
+    } catch {
+      return null;
+    }
   }
   return null;
 }

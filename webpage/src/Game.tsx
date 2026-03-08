@@ -239,7 +239,7 @@ function GamePage() {
         onClose={() => setIsDailyQuizOpen(false)}
       />
 
-      <ForumErrorBoundary onClose={() => setIsForumOpen(false)}>
+      <ForumErrorBoundary key={String(isForumOpen)} onClose={() => setIsForumOpen(false)}>
         {isForumOpen ? (
           <ForumPanel
             isOpen={isForumOpen}

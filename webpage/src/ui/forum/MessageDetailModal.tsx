@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../features/auth/AuthContext";
 import {
-  clearChatReports,
-  getMessageReports,
-  pinChatMessage,
-  quarantineChatMessage,
-  softDeleteChatMessage,
-  unpinChatMessage,
-  unquarantineChatMessage,
-} from "../../api/chatApi";
+  clearChatReportsDirect,
+  getMessageReportsDirect,
+  pinChatMessageDirect,
+  quarantineChatMessageDirect,
+  softDeleteChatMessageDirect,
+  unpinChatMessageDirect,
+  unquarantineChatMessageDirect,
+} from "../../lib/chatWrites";
+import { withTimeout } from "../../lib/withTimeout";
 import type { ForumMessage, ForumReport } from "../../types/forum.types";
 
 interface MessageDetailModalProps {
@@ -18,6 +20,7 @@ interface MessageDetailModalProps {
   onClose: () => void;
   onAfterAction: () => void;
 }
+const FORUM_ACTION_TIMEOUT_MS = 10_000;
 
 function formatDate(value: string | null): string {
   if (!value) return "n/a";
@@ -28,8 +31,9 @@ function formatDate(value: string | null): string {
 
 export default function MessageDetailModal(props: MessageDetailModalProps) {
   const { message, isOpen, isAdmin, pinnedMessageId, onClose, onAfterAction } = props;
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  const auth = useAuth();
+  const me = auth.me;
+  const closedRef = useRef(!isOpen);
 
   const [reports, setReports] = useState<ForumReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
@@ -43,6 +47,26 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
     [message, pinnedMessageId]
   );
 
+  const resetTransientState = () => {
+    setActionLoading(false);
+    setPendingConfirm(null);
+    setError(null);
+    setReportsLoading(false);
+  };
+
+  const handleClose = () => {
+    closedRef.current = true;
+    resetTransientState();
+    onClose();
+  };
+
+  useEffect(() => {
+    closedRef.current = !isOpen;
+    if (!isOpen) {
+      resetTransientState();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen || !isAdmin || !message) {
       setReports([]);
@@ -51,7 +75,7 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
 
     let cancelled = false;
     setReportsLoading(true);
-    void getMessageReports(message.id)
+    void getMessageReportsDirect(message.id)
       .then((next) => {
         if (cancelled) return;
         setReports(next);
@@ -77,16 +101,26 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
   const runAction = async (key: string, action: () => Promise<void>) => {
     setPendingConfirm(null);
     setActionLoading(true);
+    console.debug("[MessageDetailModal] action start", key, message.id);
     try {
-      await action();
-      if (!mountedRef.current) return;
+      await withTimeout(action(), FORUM_ACTION_TIMEOUT_MS, `Moderation action (${key})`);
+      console.debug("[MessageDetailModal] action success", key, message.id);
+      if (closedRef.current) return;
+      if (key === "quarantine" || key === "unquarantine" || key === "delete" || key === "clear-reports") {
+        console.debug("[MessageDetailModal] closing after moderation action", key, message.id);
+        handleClose();
+        return;
+      }
       onAfterAction();
       setError(null);
     } catch (err) {
-      if (!mountedRef.current) return;
+      if (closedRef.current) return;
+      console.error("[MessageDetailModal] action failed", key, err);
       setError(err instanceof Error ? err.message : "Moderation action failed");
     } finally {
-      if (mountedRef.current) setActionLoading(false);
+      if (closedRef.current) return;
+      setActionLoading(false);
+      console.debug("[MessageDetailModal] action loading reset", key, message.id);
     }
   };
 
@@ -103,8 +137,7 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
       className="forum-modal-backdrop"
       onClick={(event) => {
         event.stopPropagation();
-        setPendingConfirm(null);
-        onClose();
+        handleClose();
       }}
     >
       <div className="quiz-panel forum-modal-panel" onClick={(event) => event.stopPropagation()}>
@@ -114,7 +147,7 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
             <button
               type="button"
               className="quiz-panel-chrome-btn quiz-panel-chrome-btn--close"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Close"
             >
               ×
@@ -137,7 +170,13 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
                   className="forum-btn-secondary"
                   disabled={actionLoading}
                   onClick={() =>
-                    void runAction("pin", () => isPinned ? unpinChatMessage() : pinChatMessage(message.id))
+                    void runAction("pin", () =>
+                      me
+                        ? isPinned
+                          ? unpinChatMessageDirect({ userId: me.userId, username: me.username })
+                          : pinChatMessageDirect(message.id, { userId: me.userId, username: me.username })
+                        : Promise.reject(new Error("Not authenticated"))
+                    )
                   }
                 >
                   {isPinned ? "Unpin" : "Pin"}
@@ -150,10 +189,13 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
                     disabled={actionLoading}
                     onClick={() =>
                       void runAction("quarantine", () =>
-                        quarantineChatMessage(
-                          message.id,
-                          moderationReason.trim() || "Quarantined by moderator"
-                        )
+                        me
+                          ? quarantineChatMessageDirect(
+                              message.id,
+                              moderationReason.trim() || "Quarantined by moderator",
+                              { userId: me.userId }
+                            )
+                          : Promise.reject(new Error("Not authenticated"))
                       )
                     }
                   >
@@ -164,7 +206,7 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
                     type="button"
                     className="forum-btn-secondary"
                     disabled={actionLoading}
-                    onClick={() => void runAction("unquarantine", () => unquarantineChatMessage(message.id))}
+                    onClick={() => void runAction("unquarantine", () => unquarantineChatMessageDirect(message.id))}
                   >
                     Unquarantine
                   </button>
@@ -174,7 +216,13 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
                   type="button"
                   className={`forum-btn-danger${pendingConfirm === "delete" ? " forum-btn-danger--confirm" : ""}`}
                   disabled={actionLoading}
-                  onClick={() => handleConfirmAction("delete", () => softDeleteChatMessage(message.id))}
+                  onClick={() =>
+                    handleConfirmAction("delete", () =>
+                      me
+                        ? softDeleteChatMessageDirect(message.id, { userId: me.userId })
+                        : Promise.reject(new Error("Not authenticated"))
+                    )
+                  }
                 >
                   {pendingConfirm === "delete" ? "Confirm delete?" : "Soft Delete"}
                 </button>
@@ -182,7 +230,13 @@ export default function MessageDetailModal(props: MessageDetailModalProps) {
                   type="button"
                   className={`forum-btn-danger${pendingConfirm === "clear-reports" ? " forum-btn-danger--confirm" : ""}`}
                   disabled={actionLoading}
-                  onClick={() => handleConfirmAction("clear-reports", () => clearChatReports(message.id))}
+                  onClick={() =>
+                    handleConfirmAction("clear-reports", () =>
+                      me
+                        ? clearChatReportsDirect(message.id, { userId: me.userId, username: me.username })
+                        : Promise.reject(new Error("Not authenticated"))
+                    )
+                  }
                 >
                   {pendingConfirm === "clear-reports" ? "Confirm clear?" : "Clear Reports"}
                 </button>

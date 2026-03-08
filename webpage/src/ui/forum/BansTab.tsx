@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createChatBan, getChatBans, removeChatBan } from "../../api/chatApi";
+import { useAuth } from "../../features/auth/AuthContext";
+import { createChatBanDirect, getChatBansDirect, removeChatBanDirect } from "../../lib/chatWrites";
+import { withTimeout } from "../../lib/withTimeout";
 import type { ForumBan } from "../../types/forum.types";
+
+const FORUM_ACTION_TIMEOUT_MS = 10_000;
 
 function formatIso(value: string | null | undefined): string {
   if (!value) return "n/a";
@@ -12,6 +16,9 @@ function formatIso(value: string | null | undefined): string {
 export default function BansTab() {
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const auth = useAuth();
+  const me = auth.me;
 
   const [bans, setBans] = useState<ForumBan[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +33,7 @@ export default function BansTab() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await getChatBans(true);
+      const next = await getChatBansDirect(true);
       if (!mountedRef.current) return;
       setBans(next);
       setError(null);
@@ -45,6 +52,8 @@ export default function BansTab() {
   const onCreateBan = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
+    let shouldRefresh = false;
+    console.debug("[BansTab] create ban start", userId.trim());
     try {
       const expiresAtIso = (() => {
         if (!expiresAt.trim()) return null;
@@ -55,23 +64,37 @@ export default function BansTab() {
         return parsed.toISOString();
       })();
 
-      await createChatBan({
-        userId: userId.trim(),
-        reason: reason.trim(),
-        expiresAt: expiresAtIso,
-      });
+      await withTimeout(
+        createChatBanDirect({
+          userId: userId.trim(),
+          reason: reason.trim(),
+          expiresAt: expiresAtIso,
+          createdBy: me
+            ? { userId: me.userId, username: me.username }
+            : { userId: "unknown", username: "unknown" },
+        }),
+        FORUM_ACTION_TIMEOUT_MS,
+        "Create ban"
+      );
+      console.debug("[BansTab] create ban success", userId.trim());
+      shouldRefresh = true;
       if (!mountedRef.current) return;
       setUserId("");
       setReason("");
       setExpiresAt("");
-      await refresh();
-      if (!mountedRef.current) return;
       setError(null);
     } catch (err) {
+      console.error("[BansTab] create ban failed", err);
       if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to create ban");
     } finally {
-      if (mountedRef.current) setSaving(false);
+      if (mountedRef.current) {
+        setSaving(false);
+        console.debug("[BansTab] create ban loading reset");
+      }
+    }
+    if (shouldRefresh && mountedRef.current) {
+      void refresh();
     }
   };
 
@@ -86,17 +109,33 @@ export default function BansTab() {
 
   const onUnban = async (targetUserId: string) => {
     setLiftingUserId(targetUserId);
+    let shouldRefresh = false;
+    console.debug("[BansTab] unban start", targetUserId);
     try {
-      await removeChatBan(targetUserId);
-      if (!mountedRef.current) return;
-      await refresh();
+      await withTimeout(
+        removeChatBanDirect(
+          targetUserId,
+          me ? { userId: me.userId, username: me.username } : { userId: "unknown", username: "unknown" }
+        ),
+        FORUM_ACTION_TIMEOUT_MS,
+        "Unban user"
+      );
+      console.debug("[BansTab] unban success", targetUserId);
+      shouldRefresh = true;
       if (!mountedRef.current) return;
       setError(null);
     } catch (err) {
+      console.error("[BansTab] unban failed", targetUserId, err);
       if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to lift ban");
     } finally {
-      if (mountedRef.current) setLiftingUserId(null);
+      if (mountedRef.current) {
+        setLiftingUserId(null);
+        console.debug("[BansTab] unban loading reset", targetUserId);
+      }
+    }
+    if (shouldRefresh && mountedRef.current) {
+      void refresh();
     }
   };
 

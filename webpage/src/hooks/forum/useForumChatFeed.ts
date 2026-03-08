@@ -51,7 +51,9 @@ export function useForumChatFeed() {
       },
       (err) => {
         console.error("[forum] feed listener error", err);
-        setError("Failed to load chat feed");
+        const code = (err as { code?: string }).code;
+        const suffix = code ? ` (${code})` : "";
+        setError(`Failed to load chat feed${suffix}`);
         setLoading(false);
       }
     );

@@ -7,7 +7,9 @@
     "dev": "bun build ./src/index.html --outdir=dist --minify && bun src/index.ts",
     "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "bun src/index.ts",
-    "watch": "bun build ./src/index.html --outdir=dist --watch"
+    "watch": "bun build ./src/index.html --outdir=dist --watch",
+    "emu:start": "npx firebase emulators:start --only firestore --project test-neumont",
+    "emu:seed": "bun run scripts/seed-chat-emulator.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.3.0",
