@@ -208,12 +208,17 @@ export class MainScene extends Phaser.Scene {
         console.log(
           `Dialogue requested: NPC ${data.npcId}${data.npcName ? ` (${data.npcName})` : ""}, Tree ${data.treeId}`,
         );
-        this.dialogueManager.startDialogue(
+        void this.dialogueManager.startDialogue(
           data.npcId,
           data.treeId,
           data.startNode,
           data.npcName,
-        );
+        ).catch((error) => {
+          console.error(
+            `[MainScene] Failed to start dialogue for NPC ${data.npcId} (treeId=${data.treeId}, startNode=${data.startNode}). Check Firestore connectivity/rules/data for Dialogue reads.`,
+            error,
+          );
+        });
       },
     );
 

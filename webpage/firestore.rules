@@ -8,6 +8,18 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Local dev support for NPC dialogue loading.
+    // NPC interaction reads from Dialogue (tree + nodes) and NPC (name lookup).
+    match /Dialogue/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /NPC/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Default deny for all other collections.
     match /{document=**} {
       allow read, write: if false;

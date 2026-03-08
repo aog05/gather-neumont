@@ -9,8 +9,6 @@ import { initializeApp, FirebaseApp } from "firebase/app";
 import { getAnalytics, Analytics } from "firebase/analytics";
 import { getFirestore, connectFirestoreEmulator, Firestore } from "firebase/firestore";
 
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
-
 /**
  * Firebase configuration object
  * Contains all necessary credentials and settings for the Firebase project
@@ -52,9 +50,8 @@ export { analytics };
  */
 export const db: Firestore = getFirestore(app);
 
-// Firestore emulator activation:
-// 1) Explicit env flag takes priority.
-// 2) Localhost hostname fallback remains for compatibility.
+// Firestore emulator activation is explicit (opt-in) to avoid routing
+// all localhost gameplay reads (including NPC dialogue) to a sparse emulator.
 if (typeof window !== "undefined") {
   const env = typeof process !== "undefined" && process.env ? process.env : {};
   const isDev = (env.NODE_ENV ?? "development") !== "production";
@@ -93,7 +90,6 @@ if (typeof window !== "undefined") {
   }
 
   let emulatorConnected = false;
-  let usedFallback = false;
 
   if (useEmulatorExplicit) {
     try {
@@ -106,28 +102,16 @@ if (typeof window !== "undefined") {
         console.warn("[firebase] Failed to connect Firestore emulator:", err);
       }
     }
-  } else if (LOOPBACK_HOSTS.has(window.location.hostname)) {
-    usedFallback = true;
-    try {
-      connectFirestoreEmulator(db, "localhost", 8080);
-      emulatorConnected = true;
-    } catch (err) {
-      if (err instanceof Error && err.message.toLowerCase().includes("already")) {
-        emulatorConnected = true;
-      } else if (isDev) {
-        console.warn("[firebase] Firestore emulator fallback failed:", err);
-      }
-    }
   }
 
-  if (isDev && usedFallback) {
+  if (isDev && useEmulatorExplicit && emulatorConnected) {
     console.warn(
-      "[firebase] Firestore emulator connected via loopback fallback. Set BUN_PUBLIC_USE_FIRESTORE_EMULATOR=1 for explicit local config."
+      `[firebase] Firestore emulator connected at ${emuHost}:${emuPort}.`
     );
   }
   if (isDev && !emulatorConnected) {
     console.warn(
-      `[firebase] Firestore emulator not connected; using project "${firebaseConfig.projectId}".`
+      `[firebase] Using project "${firebaseConfig.projectId}" Firestore. Set BUN_PUBLIC_USE_FIRESTORE_EMULATOR=1 to opt in to local emulator.`
     );
   }
   if (isDev && requireEmulator && !emulatorConnected) {
