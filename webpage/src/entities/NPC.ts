@@ -204,12 +204,17 @@ export class NPC extends Phaser.GameObjects.Container {
 
     // Emit dialogue:request event to trigger DialogueManager
     const bridge = GameEventBridge.getInstance();
-    bridge.emit("dialogue:request", {
+    const dialoguePayload = {
       npcId: this.config.id,
       npcName: this.actualName || this.config.name, // Use actual name from Firebase or fallback to config
       treeId: this.config.dialogue.treeId,
       startNode: this.config.dialogue.defaultNode,
-    });
+    };
+    console.log(`[NPC] 📢 Emitting dialogue:request`, dialoguePayload);
+    bridge.emit("dialogue:request", dialoguePayload);
+
+    // Emit npc:talked for QuestTriggerSystem to evaluate npc_talk objectives
+    bridge.emit("npc:talked", { npcId: this.config.id });
   }
 
   /**

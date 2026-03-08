@@ -213,11 +213,19 @@ export class GameState {
 
       // Remove from ActiveQuests, add to CompletedQuests, and award points
       const playerRef = doc(db, COLLECTIONS.PLAYER, player.id);
-      await updateDoc(playerRef, {
+      const updatePayload: Record<string, any> = {
         ActiveQuests: arrayRemove(questId),
         CompletedQuests: arrayUnion(questId),
-        Wallet: newPoints.toString() // Update wallet with new total (stored as string)
-      });
+        Wallet: newPoints.toString(),
+      };
+
+      // SG5: Grant cosmetic reward if specified
+      const cosmeticId = questData.Reward?.CosmeticId;
+      if (cosmeticId) {
+        await this._grantCosmeticReward(questId, cosmeticId, player.id);
+      }
+
+      await updateDoc(playerRef, updatePayload);
 
       console.log(`[GameState] ✅ Quest completed in Firebase: ${questId}`);
       console.log(`[GameState] ✅ Awarded ${rewardPoints} points to player (${currentPoints} → ${newPoints})`);
@@ -240,10 +248,64 @@ export class GameState {
       this.bridge.emit("quest:completed", {
         questId,
         rewardPoints,
-        questTitle: questData.Title
+        questTitle: questData.Title,
       });
+
+      // SG2: Auto-start the next quest in the chain if one is defined
+      const nextQuestId = questData.Next;
+      if (nextQuestId && nextQuestId.trim() !== "") {
+        console.log(`[GameState] Quest chain: auto-starting next quest: ${nextQuestId}`);
+        await this.startQuest(nextQuestId);
+      }
     } catch (error) {
       console.error(`[GameState] Error completing quest:`, error);
+    }
+  }
+
+  /**
+   * SG5: Grant a cosmetic item to the player upon quest completion.
+   * Fetches the cosmetic's type and appends its ID to the correct OwnedCosmetics bucket.
+   * @param questId - Quest being completed (for logging)
+   * @param cosmeticId - Firestore Cosmetic document ID
+   * @param playerId - Firestore Player document ID
+   */
+  private async _grantCosmeticReward(questId: string, cosmeticId: string, playerId: string): Promise<void> {
+    try {
+      const { getDoc } = await import("firebase/firestore");
+      const cosmeticRef = doc(db, COLLECTIONS.COSMETIC, cosmeticId);
+      const cosmeticSnap = await getDoc(cosmeticRef);
+
+      if (!cosmeticSnap.exists()) {
+        console.error(`[GameState] Cosmetic not found for reward: ${cosmeticId}`);
+        return;
+      }
+
+      const cosmeticData = cosmeticSnap.data();
+      const rawType: string = cosmeticData.Type ?? "";
+      // Normalize type to match OwnedCosmetics keys (e.g. "shirt" → "Shirt")
+      const typeKey = rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase();
+      const validKeys = ["Hat", "Shirt", "Shoes", "Accessories", "Pants"];
+
+      if (!validKeys.includes(typeKey)) {
+        console.warn(`[GameState] Unrecognized cosmetic type '${rawType}' for cosmetic ${cosmeticId}`);
+        return;
+      }
+
+      const playerRef = doc(db, COLLECTIONS.PLAYER, playerId);
+      await updateDoc(playerRef, {
+        [`OwnedCosmetics.${typeKey}`]: arrayUnion(cosmeticId),
+      });
+
+      console.log(`[GameState] ✅ Cosmetic granted: ${cosmeticData.Name} (${typeKey}) for quest ${questId}`);
+
+      this.bridge.emit("quest:cosmetic:granted", {
+        questId,
+        cosmeticId,
+        cosmeticName: cosmeticData.Name ?? cosmeticId,
+        cosmeticType: typeKey,
+      });
+    } catch (err) {
+      console.error(`[GameState] Error granting cosmetic reward ${cosmeticId}:`, err);
     }
   }
 

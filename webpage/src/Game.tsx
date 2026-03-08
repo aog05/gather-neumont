@@ -5,6 +5,7 @@ import createGame from "./game.ts";
 import { isOverlayRoute } from "./utils/overlayRoutes";
 import DialogueUI from "./components/DialogueUI.tsx";
 import QuestTracker from "./components/QuestTracker.tsx";
+import QuestToast from "./components/QuestToast.tsx";
 import PlayerProfile from "./components/PlayerProfile.tsx";
 import QuizPanel from "./ui/quiz/QuizPanel.tsx";
 import ForumPanel from "./ui/forum/ForumPanel.tsx";
@@ -38,7 +39,7 @@ function GamePage() {
 
   // Fetch quest data for the current player by username (reseed-proof)
   console.log(`[Game] Using player username: ${TEST_PLAYER_USERNAME}`);
-  const { activeQuests, completedQuests, loading, error } = useQuestData(TEST_PLAYER_USERNAME);
+  const { activeQuests, completedQuests, loading, error, objectiveProgress } = useQuestData(TEST_PLAYER_USERNAME);
 
   // Fetch player profile data
   const {
@@ -231,6 +232,7 @@ function GamePage() {
         onRemoveQuest={handleRemoveQuest}
         onCompleteQuest={handleCompleteQuest}
         loading={loading}
+        objectiveProgress={objectiveProgress}
       />
 
       {/* Daily Quiz Popup */}
@@ -247,6 +249,9 @@ function GamePage() {
           />
         ) : null}
       </ForumErrorBoundary>
+
+      {/* SG10: Quest toast notifications — bottom-right corner */}
+      <QuestToast />
     </div>
   );
 }

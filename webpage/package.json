@@ -9,7 +9,8 @@
     "start": "bun src/index.ts",
     "watch": "bun build ./src/index.html --outdir=dist --watch",
     "emu:start": "npx firebase emulators:start --only firestore --project test-neumont",
-    "emu:seed": "bun run scripts/seed-chat-emulator.ts"
+    "emu:seed": "bun run scripts/seed-chat-emulator.ts",
+    "emu:seed:quests": "bun run scripts/seed-quests.ts"
   },
   "dependencies": {
     "@dicebear/collection": "^9.3.0",

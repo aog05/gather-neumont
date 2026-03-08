@@ -12,7 +12,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { collection, getDocs, orderBy, limit, query } from 'firebase/firestore';
+import { db, COLLECTIONS } from '../lib/firebase';
 import type { Quest } from '../types/firestore.types';
+import type { QuestObjective, QuestObjectiveProgress, QuestProgressMap } from '../types/quest.types';
 import './QuestMenu.css';
 
 interface QuestMenuProps {
@@ -36,9 +39,12 @@ interface QuestMenuProps {
 
   /** Callback to close the menu */
   onClose: () => void;
+
+  /** Live objective progress from QuestTriggerSystem */
+  objectiveProgress?: QuestProgressMap;
 }
 
-type TabType = 'active' | 'completed';
+type TabType = 'active' | 'completed' | 'leaderboard';
 
 export default function QuestMenu({
   activeQuests,
@@ -48,6 +54,7 @@ export default function QuestMenu({
   onRemoveQuest,
   onCompleteQuest,
   onClose,
+  objectiveProgress = {},
 }: QuestMenuProps) {
   const [activeTab, setActiveTab] = useState<TabType>('active');
 
@@ -100,6 +107,12 @@ export default function QuestMenu({
           >
             Completed ({completedQuests.length})
           </button>
+          <button
+            className={`quest-menu-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('leaderboard')}
+          >
+            🏆 Leaderboard
+          </button>
         </div>
 
         {/* Quest List */}
@@ -111,18 +124,23 @@ export default function QuestMenu({
               onQuestClick={handleQuestClick}
               onRemoveQuest={onRemoveQuest}
               onCompleteQuest={onCompleteQuest}
+              objectiveProgress={objectiveProgress}
             />
-          ) : (
+          ) : activeTab === 'completed' ? (
             <CompletedQuestList quests={completedQuests} />
+          ) : (
+            <LeaderboardPanel />
           )}
         </div>
 
         {/* Footer hint */}
         <div className="quest-menu-footer">
           <p className="quest-menu-hint">
-            {activeTab === 'active' 
+            {activeTab === 'active'
               ? 'Click a quest to track it in your quest tracker'
-              : 'Completed quests and their rewards'}
+              : activeTab === 'completed'
+              ? 'Completed quests and their rewards'
+              : 'Top players ranked by completed quests'}
           </p>
         </div>
       </div>
@@ -136,9 +154,10 @@ interface ActiveQuestListProps {
   onQuestClick: (questId: string) => void;
   onRemoveQuest: (questId: string) => void;
   onCompleteQuest: (questId: string) => void;
+  objectiveProgress: QuestProgressMap;
 }
 
-function ActiveQuestList({ quests, selectedQuestId, onQuestClick, onRemoveQuest, onCompleteQuest }: ActiveQuestListProps) {
+function ActiveQuestList({ quests, selectedQuestId, onQuestClick, onRemoveQuest, onCompleteQuest, objectiveProgress }: ActiveQuestListProps) {
   const handleRemoveClick = (e: React.MouseEvent, questId: string) => {
     e.stopPropagation(); // Prevent quest selection when clicking remove button
     onRemoveQuest(questId);
@@ -181,6 +200,15 @@ function ActiveQuestList({ quests, selectedQuestId, onQuestClick, onRemoveQuest,
             </div>
           </div>
           <p className="quest-menu-item-desc">{quest.smalldesc}</p>
+
+          {/* Objective progress (only shown when the quest has structured objectives) */}
+          {quest.objectives && quest.objectives.length > 0 && (
+            <ObjectiveList
+              objectives={quest.objectives}
+              progress={objectiveProgress[quest.id] ?? {}}
+            />
+          )}
+
           <div className="quest-menu-item-rewards">
             <span className="quest-menu-item-reward">⭐ {quest.Reward.Points} Points</span>
             {quest.Reward.Cosmetic && (
@@ -196,6 +224,118 @@ function ActiveQuestList({ quests, selectedQuestId, onQuestClick, onRemoveQuest,
           >
             ✓ Complete Quest (TEST)
           </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// Objective List — renders per-objective progress inside a quest card
+// ============================================================================
+
+interface ObjectiveListProps {
+  objectives: QuestObjective[];
+  progress: Record<string, QuestObjectiveProgress[string]>;
+}
+
+function ObjectiveList({ objectives, progress }: ObjectiveListProps) {
+  return (
+    <ul className="quest-objective-list">
+      {objectives.map((obj) => {
+        const prog = progress[obj.id];
+        const done = prog?.completed ?? false;
+        const current = prog?.currentValue ?? 0;
+        const required = obj.requiredValue ?? 1;
+        const isBinary = required === 1;
+
+        return (
+          <li key={obj.id} className={`quest-objective ${done ? 'done' : ''}`}>
+            <span className="quest-objective-check">{done ? '✓' : '○'}</span>
+            <span className="quest-objective-desc">{obj.description}</span>
+            {!isBinary && (
+              <span className="quest-objective-count">
+                {current}/{required}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ============================================================================
+// SG9: Leaderboard — fetches top players by completed quest count
+// ============================================================================
+
+interface LeaderboardEntry {
+  username: string;
+  realName: string;
+  completedCount: number;
+  rank: number;
+}
+
+function LeaderboardPanel() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [lbLoading, setLbLoading] = useState(true);
+  const [lbError, setLbError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchLeaderboard() {
+      try {
+        setLbLoading(true);
+        setLbError(null);
+        // Query top 10 players ordered by completed quest count (descending).
+        // Note: Firestore cannot order by array length natively, so we fetch
+        // and sort client-side. For large datasets, maintain a denormalised counter.
+        const playersRef = collection(db, COLLECTIONS.PLAYER);
+        const snap = await getDocs(query(playersRef, limit(50)));
+        if (cancelled) return;
+
+        const sorted: LeaderboardEntry[] = snap.docs
+          .map((d) => {
+            const data = d.data();
+            return {
+              username: data.Username ?? d.id,
+              realName: data.RealName ?? "",
+              completedCount: Array.isArray(data.CompletedQuests) ? data.CompletedQuests.length : 0,
+              rank: 0,
+            };
+          })
+          .sort((a, b) => b.completedCount - a.completedCount)
+          .slice(0, 10)
+          .map((e, i) => ({ ...e, rank: i + 1 }));
+
+        setEntries(sorted);
+      } catch (err) {
+        if (!cancelled) setLbError("Failed to load leaderboard.");
+        console.error("[LeaderboardPanel] Error fetching players:", err);
+      } finally {
+        if (!cancelled) setLbLoading(false);
+      }
+    }
+    void fetchLeaderboard();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (lbLoading) return <div className="quest-menu-empty"><p>Loading leaderboard…</p></div>;
+  if (lbError) return <div className="quest-menu-empty"><p>{lbError}</p></div>;
+  if (entries.length === 0) return <div className="quest-menu-empty"><p>No players found.</p></div>;
+
+  const medalEmoji = (rank: number) => rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+
+  return (
+    <div className="quest-menu-list">
+      {entries.map((entry) => (
+        <div key={entry.username} className="quest-menu-item leaderboard-entry">
+          <span className="leaderboard-rank">{medalEmoji(entry.rank)}</span>
+          <div className="leaderboard-info">
+            <span className="leaderboard-name">{entry.realName || entry.username}</span>
+            <span className="leaderboard-username">@{entry.username}</span>
+          </div>
+          <span className="leaderboard-count">{entry.completedCount} quests</span>
         </div>
       ))}
     </div>

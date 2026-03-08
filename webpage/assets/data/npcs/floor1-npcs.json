@@ -82,5 +82,33 @@
       "office": "Room 109",
       "bio": "Teaches Data Structures and Algorithms"
     }
+  },
+  {
+    "id": "quest_master",
+    "name": "Quest Master Rex",
+    "role": "Quest Giver",
+    "floor": 1,
+    "position": {
+      "x": 800,
+      "y": 500
+    },
+    "sprite": {
+      "key": "_placeholder",
+      "tint": 16711935,
+      "scale": 1
+    },
+    "interaction": {
+      "radius": 80,
+      "prompt": "Press E to talk"
+    },
+    "dialogue": {
+      "treeId": "quest-master-greeting",
+      "defaultNode": "quest-master-greeting"
+    },
+    "metadata": {
+      "department": "Quest Office",
+      "office": "Room 100",
+      "bio": "Distributes and tracks all campus quests for adventurous students"
+    }
   }
 ]

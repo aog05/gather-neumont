@@ -75,17 +75,23 @@ export class DialogueManager {
   public async loadTree(treeId: string, npcName?: string): Promise<void> {
     // Check cache first
     if (this.trees.has(treeId)) {
+      console.log(`[DialogueManager] ✅ Tree cache hit: "${treeId}"`);
       return;
     }
+
+    console.log(`[DialogueManager] 🔄 Loading tree from Firestore: "${treeId}"${npcName ? ` (NPC: ${npcName})` : ''}`);
 
     try {
       // Load from Firestore using the dialogue service
       const tree = await firestoreDialogueService.loadDialogueTree(treeId, npcName);
       this.trees.set(treeId, tree);
 
-      console.log(`Loaded dialogue tree from Firestore: ${treeId}${npcName ? ` for NPC: ${npcName}` : ''}`);
+      console.log(
+        `[DialogueManager] ✅ Tree loaded: "${treeId}" → rootId="${tree.id}", ` +
+        `nodes=[${Object.keys(tree.nodes).join(", ")}]`
+      );
     } catch (error) {
-      console.error(`Error loading dialogue tree ${treeId}:`, error);
+      console.error(`[DialogueManager] ❌ FAILED to load dialogue tree "${treeId}":`, error);
       throw error;
     }
   }
@@ -103,16 +109,21 @@ export class DialogueManager {
     startNodeId: string = "start",
     npcName?: string,
   ): Promise<void> {
+    console.log(`[DialogueManager] 🗣️ startDialogue called — npcId="${npcId}" treeId="${treeId}" startNodeId="${startNodeId}" npcName="${npcName}"`);
+
     // Load tree if not cached
     if (!this.trees.has(treeId)) {
+      console.log(`[DialogueManager] Tree not cached, loading...`);
       await this.loadTree(treeId, npcName);
     }
 
     const tree = this.trees.get(treeId);
     if (!tree) {
-      console.error(`Dialogue tree not found: ${treeId}`);
+      console.error(`[DialogueManager] ❌ Tree not in cache after load — treeId="${treeId}". Dialogue will NOT open.`);
       return;
     }
+
+    console.log(`[DialogueManager] Tree resolved — rootId="${tree.id}", nodeCount=${Object.keys(tree.nodes).length}, nodes=[${Object.keys(tree.nodes).join(", ")}]`);
 
     // Set current tree and node
     this.currentTree = tree;
@@ -121,19 +132,25 @@ export class DialogueManager {
     // Fallback: the NPC config's defaultNode may be a human-readable ID (e.g. "walsh-greeting")
     // while tree.nodes is keyed by Firestore document IDs. If the lookup fails, fall back to
     // the tree root node which is always keyed by tree.id (the Firestore root document ID).
-    if (!this.currentNode && tree.nodes[tree.id]) {
+    if (!this.currentNode) {
       console.warn(
-        `[DialogueManager] Start node '${startNodeId}' not found in tree nodes — ` +
-        `falling back to tree root '${tree.id}'. ` +
-        `(NPC config 'defaultNode' should match a Firestore document ID, not the treeId string.)`
+        `[DialogueManager] ⚠️ Start node "${startNodeId}" not found in tree.nodes. ` +
+        `Available: [${Object.keys(tree.nodes).join(", ")}]. ` +
+        `Attempting fallback to tree root "${tree.id}"...`
       );
-      startNodeId = tree.id;
-      this.currentNode = tree.nodes[tree.id];
+      if (tree.nodes[tree.id]) {
+        startNodeId = tree.id;
+        this.currentNode = tree.nodes[tree.id];
+        console.log(`[DialogueManager] ✅ Fallback succeeded — using root node "${startNodeId}"`);
+      }
+    } else {
+      console.log(`[DialogueManager] ✅ Start node found: "${startNodeId}" (type="${this.currentNode.type}")`);
     }
 
     if (!this.currentNode) {
-      console.error(`Start node not found: ${startNodeId}`);
-      console.error(`Available nodes:`, Object.keys(tree.nodes));
+      console.error(`[DialogueManager] ❌ Could not resolve any start node for tree "${treeId}". Dialogue will NOT open.`);
+      console.error(`[DialogueManager]    startNodeId tried: "${startNodeId}", tree.id: "${tree.id}"`);
+      console.error(`[DialogueManager]    Available nodes: [${Object.keys(tree.nodes).join(", ")}]`);
       return;
     }
 
@@ -154,23 +171,25 @@ export class DialogueManager {
       this.currentNode.conditions &&
       !this.evaluateConditions(this.currentNode.conditions)
     ) {
-      console.warn(`Node ${startNodeId} conditions not met, ending dialogue`);
+      console.warn(`[DialogueManager] ⚠️ Node "${startNodeId}" conditions not met — ending dialogue without showing popup`);
       this.endDialogue();
       return;
     }
 
     // Execute node actions
     if (this.currentNode.actions) {
+      console.log(`[DialogueManager] Executing ${this.currentNode.actions.length} actions for node "${startNodeId}"`);
       this.executeActions(this.currentNode.actions);
     }
 
-    // Emit dialogue:start event
+    // Emit dialogue:start event to React UI
+    console.log(`[DialogueManager] 📡 Emitting dialogue:start → npcId="${npcId}", nodeId="${startNodeId}", speaker="${this.currentNode.speaker}", text="${this.currentNode.text?.slice(0, 60)}..."`);
     this.bridge.emit("dialogue:start", {
       npcId,
       node: this.currentNode,
     });
 
-    console.log(`Started dialogue: ${treeId} at node ${startNodeId}`);
+    console.log(`[DialogueManager] ✅ dialogue:start emitted — popup should now appear`);
   }
 
   /**
@@ -385,11 +404,19 @@ export class DialogueManager {
             this.gameState.setFlag(action.data.flag, action.data.value ?? true);
           }
           break;
+        case "startQuest":
+          // SG8: Shorthand action type for starting a quest via NPC dialogue
+          if (action.data.questId) {
+            void this.gameState.startQuest(action.data.questId);
+          } else {
+            console.warn(`[DialogueManager] startQuest action missing questId:`, action.data);
+          }
+          break;
         case "quest":
           if (action.data.questId && action.data.action === "start") {
-            this.gameState.startQuest(action.data.questId, action.data);
+            void this.gameState.startQuest(action.data.questId, action.data);
           } else if (action.data.questId && action.data.action === "complete") {
-            this.gameState.completeQuest(action.data.questId, action.data);
+            void this.gameState.completeQuest(action.data.questId, action.data);
           }
           break;
         case "item":

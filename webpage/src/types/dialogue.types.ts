@@ -75,10 +75,17 @@ export interface DialogueResponse {
 
 /**
  * Action to execute when a dialogue node is reached
+ *
+ * Supported types:
+ * - 'quest'      → data: { questId, action: 'start' | 'complete' }
+ * - 'startQuest' → data: { questId } (SG8: shorthand for starting a quest via dialogue)
+ * - 'item'       → data: { itemId, action: 'grant' | 'remove', quantity? }
+ * - 'flag'       → data: { flag, value? }
+ * - 'custom'     → data: any
  */
 export interface DialogueAction {
   /** Type of action to perform */
-  type: 'quest' | 'item' | 'flag' | 'custom';
+  type: 'quest' | 'startQuest' | 'item' | 'flag' | 'custom';
 
   /** Action-specific data */
   data: {

@@ -3,13 +3,16 @@ import { GroundFloor } from "./maps/GroundFloor";
 import { NPCManager } from "../entities/NPCManager";
 import { QuizTerminalManager } from "../entities/QuizTerminalManager";
 import { ForumTerminalManager } from "../entities/ForumTerminalManager";
+import { LocationZoneManager } from "../entities/LocationZoneManager";
 import { DialogueManager } from "../systems/DialogueManager";
+import { QuestTriggerSystem } from "../systems/QuestTriggerSystem";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
 import {
   AnalyticsService,
   AnalyticsEventType,
 } from "../services/analytics.service";
+import locationZonesConfig from "../config/location-zones.json";
 
 const PLAYER_SPEED = 200;
 const PLAYER_SIZE = 50;
@@ -32,7 +35,9 @@ export class MainScene extends Phaser.Scene {
   private npcManager!: NPCManager;
   private quizTerminalManager!: QuizTerminalManager;
   private forumTerminalManager!: ForumTerminalManager;
+  private locationZoneManager!: LocationZoneManager;
   private dialogueManager!: DialogueManager;
+  private questTriggerSystem!: QuestTriggerSystem;
   private gameState!: GameState;
   private bridge!: GameEventBridge;
   private playerState: "EXPLORING" | "DIALOGUE" = "EXPLORING";
@@ -183,6 +188,14 @@ export class MainScene extends Phaser.Scene {
 
     this.dialogueManager = new DialogueManager(this.gameState, this.bridge);
 
+    // Initialize QuestTriggerSystem (master event-driven quest evaluator)
+    this.questTriggerSystem = new QuestTriggerSystem(this.gameState, this.bridge);
+    void this.questTriggerSystem.init("sarah_dev");
+
+    // Initialize LocationZoneManager with zones from config
+    this.locationZoneManager = new LocationZoneManager(this, this.bridge);
+    this.locationZoneManager.loadFromConfig(locationZonesConfig);
+
     // Initialize analytics service and track session start
     this.analyticsService = AnalyticsService.getInstance();
     this.analyticsService.trackSessionStart("sarah_dev");
@@ -191,6 +204,11 @@ export class MainScene extends Phaser.Scene {
       "sarah_dev",
       { scene: "MainScene", floor: "ground" },
     );
+
+    // SG7: Emit the initial floor so useQuestData can gate quests correctly.
+    // Ground floor = 1. When a staircase / elevator system is added, emit this
+    // event again whenever the player transitions between floors.
+    this.bridge.emit("player:floor:changed", { floor: 1 });
 
     // Initialize NPC system with shared interaction key
     this.npcManager = new NPCManager(this, this.interactionKey);
@@ -275,6 +293,7 @@ export class MainScene extends Phaser.Scene {
     this.forumTerminalManager.updateProximity(this.player);
     this.quizTerminalManager.updateProximity(this.player);
     this.npcManager.updateProximity(this.player);
+    this.locationZoneManager.update(this.player);
 
     // Phase 2: if E was pressed this frame, dispatch to closest in-range interactable.
     if (eJustDown) {

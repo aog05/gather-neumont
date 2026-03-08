@@ -11,6 +11,12 @@ import type { Player, Quest } from '../types/firestore.types';
 import FirestoreHelpers from '../lib/firestore-helpers';
 import { COLLECTIONS } from '../lib/firebase';
 import { GameEventBridge } from '../systems/GameEventBridge';
+import type {
+  QuestObjectiveUpdatedPayload,
+  QuestProgressMap,
+  QuestRevealedPayload,
+  PlayerFloorChangedPayload,
+} from '../types/quest.types';
 
 export interface QuestData {
   activeQuests: Quest[];
@@ -18,6 +24,10 @@ export interface QuestData {
   player: Player | null;
   loading: boolean;
   error: string | null;
+  /** Live in-memory objective progress, updated without re-fetch */
+  objectiveProgress: QuestProgressMap;
+  /** Current player floor for floor-gating (SG7) */
+  currentFloor: number | null;
 }
 
 /**
@@ -32,6 +42,11 @@ export function useQuestData(username: string): QuestData {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [objectiveProgress, setObjectiveProgress] = useState<QuestProgressMap>({});
+  /** SG6: Quest IDs that have been explicitly revealed from hidden state */
+  const [revealedQuestIds, setRevealedQuestIds] = useState<Set<string>>(new Set());
+  /** SG7: Current player floor for floor-gating */
+  const [currentFloor, setCurrentFloor] = useState<number | null>(null);
   const bridgeRef = useRef<GameEventBridge>(GameEventBridge.getInstance());
 
   // Listen for quest events to trigger refresh
@@ -53,14 +68,42 @@ export function useQuestData(username: string): QuestData {
       setRefreshTrigger(prev => prev + 1);
     };
 
+    const handleObjectiveUpdated = (p: QuestObjectiveUpdatedPayload) => {
+      setObjectiveProgress(prev => ({
+        ...prev,
+        [p.questId]: {
+          ...(prev[p.questId] ?? {}),
+          [p.objectiveId]: { currentValue: p.currentValue, completed: p.completed },
+        },
+      }));
+    };
+
+    /** SG6: Reveal a hidden quest by adding it to the local revealed set */
+    const handleQuestRevealed = (p: QuestRevealedPayload) => {
+      console.log(`[useQuestData] Quest revealed: ${p.questId}`);
+      setRevealedQuestIds(prev => new Set([...prev, p.questId]));
+    };
+
+    /** SG7: Update the current floor when the player changes floors */
+    const handleFloorChanged = (p: PlayerFloorChangedPayload) => {
+      console.log(`[useQuestData] Player floor changed to: ${p.floor}`);
+      setCurrentFloor(p.floor);
+    };
+
     bridge.on("quest:started", handleQuestStarted);
     bridge.on("quest:completed", handleQuestCompleted);
     bridge.on("quest:removed", handleQuestRemoved);
+    bridge.on("quest:objective:updated", handleObjectiveUpdated);
+    bridge.on("quest:revealed", handleQuestRevealed);
+    bridge.on("player:floor:changed", handleFloorChanged);
 
     return () => {
       bridge.off("quest:started", handleQuestStarted);
       bridge.off("quest:completed", handleQuestCompleted);
       bridge.off("quest:removed", handleQuestRemoved);
+      bridge.off("quest:objective:updated", handleObjectiveUpdated);
+      bridge.off("quest:revealed", handleQuestRevealed);
+      bridge.off("player:floor:changed", handleFloorChanged);
     };
   }, []);
 
@@ -95,6 +138,12 @@ export function useQuestData(username: string): QuestData {
 
         setPlayer(playerDoc);
 
+        // SG6: Seed revealed quest IDs from the player's Firestore record
+        const firestoreRevealed: string[] = (playerDoc as any).revealedQuests ?? [];
+        if (firestoreRevealed.length > 0) {
+          setRevealedQuestIds(prev => new Set([...prev, ...firestoreRevealed]));
+        }
+
         // Fetch all active quest details
         console.log(`[useQuestData] Fetching ${playerDoc.ActiveQuests.length} active quests...`);
         const activeQuestPromises = playerDoc.ActiveQuests.map(async (questId) => {
@@ -105,8 +154,15 @@ export function useQuestData(username: string): QuestData {
           return quest;
         });
         const activeQuestResults = await Promise.all(activeQuestPromises);
-        const activeQuestsFiltered = activeQuestResults.filter((q): q is Quest => q !== null);
-        console.log(`[useQuestData] Loaded ${activeQuestsFiltered.length} active quests`);
+        // SG6: Filter out hidden quests that haven't been revealed yet
+        // SG7: Filter by current floor (null floor on quest means show on all floors)
+        const activeQuestsFiltered = activeQuestResults.filter((q): q is Quest => {
+          if (!q) return false;
+          if (q.hidden && !firestoreRevealed.includes(q.id)) return false;
+          if (q.floor !== undefined && currentFloor !== null && q.floor !== currentFloor) return false;
+          return true;
+        });
+        console.log(`[useQuestData] Loaded ${activeQuestsFiltered.length} active quests (after SG6/SG7 filter)`);
 
         // Fetch all completed quest details
         console.log(`[useQuestData] Fetching ${playerDoc.CompletedQuests.length} completed quests...`);
@@ -125,6 +181,12 @@ export function useQuestData(username: string): QuestData {
 
         setActiveQuests(activeQuestsFiltered);
         setCompletedQuests(completedQuestsFiltered);
+
+        // Seed in-memory objective progress from Firestore Player.QuestProgress
+        if (playerDoc.QuestProgress) {
+          setObjectiveProgress(playerDoc.QuestProgress as QuestProgressMap);
+        }
+
         setLoading(false);
 
         console.log(`[useQuestData] Quest data loaded successfully`, {
@@ -162,6 +224,8 @@ export function useQuestData(username: string): QuestData {
     player,
     loading,
     error,
+    objectiveProgress,
+    currentFloor,
   };
 }
 

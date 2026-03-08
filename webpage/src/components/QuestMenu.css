@@ -465,3 +465,46 @@
   }
 }
 
+/* ===== Leaderboard (SG9) ===== */
+.leaderboard-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+
+.leaderboard-entry:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.leaderboard-rank {
+  font-size: 1.4rem;
+  min-width: 36px;
+  text-align: center;
+  font-weight: 700;
+  color: #a78bfa;
+}
+
+.leaderboard-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.leaderboard-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #f1f5f9;
+}
+
+.leaderboard-username {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.leaderboard-count {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+

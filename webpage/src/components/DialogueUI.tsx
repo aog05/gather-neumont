@@ -23,25 +23,43 @@ export default function DialogueUI() {
   const bridgeRef = useRef(GameEventBridge.getInstance());
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Log component mount/unmount
+  useEffect(() => {
+    console.log("[DialogueUI] 🟢 Component MOUNTED — event listeners will now be registered");
+    return () => {
+      console.log("[DialogueUI] 🔴 Component UNMOUNTED — event listeners removed");
+    };
+  }, []);
+
   // Listen for dialogue events
   useEffect(() => {
     const bridge = bridgeRef.current;
 
     const handleDialogueStart = (data: { npcId: string; node: DialogueNode }) => {
-      console.log("DialogueUI: Dialogue started", data);
+      console.log("[DialogueUI] ✅ dialogue:start received!", {
+        npcId: data.npcId,
+        nodeId: data.node?.id,
+        nodeType: data.node?.type,
+        speaker: data.node?.speaker,
+        text: data.node?.text?.slice(0, 80),
+      });
       setCurrentNode(data.node);
       setIsVisible(true);
       setCanAdvance(false);
     };
 
     const handleDialogueUpdate = (data: { node: DialogueNode }) => {
-      console.log("DialogueUI: Dialogue updated", data);
+      console.log("[DialogueUI] 🔄 dialogue:update received", {
+        nodeId: data.node?.id,
+        speaker: data.node?.speaker,
+        text: data.node?.text?.slice(0, 80),
+      });
       setCurrentNode(data.node);
       setCanAdvance(false);
     };
 
     const handleDialogueEnd = () => {
-      console.log("DialogueUI: Dialogue ended");
+      console.log("[DialogueUI] 🏁 dialogue:end received — hiding popup");
       setIsVisible(false);
       setCurrentNode(null);
       setDisplayedText("");
@@ -49,11 +67,13 @@ export default function DialogueUI() {
       setCanAdvance(false);
     };
 
+    console.log("[DialogueUI] 📡 Registering bridge listeners for dialogue:start / dialogue:update / dialogue:end");
     bridge.on("dialogue:start", handleDialogueStart);
     bridge.on("dialogue:update", handleDialogueUpdate);
     bridge.on("dialogue:end", handleDialogueEnd);
 
     return () => {
+      console.log("[DialogueUI] 🔕 Removing bridge listeners");
       bridge.off("dialogue:start", handleDialogueStart);
       bridge.off("dialogue:update", handleDialogueUpdate);
       bridge.off("dialogue:end", handleDialogueEnd);
@@ -141,8 +161,11 @@ export default function DialogueUI() {
 
   // Don't render if not visible
   if (!isVisible || !currentNode) {
+    // Only log the first time visibility flips to false to avoid spam
     return null;
   }
+
+  console.log("[DialogueUI] 🖼️ Rendering dialogue box — speaker:", currentNode.speaker, "| node:", currentNode.id);
 
   return (
     <div className="dialogue-overlay" onClick={isTyping ? handleSkip : undefined}>

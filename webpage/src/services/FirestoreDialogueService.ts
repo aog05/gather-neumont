@@ -36,18 +36,23 @@ export class FirestoreDialogueService {
 
     try {
       // Try to fetch by treeId first (stable identifier)
-      console.log(`[FirestoreDialogueService] Loading dialogue tree: ${treeIdOrDocId}${npcName ? ` for NPC: ${npcName}` : ''}`);
+      console.log(`[FirestoreDialogueService] 🔍 Querying Firestore by treeId="${treeIdOrDocId}"${npcName ? ` (NPC: ${npcName})` : ''}`);
       let rootDialogue = await FirestoreQueries.getDialogueByTreeId(treeIdOrDocId);
+      console.log(`[FirestoreDialogueService] getDialogueByTreeId result:`, rootDialogue ? `Found doc id="${rootDialogue.id}"` : "null (not found)");
 
       // If not found by treeId, try as Firestore document ID (fallback for legacy)
       if (!rootDialogue) {
-        console.log(`[FirestoreDialogueService] Not found by treeId, trying as document ID...`);
+        console.log(`[FirestoreDialogueService] ⚠️ Not found by treeId — retrying as raw Firestore document ID...`);
         rootDialogue = await this.getDialogueNode(treeIdOrDocId);
+        console.log(`[FirestoreDialogueService] getDialogueNode result:`, rootDialogue ? `Found doc id="${rootDialogue.id}"` : "null (not found)");
       }
 
       if (!rootDialogue) {
+        console.error(`[FirestoreDialogueService] ❌ Dialogue "${treeIdOrDocId}" not found by treeId OR document ID. Is the emulator running and data seeded?`);
         throw new Error(`Dialogue not found: ${treeIdOrDocId}`);
       }
+
+      console.log(`[FirestoreDialogueService] ✅ Root dialogue found — docId="${rootDialogue.id}", treeId="${rootDialogue.treeId}", paths:`, Object.keys(rootDialogue.Paths ?? {}));
 
       // Use the document ID for building the tree
       const rootId = rootDialogue.id;
@@ -62,10 +67,13 @@ export class FirestoreDialogueService {
       }
       this.cache.set(`${rootId}${npcName ? `_${npcName}` : ''}`, tree);
 
-      console.log(`[FirestoreDialogueService] Loaded dialogue tree: ${treeIdOrDocId} (treeId: ${rootDialogue.treeId})`);
+      console.log(
+        `[FirestoreDialogueService] ✅ Tree built: "${treeIdOrDocId}" ` +
+        `rootId="${tree.id}", nodes=[${Object.keys(tree.nodes).join(", ")}]`
+      );
       return tree;
     } catch (error) {
-      console.error(`Error loading dialogue tree ${treeIdOrDocId}:`, error);
+      console.error(`[FirestoreDialogueService] ❌ FAILED to load tree "${treeIdOrDocId}":`, error);
       throw error;
     }
   }

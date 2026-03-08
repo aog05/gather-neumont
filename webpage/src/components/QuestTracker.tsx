@@ -13,6 +13,7 @@
 
 import { useState } from 'react';
 import type { Quest } from '../types/firestore.types';
+import type { QuestProgressMap } from '../types/quest.types';
 import QuestMenu from './QuestMenu';
 import './QuestTracker.css';
 
@@ -37,6 +38,9 @@ interface QuestTrackerProps {
 
   /** Loading state */
   loading?: boolean;
+
+  /** Live objective progress from QuestTriggerSystem */
+  objectiveProgress?: QuestProgressMap;
 }
 
 export default function QuestTracker({
@@ -47,6 +51,7 @@ export default function QuestTracker({
   onRemoveQuest,
   onCompleteQuest,
   loading = false,
+  objectiveProgress = {},
 }: QuestTrackerProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -121,6 +126,7 @@ export default function QuestTracker({
           onRemoveQuest={onRemoveQuest}
           onCompleteQuest={onCompleteQuest}
           onClose={handleCloseMenu}
+          objectiveProgress={objectiveProgress}
         />
       )}
     </>

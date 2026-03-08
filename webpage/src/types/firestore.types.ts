@@ -6,6 +6,7 @@
  */
 
 import { Timestamp } from "firebase/firestore";
+import type { QuestObjective, QuestProgressMap } from "./quest.types";
 
 /**
  * Base interface for Firestore documents
@@ -293,6 +294,24 @@ export interface Player extends FirestoreDocument {
 
   /** Last completed quiz date key in local server time (YYYY-MM-DD) */
   lastCompletedDateKey?: string;
+
+  /**
+   * Per-quest, per-objective progress tracking.
+   * Structure: QuestProgress[questId][objectiveId] = { currentValue, completed }
+   */
+  QuestProgress?: QuestProgressMap;
+
+  /**
+   * Group the player belongs to for social/group quests (SG3).
+   * References a Group document ID.
+   */
+  groupId?: string;
+
+  /**
+   * Set of quest IDs that have been revealed from hidden state (SG6).
+   * Hidden quests appear in the UI only after being added here.
+   */
+  revealedQuests?: string[];
 }
 
 /**
@@ -384,6 +403,12 @@ export interface QuestReward {
 
   /** Cosmetic item ID awarded (empty string if none) */
   Cosmetic: string;
+
+  /**
+   * Firestore Cosmetic document ID to grant on completion (SG5).
+   * When set, the cosmetic is automatically added to Player.OwnedCosmetics.
+   */
+  CosmeticId?: string;
 }
 
 /**
@@ -402,9 +427,48 @@ export interface Quest extends FirestoreDocument {
 
   /**
    * Next quest in the chain (document ID)
-   * Empty string if this is the final quest in the chain
+   * Empty string if this is the final quest in the chain (SG2)
    */
   Next: string;
+
+  /**
+   * Structured objectives for this quest.
+   * Empty array for legacy quests without structured objectives.
+   */
+  objectives?: QuestObjective[];
+
+  /**
+   * Time limit in minutes to complete this quest after starting (SG1).
+   * Undefined means no time limit.
+   */
+  timeLimitMinutes?: number;
+
+  /**
+   * If true, quest objectives reset daily instead of completing permanently (SG4).
+   */
+  repeatable?: boolean;
+
+  /**
+   * How often a repeatable quest resets (SG4).
+   * 'daily' = resets at midnight, 'weekly' = resets on Monday.
+   */
+  resetCadence?: 'daily' | 'weekly';
+
+  /**
+   * If true, this quest is not shown in the QuestTracker/QuestMenu until revealed (SG6).
+   */
+  hidden?: boolean;
+
+  /**
+   * If set, this quest only appears for players on the matching floor (SG7).
+   * Undefined = available on all floors.
+   */
+  floor?: number;
+
+  /**
+   * If true, this is a group quest requiring group members to cooperate (SG3).
+   */
+  social?: boolean;
 }
 
 // ============================================================================

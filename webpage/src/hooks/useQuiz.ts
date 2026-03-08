@@ -3,6 +3,8 @@ import {
   AnalyticsService,
   AnalyticsEventType,
 } from "../services/analytics.service";
+import { GameEventBridge } from "../systems/GameEventBridge";
+import type { QuizCompletedPayload } from "../types/quest.types";
 
 function generateGuestToken(): string {
   return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
@@ -329,6 +331,14 @@ export function useQuiz(): UseQuizReturn {
               quizDate: data.quizDate,
             },
           );
+
+          // Notify QuestTriggerSystem so quest objectives can be evaluated
+          const questPayload: QuizCompletedPayload = {
+            totalPoints: data.totalPoints ?? 0,
+            streakDays: data.streakDays ?? 0,
+            quizzesCompleted: 1,
+          };
+          GameEventBridge.getInstance().emit("quiz:completed", questPayload);
 
           setQuestion(null);
           setState("completed");
