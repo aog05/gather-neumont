@@ -28,17 +28,16 @@ export class NPCManager {
   /** Current floor number */
   private currentFloor: number = 0;
 
-  /** Interaction key ('E' for talking to NPCs) - shared with QuizTerminalManager */
-  private interactionKey: Phaser.Input.Keyboard.Key;
-
   /** Currently nearest NPC within interaction range */
   private nearestNPC: NPC | null = null;
 
-  constructor(scene: Phaser.Scene, interactionKey: Phaser.Input.Keyboard.Key) {
+  /** Distance to the nearest in-range NPC, in pixels. */
+  private nearestInRangeDist = Infinity;
+
+  constructor(scene: Phaser.Scene, _interactionKey: Phaser.Input.Keyboard.Key) {
     this.scene = scene;
     this.npcs = new Map();
-    this.interactionKey = interactionKey;
-    console.log(`[NPCManager] Using shared E key for interaction`);
+    // interactionKey is no longer read here — MainScene dispatches E centrally.
   }
 
   /**
@@ -109,37 +108,28 @@ export class NPCManager {
   }
 
   /**
-   * Update all NPCs - check proximity and handle interaction
-   * Call this every frame from scene update()
+   * Phase-1 update: proximity check only. Call every frame before E dispatch.
    * @param player - The player game object
    */
-  public update(player: Phaser.GameObjects.GameObject): void {
-    if (!player) {
-      return;
-    }
-
-    // Update each NPC and track nearest one in range
+  public updateProximity(player: Phaser.GameObjects.GameObject): void {
+    if (!player) return;
     this.checkPlayerProximity(player);
+  }
 
-    // DEBUG: Log key state when key is down
-    if (this.interactionKey.isDown) {
-      console.log(`[NPCManager] 🔑 E key is DOWN - duration: ${this.interactionKey.duration}ms`);
-    }
+  /**
+   * Returns pixel distance to the nearest in-range NPC, or null if none in range.
+   */
+  public nearestInRangeDistance(): number | null {
+    if (!this.nearestNPC) return null;
+    return this.nearestInRangeDist;
+  }
 
-    // Handle interaction key press
-    // Note: Using shared key, so check NPC proximity first to avoid conflicts
-    const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
-
-    if (justDown) {
-      console.log(`[NPCManager] ⌨️ E key JustDown triggered!`);
-      console.log(`[NPCManager] nearestNPC: ${this.nearestNPC?.config.name || 'none'}, nearby: ${this.nearestNPC?.isPlayerNearby}`);
-
-      if (this.nearestNPC && this.nearestNPC.isPlayerNearby) {
-        console.log(`[NPCManager] ✅ Starting dialogue with ${this.nearestNPC.config.name}`);
-        this.nearestNPC.startDialogue();
-      } else {
-        console.log(`[NPCManager] ❌ No NPC in range`);
-      }
+  /**
+   * Phase-2 dispatch: start dialogue with nearest NPC if in range.
+   */
+  public tryInteract(): void {
+    if (this.nearestNPC?.isPlayerNearby) {
+      this.nearestNPC.startDialogue();
     }
   }
 
@@ -175,8 +165,8 @@ export class NPCManager {
       }
     }
 
-    // Update nearest NPC (for prioritizing interaction)
     this.nearestNPC = closestNPC;
+    this.nearestInRangeDist = closestDistance;
   }
 
   /**

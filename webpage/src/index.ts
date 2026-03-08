@@ -5,6 +5,7 @@ import { handleAuthApi } from "./server/api/auth";
 import { handleLeaderboardApi } from "./server/api/leaderboard";
 import { handleAdminApi } from "./server/api/admin";
 import { handleProfileApi } from "./server/api/profile";
+import { handleChatApi } from "./server/api/chat";
 
 const projectRoot = join(import.meta.dir, "..");
 const distDir = normalize(join(projectRoot, "dist"));
@@ -75,6 +76,7 @@ async function apiHandler(req: Request): Promise<Response> {
   if (url.pathname.startsWith("/api/profile")) return handleProfileApi(req);
   if (url.pathname.startsWith("/api/leaderboard")) return handleLeaderboardApi(req);
   if (url.pathname.startsWith("/api/admin")) return handleAdminApi(req);
+  if (url.pathname.startsWith("/api/chat")) return handleChatApi(req);
 
   return Response.json({ error: "Not found", path: url.pathname }, { status: 404 });
 }

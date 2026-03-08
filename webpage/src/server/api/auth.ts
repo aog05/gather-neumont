@@ -102,7 +102,16 @@ async function handleLogin(req: Request): Promise<Response> {
   }
   const token = createSession(user);
   return jsonWithCookie(
-    { user: { id: user.id, username: user.username, isAdmin: !!user.isAdmin }, created },
+    {
+      user: {
+        id: user.id,
+        userId: user.id,
+        username: user.username,
+        isGuest: false,
+        isAdmin: !!user.isAdmin,
+      },
+      created,
+    },
     buildSessionCookie(token, SESSION_MAX_AGE_SECONDS)
   );
 }
@@ -146,7 +155,17 @@ async function handleMe(req: Request): Promise<Response> {
   );
 
   return jsonWithCookie(
-    { user: { id: user.id, username: user.username, isAdmin: !!user.isAdmin, hasProfile, profileComplete } },
+    {
+      user: {
+        id: user.id,
+        userId: user.id,
+        username: user.username,
+        isGuest: false,
+        isAdmin: !!user.isAdmin,
+        hasProfile,
+        profileComplete,
+      },
+    },
     buildSessionCookie(token, SESSION_MAX_AGE_SECONDS)
   );
 }

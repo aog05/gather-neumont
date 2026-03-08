@@ -9,13 +9,20 @@ type AuthContextValue = {
   continueAsGuest: () => void;
   login: (username: string) => Promise<void>;
   logout: () => Promise<void>;
-  refresh: () => Promise<{ username: string; isAdmin: boolean; profileComplete: boolean | null } | null>;
+  refresh: () => Promise<{
+    userId: string;
+    username: string;
+    isGuest: boolean;
+    isAdmin: boolean;
+    profileComplete: boolean | null;
+  } | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function toModeFromMe(me: AuthMe | undefined): AuthMode {
   if (!me) return "unknown";
+  if (me.isGuest) return "guest";
   return me.isAdmin ? "admin" : "user";
 }
 
@@ -28,13 +35,20 @@ function parseUserFromApi(
   const user = anyPayload.user ?? anyPayload.me ?? anyPayload;
   if (!user || typeof user !== "object") return undefined;
 
+  const userId = (user as any).userId ?? (user as any).id;
+  if (typeof userId !== "string" || !userId.trim()) return undefined;
+
   const username = (user as any).username;
   if (typeof username !== "string" || !username.trim()) return undefined;
 
+  const isGuest = Boolean((user as any).isGuest);
   const isAdmin = Boolean((user as any).isAdmin ?? (user as any).admin);
   const profileComplete =
     typeof (user as any).profileComplete === "boolean" ? Boolean((user as any).profileComplete) : null;
-  return { me: { username, isAdmin }, profileComplete };
+  return {
+    me: { userId, username, isGuest, isAdmin },
+    profileComplete,
+  };
 }
 
 export function AuthProvider(props: { children: React.ReactNode }) {
@@ -44,7 +58,13 @@ export function AuthProvider(props: { children: React.ReactNode }) {
   const [me, setMe] = useState<AuthMe | undefined>(undefined);
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
-  const refreshInFlight = useRef<Promise<{ username: string; isAdmin: boolean; profileComplete: boolean | null } | null> | null>(null);
+  const refreshInFlight = useRef<Promise<{
+    userId: string;
+    username: string;
+    isGuest: boolean;
+    isAdmin: boolean;
+    profileComplete: boolean | null;
+  } | null> | null>(null);
   const didInit = useRef(false);
 
   const continueAsGuest = useCallback(() => {
