@@ -152,8 +152,8 @@
 }
 
 .quiz-modal-close:hover {
-  color: var(--accent);
-  background: var(--surface-hover);
+  color: var(--accent-ink);
+  background: var(--accent);
   border-color: var(--accent);
 }
 
@@ -324,8 +324,9 @@
 }
 
 .quiz-btn-secondary:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--accent-soft);
   border-color: var(--accent);
+  color: var(--accent);
   box-shadow: none;
   transform: translateY(-1px);
 }

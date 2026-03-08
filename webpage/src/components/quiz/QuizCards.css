@@ -13,7 +13,7 @@
 .quiz-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .quiz-card {
@@ -32,7 +32,7 @@
   transition: all 0.2s ease;
   user-select: none;
   position: relative;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
   font-family: 'DIN 2014', 'Arial Narrow', 'Arial', sans-serif;
 }
 

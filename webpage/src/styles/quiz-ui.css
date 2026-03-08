@@ -739,6 +739,8 @@
 .quiz-panel-chrome-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
+  background: var(--accent-soft);
 }
 
 .quiz-panel-chrome-btn--close {
