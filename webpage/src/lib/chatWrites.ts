@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
   getDocs,
@@ -277,6 +279,18 @@ export async function createChatBanDirect(input: {
     liftedAt: null,
     liftedByUserId: null,
     liftedByUsername: null,
+  });
+}
+
+export async function toggleReactionDirect(
+  messageId: string,
+  emoji: string,
+  userId: string,
+  hasReacted: boolean
+): Promise<void> {
+  const messageRef = doc(db, "chat", "global", "messages", messageId);
+  await updateDoc(messageRef, {
+    [`reactions.${emoji}`]: hasReacted ? arrayRemove(userId) : arrayUnion(userId),
   });
 }
 

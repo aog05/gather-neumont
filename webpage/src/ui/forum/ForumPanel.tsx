@@ -45,11 +45,36 @@ export default function ForumPanel(props: ForumPanelProps) {
   const [reportDetails, setReportDetails] = useState("");
   const [reporting, setReporting] = useState(false);
   const sendAttemptRef = useRef<{ messageId: string; text: string } | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
 
   const reportedQueue = useReportedQueue(isOpen && isAdmin && activeTab === "admin");
   const quarantinedQueue = useQuarantinedQueue(isOpen && isAdmin && activeTab === "admin");
 
-  const sortedMessages = useMemo(() => messages, [messages]);
+  // Reversed so oldest is at the top, newest at the bottom (Discord-style).
+  // The Firestore query still fetches DESC; we flip in the UI only.
+  const sortedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+  // Scroll to bottom whenever the forum opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = setTimeout(() => {
+      const el = messageListRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 0);
+    return () => clearTimeout(id);
+  }, [isOpen]);
+
+  // Stick-to-bottom: scroll to bottom on new messages only if the user is
+  // already near the bottom (within 80px). This prevents disrupting users
+  // who are scrolled up reading older messages.
+  useEffect(() => {
+    if (loading || !isOpen) return;
+    if (stickToBottomRef.current) {
+      const el = messageListRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, loading, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -79,9 +104,8 @@ export default function ForumPanel(props: ForumPanelProps) {
 
   if (!isOpen) return null;
 
-  const onSubmitMessage = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!auth.me) return;
+  const doSend = async () => {
+    if (!auth.me || sending) return;
     const trimmed = composerText.trim();
     const currentAttempt = sendAttemptRef.current;
     const messageId =
@@ -113,6 +137,11 @@ export default function ForumPanel(props: ForumPanelProps) {
       setSending(false);
       console.debug("[ForumPanel] send loading reset", messageId);
     }
+  };
+
+  const onSubmitMessage = (event: React.FormEvent) => {
+    event.preventDefault();
+    void doSend();
   };
 
   const onSubmitReport = async (event: React.FormEvent) => {
@@ -189,24 +218,6 @@ export default function ForumPanel(props: ForumPanelProps) {
               </div>
             ) : null}
 
-            <div className="forum-message-list">
-              {loading ? <p className="forum-status-text">Loading messages...</p> : null}
-              {error ? <p className="lb-error">{error}</p> : null}
-              {!loading && !error && sortedMessages.length === 0 ? (
-                <p className="forum-status-text">No messages yet.</p>
-              ) : null}
-              {sortedMessages.map((message) => (
-                <MessageRow
-                  key={message.id}
-                  message={message}
-                  canReport={!isGuest}
-                  isAdmin={isAdmin}
-                  onReport={(target) => setReportTarget(target)}
-                  onOpenDetails={(target) => setSelectedMessage(target)}
-                />
-              ))}
-            </div>
-
             {hasMore ? (
               <button
                 type="button"
@@ -217,6 +228,34 @@ export default function ForumPanel(props: ForumPanelProps) {
                 {loadingOlder ? "Loading..." : "Load older"}
               </button>
             ) : null}
+
+            <div
+              className="forum-message-list"
+              ref={messageListRef}
+              onScroll={() => {
+                const el = messageListRef.current;
+                if (!el) return;
+                stickToBottomRef.current =
+                  el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+              }}
+            >
+              {loading ? <p className="forum-status-text">Loading messages...</p> : null}
+              {error ? <p className="lb-error">{error}</p> : null}
+              {!loading && !error && sortedMessages.length === 0 ? (
+                <p className="forum-status-text">No messages yet.</p>
+              ) : null}
+              {sortedMessages.map((message) => (
+                <MessageRow
+                  key={message.id}
+                  message={message}
+                  currentUserId={auth.me?.userId ?? null}
+                  canReport={!isGuest}
+                  isAdmin={isAdmin}
+                  onReport={(target) => setReportTarget(target)}
+                  onOpenDetails={(target) => setSelectedMessage(target)}
+                />
+              ))}
+            </div>
 
             {isGuest ? (
               <div className="quiz-panel-guest-notice forum-guest-cta">
@@ -234,7 +273,13 @@ export default function ForumPanel(props: ForumPanelProps) {
                 <textarea
                   value={composerText}
                   onChange={(event) => setComposerText(event.target.value)}
-                  placeholder="Send a message..."
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey && !sending) {
+                      event.preventDefault();
+                      void doSend();
+                    }
+                  }}
+                  placeholder="Send a message... (Enter to send, Shift+Enter for newline)"
                   maxLength={800}
                   rows={3}
                   disabled={sending}
@@ -290,7 +335,7 @@ export default function ForumPanel(props: ForumPanelProps) {
                   &ldquo;{reportTarget.text.slice(0, 120)}{reportTarget.text.length > 120 ? "…" : ""}&rdquo;
                 </p>
               ) : null}
-              <form onSubmit={onSubmitReport}>
+              <form className="forum-report-form" onSubmit={onSubmitReport}>
                 <label className="forum-field-label">
                   Reason
                   <select

@@ -9,6 +9,17 @@ function asStatus(value: unknown): ForumMessageStatus {
   return value === "quarantined" || value === "deleted" ? value : "active";
 }
 
+function asReactions(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string[]> = {};
+  for (const [emoji, users] of Object.entries(value as Record<string, unknown>)) {
+    if (Array.isArray(users)) {
+      result[emoji] = users.filter((u): u is string => typeof u === "string");
+    }
+  }
+  return result;
+}
+
 function asTimestamp(value: unknown): Timestamp | null {
   if (value && typeof (value as any).toDate === "function") {
     try {
@@ -47,6 +58,7 @@ export function mapForumMessageData(
     deletedByUserId:
       typeof data.deletedByUserId === "string" ? data.deletedByUserId : null,
     deletedReason: typeof data.deletedReason === "string" ? data.deletedReason : null,
+    reactions: asReactions(data.reactions),
   };
 }
 

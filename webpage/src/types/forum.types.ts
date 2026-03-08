@@ -21,6 +21,7 @@ export interface ForumMessage {
   deletedAt?: Timestamp | null;
   deletedByUserId?: string | null;
   deletedReason?: string | null;
+  reactions?: Record<string, string[]>;
 }
 
 export interface ForumReport {
