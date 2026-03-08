@@ -1,0 +1,760 @@
+/* ============================================================
+   Forum Panel — supplement to quiz-ui.css
+   All colors/spacing/radius tokens come from .quiz-ui vars.
+   Only forum-specific layout + new classes live here.
+   ============================================================ */
+
+/* ── Overlay backdrop ───────────────────────────────────── */
+.forum-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 960;
+  display: grid;
+  place-items: center;
+  background: var(--overlay-backdrop);
+  padding: 16px;
+}
+
+/* ── Panel shell — combined with .quiz-panel from quiz-ui ── */
+.forum-panel {
+  width: min(980px, 100%);
+  height: min(88vh, 900px);
+  display: flex;
+  flex-direction: column;
+  /* overflow:hidden intentionally omitted — quiz-panel corner accents need it off */
+}
+
+/* ── Active tab state (supplement to .quiz-panel-chrome-btn) */
+.forum-tab--active {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+}
+
+/* ── Chat view ───────────────────────────────────────────── */
+.forum-chat-view {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 20px 16px;
+  overflow: hidden;
+}
+
+/* ── Unavailable / error banner — uses .lb-error from quiz-ui */
+.forum-unavailable-banner {
+  /* lb-error already styles this; just override margin if needed */
+  margin: 0;
+}
+
+/* ── Pinned banner — supplement to .quiz-panel-user-strip ── */
+.forum-pinned-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  font-size: 13px;
+}
+
+.forum-pinned-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Message list ────────────────────────────────────────── */
+.forum-message-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.forum-message-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.forum-message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.forum-message-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0;
+}
+
+.forum-message-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* ── Message row — Discord-style stream ──────────────────── */
+.forum-message-row {
+  display: flex;
+  gap: 10px;
+  padding: 6px 20px;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+
+.forum-message-row:hover {
+  background: var(--surface);
+}
+
+.forum-message--admin {
+  border-left-color: var(--accent);
+}
+
+.forum-message--quarantined {
+  opacity: 0.5;
+}
+
+/* ── Avatar initial badge ────────────────────────────────── */
+.forum-msg-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: var(--surface-raised);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 3px;
+  user-select: none;
+}
+
+/* ── Message body ────────────────────────────────────────── */
+.forum-msg-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.forum-msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.forum-msg-author {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.forum-message--admin .forum-msg-author {
+  color: var(--accent);
+}
+
+.forum-msg-time {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.forum-msg-text {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* ── Reactions ───────────────────────────────────────────── */
+.forum-msg-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.forum-reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border: 2px solid var(--border);
+  background: var(--surface-raised);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.1s, background 0.1s;
+  line-height: 1.4;
+}
+
+.forum-reaction-pill:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.forum-reaction-pill:disabled {
+  cursor: default;
+}
+
+.forum-reaction-pill--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.forum-reaction-count {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.forum-reaction-add-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.forum-reaction-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.1s, border-color 0.1s, color 0.1s;
+  line-height: 1;
+}
+
+.forum-message-row:hover .forum-reaction-add {
+  opacity: 1;
+}
+
+.forum-reaction-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.forum-reaction-picker {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  gap: 2px;
+  padding: 5px 7px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-xs);
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.forum-reaction-picker button {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: var(--radius-xs);
+  transition: background 0.1s;
+  line-height: 1.3;
+}
+
+.forum-reaction-picker button:hover {
+  background: var(--surface-raised);
+}
+
+/* ── Message actions — visible on row hover ──────────────── */
+.forum-msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.forum-message-row:hover .forum-msg-actions {
+  opacity: 1;
+}
+
+.forum-msg-action-btn {
+  padding: 3px 9px !important;
+  font-size: 11px !important;
+}
+
+/* ── Status / empty-state text ───────────────────────────── */
+.forum-status-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+/* ── Load-older button ───────────────────────────────────── */
+.forum-load-older {
+  align-self: flex-start;
+}
+
+/* ── Composer ────────────────────────────────────────────── */
+.forum-composer {
+  border-top: 2px solid var(--border);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.forum-composer::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 60px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.forum-composer textarea,
+.forum-textarea,
+.forum-select,
+.forum-input,
+.forum-ban-form input {
+  width: 100%;
+  background: var(--panel);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  resize: vertical;
+}
+
+.forum-composer textarea:focus,
+.forum-textarea:focus,
+.forum-select:focus,
+.forum-input:focus,
+.forum-ban-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.forum-composer textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.forum-composer-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forum-char-count {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ── Guest CTA — supplement to .quiz-panel-guest-notice ─── */
+.forum-guest-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.forum-guest-cta p {
+  margin: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.forum-btn-primary,
+.forum-btn-secondary,
+.forum-btn-danger {
+  border: 2px solid transparent;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 14px;
+  transition: all 0.15s ease;
+}
+
+.forum-btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.forum-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.forum-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.forum-btn-secondary {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.forum-btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.forum-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.forum-btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--border-danger);
+}
+
+.forum-btn-danger:hover {
+  background: var(--danger-strong);
+  transform: translateY(-1px);
+}
+
+.forum-btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Admin tab shell ─────────────────────────────────────── */
+.forum-admin-tab {
+  min-height: 0;
+  flex: 1;
+  padding: 12px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.forum-admin-tab-header {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Admin list (reported/quarantined queues) ────────────── */
+.forum-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.forum-admin-list-item {
+  border: 2px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.12s ease;
+}
+
+.forum-admin-list-item:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+}
+
+.forum-admin-list-item-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.forum-admin-list-item-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.forum-admin-list-item-preview {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.forum-admin-list-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* ── Bans tab ────────────────────────────────────────────── */
+.forum-bans {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.forum-bans-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.forum-bans-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.forum-ban-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.forum-ban-row {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── Modals ──────────────────────────────────────────────── */
+.forum-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--overlay-backdrop);
+  z-index: 980;
+  padding: 16px;
+}
+
+/* Combined with .quiz-panel */
+.forum-report-modal {
+  width: min(520px, 100%);
+  max-height: min(90vh, 700px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.forum-report-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.forum-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forum-report-preview {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--surface-raised);
+  border-left: 4px solid var(--border-accent);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.forum-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.forum-modal-panel {
+  width: min(720px, 100%);
+  max-height: min(88vh, 860px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.forum-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 2px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.forum-modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 20px;
+  width: 60px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.forum-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.forum-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.forum-modal-author {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.forum-modal-text {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.forum-modal-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.forum-admin-actions,
+.forum-report-list {
+  border-top: 2px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.forum-admin-actions h4,
+.forum-report-list h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.forum-admin-actions h4::after,
+.forum-report-list h4::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 32px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.forum-modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.forum-action-loading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.forum-report-item {
+  border: 2px solid var(--border);
+  border-left: 4px solid var(--border-danger);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.forum-report-item p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ── Confirm state for two-click pattern ─────────────────── */
+.forum-btn-danger--confirm {
+  background: var(--danger-strong);
+  border-color: var(--danger);
+  animation: forum-confirm-pulse 1s ease-in-out infinite;
+}
+
+@keyframes forum-confirm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .forum-panel {
+    height: min(95vh, 900px);
+  }
+
+  .forum-ban-form {
+    grid-template-columns: 1fr;
+  }
+}

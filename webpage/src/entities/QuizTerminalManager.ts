@@ -17,76 +17,61 @@ import { QuizTerminal } from "./QuizTerminal";
  * ```
  */
 export class QuizTerminalManager {
-  /** Reference to the Phaser scene */
   private scene: Phaser.Scene;
-
-  /** Quiz terminal instance */
   private terminal: QuizTerminal | null = null;
+  private lastPlayerX = 0;
+  private lastPlayerY = 0;
 
-  /** Interaction key ('E' for starting quiz) - shared with NPCManager */
-  private interactionKey: Phaser.Input.Keyboard.Key;
-
-  constructor(scene: Phaser.Scene, interactionKey: Phaser.Input.Keyboard.Key) {
+  constructor(scene: Phaser.Scene, _interactionKey: Phaser.Input.Keyboard.Key) {
     this.scene = scene;
-    this.interactionKey = interactionKey;
-    console.log(`[QuizTerminalManager] Using shared E key for interaction`);
+    // interactionKey is no longer read here — MainScene dispatches E centrally.
   }
 
-  /**
-   * Create the quiz terminal at specified position
-   * @param x - X coordinate
-   * @param y - Y coordinate
-   */
   public createTerminal(x: number, y: number): QuizTerminal {
     if (this.terminal) {
       console.warn("Quiz terminal already exists");
       return this.terminal;
     }
 
-    // Create terminal
     this.terminal = new QuizTerminal(this.scene, x, y);
-
-    // Add to scene
     this.scene.add.existing(this.terminal);
-
-    // Add physics body (static, so player collides with it)
     this.scene.physics.add.existing(this.terminal, true);
 
     console.log(`Created quiz terminal at (${x}, ${y})`);
-
     return this.terminal;
   }
 
-  /**
-   * Update quiz terminal - check proximity and handle interaction
-   * Call this every frame from scene update()
-   * @param player - The player game object
-   */
-  public update(player: Phaser.GameObjects.GameObject): void {
-    if (!player || !this.terminal) {
-      return;
-    }
+  /** Phase-1 update: proximity check only. Call every frame before E dispatch. */
+  public updateProximity(player: Phaser.GameObjects.GameObject): void {
+    if (!player || !this.terminal) return;
 
-    // Update terminal proximity check
     this.terminal.update(player);
 
-    // Handle interaction key press only when player is near terminal.
-    // IMPORTANT: Phaser.Input.Keyboard.JustDown() consumes the _justDown flag,
-    // so it must NOT be called unconditionally — calling it here when the player
-    // is not nearby would silently eat the event and prevent NPCManager from
-    // detecting it on the same frame.
-    if (this.terminal.isPlayerNearby) {
-      const justDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
-      if (justDown) {
-        console.log(`[QuizTerminalManager] ✅ Starting quiz...`);
-        this.terminal.startQuiz();
-      }
+    const body = (player as any).body as Phaser.Physics.Arcade.Body | undefined;
+    if (body) {
+      this.lastPlayerX = body.x + body.halfWidth;
+      this.lastPlayerY = body.y + body.halfHeight;
     }
   }
 
-  /**
-   * Destroy the terminal and clean up
-   */
+  /** Returns pixel distance to terminal if player is in range, else null. */
+  public nearestInRangeDistance(): number | null {
+    if (!this.terminal?.isPlayerNearby) return null;
+    return Phaser.Math.Distance.Between(
+      this.terminal.x,
+      this.terminal.y,
+      this.lastPlayerX,
+      this.lastPlayerY,
+    );
+  }
+
+  /** Phase-2 dispatch: start quiz if player is in range. */
+  public tryInteract(): void {
+    if (this.terminal?.isPlayerNearby) {
+      this.terminal.startQuiz();
+    }
+  }
+
   public destroy(): void {
     if (this.terminal) {
       this.terminal.destroy();
@@ -94,10 +79,6 @@ export class QuizTerminalManager {
     }
   }
 
-  /**
-   * Get the terminal instance
-   * @returns Terminal instance or null
-   */
   public getTerminal(): QuizTerminal | null {
     return this.terminal;
   }

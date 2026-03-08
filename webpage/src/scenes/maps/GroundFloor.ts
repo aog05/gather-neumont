@@ -27,14 +27,23 @@ export class GroundFloor {
     const map = MapParser.parseMapFile(this.mapData, parsedTileset);
 
     map.tiles.forEach((tile) => {
-      const tileVisual = scene.add.rectangle(
+      const tileVisual = scene.add.tileSprite(
         tile.x,
         tile.y,
         MapParser.TILE_SIZE,
         MapParser.TILE_SIZE,
-        tile.obstacle ? 0xff0000 : 0x0000ff,
+        parsedTileset.image,
       );
       tileVisual.setOrigin(0, 0);
+      tileVisual.setCrop(
+        parsedTileset.textureFramesByTileId.get(tile.localTileId)?.frameX ?? 0,
+        parsedTileset.textureFramesByTileId.get(tile.localTileId)?.frameY ?? 0,
+        parsedTileset.textureFramesByTileId.get(tile.localTileId)?.frameWidth ??
+          parsedTileset.tileWidth,
+        parsedTileset.textureFramesByTileId.get(tile.localTileId)
+          ?.frameHeight ?? parsedTileset.tileHeight,
+      );
+      tileVisual.setDisplaySize(160, 160);
 
       if (tile.obstacle) {
         tile.collisionBoxes.forEach((collisionBox) => {

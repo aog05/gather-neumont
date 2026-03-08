@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GroundFloor } from "./maps/GroundFloor";
 import { NPCManager } from "../entities/NPCManager";
 import { QuizTerminalManager } from "../entities/QuizTerminalManager";
+import { ForumTerminalManager } from "../entities/ForumTerminalManager";
 import { DialogueManager } from "../systems/DialogueManager";
 import { GameState } from "../systems/GameState";
 import { GameEventBridge } from "../systems/GameEventBridge";
@@ -30,6 +31,7 @@ export class MainScene extends Phaser.Scene {
   };
   private npcManager!: NPCManager;
   private quizTerminalManager!: QuizTerminalManager;
+  private forumTerminalManager!: ForumTerminalManager;
   private dialogueManager!: DialogueManager;
   private gameState!: GameState;
   private bridge!: GameEventBridge;
@@ -50,6 +52,10 @@ export class MainScene extends Phaser.Scene {
     this.load.json(
       GROUND_FLOOR_TILESET_KEY,
       "assets/images/map/ground_floor/Wooden House.json",
+    );
+    this.load.image(
+      "Wooden House.png",
+      "assets/images/map/ground_floor/Wooden House.png",
     );
   }
 
@@ -142,6 +148,28 @@ export class MainScene extends Phaser.Scene {
     terminalLabel.setOrigin(0.5);
     terminalLabel.setDepth(3);
 
+    // Create forum terminal manager (same E-key + browser event pattern as quiz terminal).
+    this.forumTerminalManager = new ForumTerminalManager(
+      this,
+      this.interactionKey,
+    );
+    const forumTerminalX = npcCenterX + 150;
+    const forumTerminalY = npcCenterY - 150;
+    this.forumTerminalManager.createTerminal(forumTerminalX, forumTerminalY);
+
+    const forumLabel = this.add.text(
+      forumTerminalX,
+      forumTerminalY - 6,
+      "Forum",
+      {
+        fontSize: "14px",
+        color: "#ffffff",
+        fontStyle: "600",
+      },
+    );
+    forumLabel.setOrigin(0.5);
+    forumLabel.setDepth(3);
+
     // Configure camera to follow player
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(1.0);
@@ -180,12 +208,17 @@ export class MainScene extends Phaser.Scene {
         console.log(
           `Dialogue requested: NPC ${data.npcId}${data.npcName ? ` (${data.npcName})` : ""}, Tree ${data.treeId}`,
         );
-        this.dialogueManager.startDialogue(
+        void this.dialogueManager.startDialogue(
           data.npcId,
           data.treeId,
           data.startNode,
           data.npcName,
-        );
+        ).catch((error) => {
+          console.error(
+            `[MainScene] Failed to start dialogue for NPC ${data.npcId} (treeId=${data.treeId}, startNode=${data.startNode}). Check Firestore connectivity/rules/data for Dialogue reads.`,
+            error,
+          );
+        });
       },
     );
 
@@ -201,18 +234,52 @@ export class MainScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Dispatch E key to the single closest in-range interactable.
+   * Reads JustDown exactly once per frame to avoid the destructive _justDown flag bug.
+   */
+  private dispatchEInteraction(): void {
+    const candidates: Array<{ dist: number; idx: number; interact: () => void }> = [];
+
+    const fd = this.forumTerminalManager.nearestInRangeDistance();
+    if (fd !== null) {
+      candidates.push({ dist: fd, idx: 0, interact: () => { this.forumTerminalManager.tryInteract(); } });
+    }
+
+    const qd = this.quizTerminalManager.nearestInRangeDistance();
+    if (qd !== null) {
+      candidates.push({ dist: qd, idx: 1, interact: () => { this.quizTerminalManager.tryInteract(); } });
+    }
+
+    const nd = this.npcManager.nearestInRangeDistance();
+    if (nd !== null) {
+      candidates.push({ dist: nd, idx: 2, interact: () => { this.npcManager.tryInteract(); } });
+    }
+
+    // Sort by distance; use insertion index as deterministic tie-breaker.
+    candidates.sort((a, b) => a.dist - b.dist || a.idx - b.idx);
+    candidates[0]?.interact();
+  }
+
   override update(): void {
     if (!this.player || !this.player.body) {
       return;
     }
 
-    // IMPORTANT: Update quiz terminal BEFORE NPCs
-    // This ensures terminal gets priority for E key interaction
-    // when player is near terminal (prevents NPCManager from consuming JustDown)
-    this.quizTerminalManager.update(this.player);
+    // Read JustDown exactly once — Phaser.Input.Keyboard.JustDown is destructive
+    // (it clears the _justDown flag after the first read). All managers must use
+    // the pre-read value via dispatchEInteraction().
+    const eJustDown = Phaser.Input.Keyboard.JustDown(this.interactionKey);
 
-    // Update NPC system
-    this.npcManager.update(this.player);
+    // Phase 1: all managers update proximity (no key handling here).
+    this.forumTerminalManager.updateProximity(this.player);
+    this.quizTerminalManager.updateProximity(this.player);
+    this.npcManager.updateProximity(this.player);
+
+    // Phase 2: if E was pressed this frame, dispatch to closest in-range interactable.
+    if (eJustDown) {
+      this.dispatchEInteraction();
+    }
 
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
 

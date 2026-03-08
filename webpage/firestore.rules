@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // MVP: client-side writes for chat (no Firebase Auth in use).
+    // All chat/** paths are open for read and write.
+    // TODO: lock down with Firebase Auth rules before production.
+    match /chat/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Local dev support for NPC dialogue loading.
+    // NPC interaction reads from Dialogue (tree + nodes) and NPC (name lookup).
+    match /Dialogue/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /NPC/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Default deny for all other collections.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
